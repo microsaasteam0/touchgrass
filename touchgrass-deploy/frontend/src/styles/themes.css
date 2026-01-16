@@ -1,0 +1,1143 @@
+/* 
+ * TouchGrass Theme System
+ * Professional Business Themes - International Standards
+ * Version: 2.0.0
+ */
+
+/* ==========================================================================
+   1. Theme Variables
+   ========================================================================== */
+
+:root {
+  /* Light Theme (default for accessibility) */
+  --color-light-primary: #22C55E;
+  --color-light-primary-dark: #16A34A;
+  --color-light-primary-light: #4ADE80;
+  --color-light-secondary: #FBBF24;
+  --color-light-accent: #8B5CF6;
+  --color-light-success: #10B981;
+  --color-light-warning: #F59E0B;
+  --color-light-error: #EF4444;
+  --color-light-info: #3B82F6;
+  
+  --color-light-background: #FFFFFF;
+  --color-light-surface: #F8FAFC;
+  --color-light-surface-elevated: #FFFFFF;
+  --color-light-border: #E2E8F0;
+  --color-light-text: #0F172A;
+  --color-light-text-secondary: #64748B;
+  --color-light-text-tertiary: #94A3B8;
+  
+  /* Dark Theme */
+  --color-dark-primary: #22C55E;
+  --color-dark-primary-dark: #16A34A;
+  --color-dark-primary-light: #4ADE80;
+  --color-dark-secondary: #FBBF24;
+  --color-dark-accent: #8B5CF6;
+  --color-dark-success: #10B981;
+  --color-dark-warning: #F59E0B;
+  --color-dark-error: #EF4444;
+  --color-dark-info: #3B82F6;
+  
+  --color-dark-background: #0F172A;
+  --color-dark-surface: #1E293B;
+  --color-dark-surface-elevated: #334155;
+  --color-dark-border: #475569;
+  --color-dark-text: #F1F5F9;
+  --color-dark-text-secondary: #94A3B8;
+  --color-dark-text-tertiary: #64748B;
+  
+  /* Premium Theme */
+  --color-premium-primary: #FBBF24;
+  --color-premium-primary-dark: #F59E0B;
+  --color-premium-primary-light: #FCD34D;
+  --color-premium-secondary: #8B5CF6;
+  --color-premium-accent: #EC4899;
+  --color-premium-success: #10B981;
+  --color-premium-warning: #F59E0B;
+  --color-premium-error: #EF4444;
+  --color-premium-info: #3B82F6;
+  
+  --color-premium-background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  --color-premium-surface: rgba(30, 41, 59, 0.8);
+  --color-premium-surface-elevated: rgba(51, 65, 85, 0.8);
+  --color-premium-border: rgba(251, 191, 36, 0.3);
+  --color-premium-text: #FFFFFF;
+  --color-premium-text-secondary: #CBD5E1;
+  --color-premium-text-tertiary: #94A3B8;
+  
+  /* Shame Theme */
+  --color-shame-primary: #EF4444;
+  --color-shame-primary-dark: #DC2626;
+  --color-shame-primary-light: #F87171;
+  --color-shame-secondary: #F59E0B;
+  --color-shame-accent: #8B5CF6;
+  --color-shame-success: #10B981;
+  --color-shame-warning: #F59E0B;
+  --color-shame-error: #EF4444;
+  --color-shame-info: #3B82F6;
+  
+  --color-shame-background: linear-gradient(135deg, #1C1917 0%, #292524 100%);
+  --color-shame-surface: rgba(41, 37, 36, 0.8);
+  --color-shame-surface-elevated: rgba(68, 64, 60, 0.8);
+  --color-shame-border: rgba(239, 68, 68, 0.3);
+  --color-shame-text: #FCA5A5;
+  --color-shame-text-secondary: #FDA4AF;
+  --color-shame-text-tertiary: #F87171;
+  
+  /* Business Theme */
+  --color-business-primary: #3B82F6;
+  --color-business-primary-dark: #2563EB;
+  --color-business-primary-light: #60A5FA;
+  --color-business-secondary: #8B5CF6;
+  --color-business-accent: #06B6D4;
+  --color-business-success: #10B981;
+  --color-business-warning: #F59E0B;
+  --color-business-error: #EF4444;
+  --color-business-info: #3B82F6;
+  
+  --color-business-background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  --color-business-surface: rgba(30, 41, 59, 0.9);
+  --color-business-surface-elevated: rgba(51, 65, 85, 0.9);
+  --color-business-border: rgba(59, 130, 246, 0.3);
+  --color-business-text: #E2E8F0;
+  --color-business-text-secondary: #94A3B8;
+  --color-business-text-tertiary: #64748B;
+  
+  /* Spacing */
+  --spacing-unit: 0.25rem;
+  --spacing-1: calc(var(--spacing-unit) * 1);
+  --spacing-2: calc(var(--spacing-unit) * 2);
+  --spacing-3: calc(var(--spacing-unit) * 3);
+  --spacing-4: calc(var(--spacing-unit) * 4);
+  --spacing-6: calc(var(--spacing-unit) * 6);
+  --spacing-8: calc(var(--spacing-unit) * 8);
+  --spacing-12: calc(var(--spacing-unit) * 12);
+  --spacing-16: calc(var(--spacing-unit) * 16);
+  
+  /* Border Radius */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+  --radius-full: 9999px;
+  
+  /* Typography */
+  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-family-display: 'Cal Sans', 'Inter', sans-serif;
+  
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-size-5xl: 3rem;
+  --font-size-6xl: 3.75rem;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  /* Z-index */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  
+  /* Animation */
+  --transition-fast: 150ms;
+  --transition-normal: 300ms;
+  --transition-slow: 500ms;
+  --transition-very-slow: 1000ms;
+  
+  /* Theme Mode */
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   2. Light Theme
+   ========================================================================== */
+
+.theme-light {
+  color-scheme: light;
+  
+  /* Colors */
+  --color-primary: var(--color-light-primary);
+  --color-primary-dark: var(--color-light-primary-dark);
+  --color-primary-light: var(--color-light-primary-light);
+  --color-secondary: var(--color-light-secondary);
+  --color-accent: var(--color-light-accent);
+  --color-success: var(--color-light-success);
+  --color-warning: var(--color-light-warning);
+  --color-error: var(--color-light-error);
+  --color-info: var(--color-light-info);
+  
+  --color-background: var(--color-light-background);
+  --color-surface: var(--color-light-surface);
+  --color-surface-elevated: var(--color-light-surface-elevated);
+  --color-border: var(--color-light-border);
+  --color-text: var(--color-light-text);
+  --color-text-secondary: var(--color-light-text-secondary);
+  --color-text-tertiary: var(--color-light-text-tertiary);
+  
+  /* Component Colors */
+  --color-button-primary: var(--color-primary);
+  --color-button-primary-text: #FFFFFF;
+  --color-button-secondary: var(--color-surface);
+  --color-button-secondary-text: var(--color-text);
+  --color-button-outline-border: var(--color-border);
+  --color-button-outline-text: var(--color-text);
+  
+  --color-card-background: var(--color-surface);
+  --color-card-border: var(--color-border);
+  --color-card-shadow: var(--shadow-md);
+  
+  --color-input-background: var(--color-surface);
+  --color-input-border: var(--color-border);
+  --color-input-text: var(--color-text);
+  --color-input-placeholder: var(--color-text-tertiary);
+  
+  --color-navbar-background: var(--color-surface-elevated);
+  --color-navbar-border: var(--color-border);
+  --color-navbar-text: var(--color-text);
+  
+  --color-sidebar-background: var(--color-surface);
+  --color-sidebar-border: var(--color-border);
+  --color-sidebar-text: var(--color-text);
+  
+  --color-modal-backdrop: rgba(0, 0, 0, 0.5);
+  --color-modal-background: var(--color-surface-elevated);
+  --color-modal-border: var(--color-border);
+  --color-modal-text: var(--color-text);
+  
+  --color-tooltip-background: var(--color-text);
+  --color-tooltip-text: var(--color-background);
+  
+  --color-toast-success: var(--color-success);
+  --color-toast-warning: var(--color-warning);
+  --color-toast-error: var(--color-error);
+  --color-toast-info: var(--color-info);
+  --color-toast-background: var(--color-surface-elevated);
+  --color-toast-text: var(--color-text);
+  
+  --color-progress-background: var(--color-border);
+  --color-progress-fill: var(--color-primary);
+  
+  --color-avatar-background: var(--color-surface);
+  --color-avatar-border: var(--color-border);
+  
+  --color-badge-primary: var(--color-primary);
+  --color-badge-primary-text: #FFFFFF;
+  --color-badge-secondary: var(--color-secondary);
+  --color-badge-secondary-text: #FFFFFF;
+  --color-badge-success: var(--color-success);
+  --color-badge-success-text: #FFFFFF;
+  --color-badge-warning: var(--color-warning);
+  --color-badge-warning-text: #FFFFFF;
+  --color-badge-error: var(--color-error);
+  --color-badge-error-text: #FFFFFF;
+  
+  /* Scrollbar */
+  --color-scrollbar-track: var(--color-surface);
+  --color-scrollbar-thumb: var(--color-border);
+  --color-scrollbar-thumb-hover: var(--color-text-tertiary);
+}
+
+/* ==========================================================================
+   3. Dark Theme (Default)
+   ========================================================================== */
+
+.theme-dark {
+  color-scheme: dark;
+  
+  /* Colors */
+  --color-primary: var(--color-dark-primary);
+  --color-primary-dark: var(--color-dark-primary-dark);
+  --color-primary-light: var(--color-dark-primary-light);
+  --color-secondary: var(--color-dark-secondary);
+  --color-accent: var(--color-dark-accent);
+  --color-success: var(--color-dark-success);
+  --color-warning: var(--color-dark-warning);
+  --color-error: var(--color-dark-error);
+  --color-info: var(--color-dark-info);
+  
+  --color-background: var(--color-dark-background);
+  --color-surface: var(--color-dark-surface);
+  --color-surface-elevated: var(--color-dark-surface-elevated);
+  --color-border: var(--color-dark-border);
+  --color-text: var(--color-dark-text);
+  --color-text-secondary: var(--color-dark-text-secondary);
+  --color-text-tertiary: var(--color-dark-text-tertiary);
+  
+  /* Component Colors */
+  --color-button-primary: var(--color-primary);
+  --color-button-primary-text: #FFFFFF;
+  --color-button-secondary: var(--color-surface);
+  --color-button-secondary-text: var(--color-text);
+  --color-button-outline-border: var(--color-border);
+  --color-button-outline-text: var(--color-text);
+  
+  --color-card-background: var(--color-surface);
+  --color-card-border: var(--color-border);
+  --color-card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  
+  --color-input-background: rgba(255, 255, 255, 0.05);
+  --color-input-border: rgba(255, 255, 255, 0.1);
+  --color-input-text: var(--color-text);
+  --color-input-placeholder: var(--color-text-tertiary);
+  
+  --color-navbar-background: rgba(15, 23, 42, 0.8);
+  --color-navbar-border: rgba(255, 255, 255, 0.1);
+  --color-navbar-text: var(--color-text);
+  
+  --color-sidebar-background: var(--color-surface);
+  --color-sidebar-border: var(--color-border);
+  --color-sidebar-text: var(--color-text);
+  
+  --color-modal-backdrop: rgba(0, 0, 0, 0.8);
+  --color-modal-background: var(--color-surface-elevated);
+  --color-modal-border: var(--color-border);
+  --color-modal-text: var(--color-text);
+  
+  --color-tooltip-background: var(--color-surface-elevated);
+  --color-tooltip-text: var(--color-text);
+  
+  --color-toast-success: var(--color-success);
+  --color-toast-warning: var(--color-warning);
+  --color-toast-error: var(--color-error);
+  --color-toast-info: var(--color-info);
+  --color-toast-background: var(--color-surface-elevated);
+  --color-toast-text: var(--color-text);
+  
+  --color-progress-background: rgba(255, 255, 255, 0.1);
+  --color-progress-fill: var(--color-primary);
+  
+  --color-avatar-background: var(--color-surface);
+  --color-avatar-border: var(--color-border);
+  
+  --color-badge-primary: var(--color-primary);
+  --color-badge-primary-text: #FFFFFF;
+  --color-badge-secondary: var(--color-secondary);
+  --color-badge-secondary-text: #FFFFFF;
+  --color-badge-success: var(--color-success);
+  --color-badge-success-text: #FFFFFF;
+  --color-badge-warning: var(--color-warning);
+  --color-badge-warning-text: #FFFFFF;
+  --color-badge-error: var(--color-error);
+  --color-badge-error-text: #FFFFFF;
+  
+  /* Scrollbar */
+  --color-scrollbar-track: var(--color-surface);
+  --color-scrollbar-thumb: var(--color-border);
+  --color-scrollbar-thumb-hover: var(--color-primary);
+}
+
+/* ==========================================================================
+   4. Premium Theme
+   ========================================================================== */
+
+.theme-premium {
+  color-scheme: dark;
+  
+  /* Colors */
+  --color-primary: var(--color-premium-primary);
+  --color-primary-dark: var(--color-premium-primary-dark);
+  --color-primary-light: var(--color-premium-primary-light);
+  --color-secondary: var(--color-premium-secondary);
+  --color-accent: var(--color-premium-accent);
+  --color-success: var(--color-premium-success);
+  --color-warning: var(--color-premium-warning);
+  --color-error: var(--color-premium-error);
+  --color-info: var(--color-premium-info);
+  
+  --color-background: var(--color-premium-background);
+  --color-surface: var(--color-premium-surface);
+  --color-surface-elevated: var(--color-premium-surface-elevated);
+  --color-border: var(--color-premium-border);
+  --color-text: var(--color-premium-text);
+  --color-text-secondary: var(--color-premium-text-secondary);
+  --color-text-tertiary: var(--color-premium-text-tertiary);
+  
+  /* Component Colors */
+  --color-button-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  --color-button-primary-text: #FFFFFF;
+  --color-button-secondary: var(--color-surface);
+  --color-button-secondary-text: var(--color-text);
+  --color-button-outline-border: var(--color-border);
+  --color-button-outline-text: var(--color-text);
+  
+  --color-card-background: var(--color-surface);
+  --color-card-border: var(--color-border);
+  --color-card-shadow: 0 20px 40px rgba(251, 191, 36, 0.1);
+  
+  --color-input-background: rgba(255, 255, 255, 0.05);
+  --color-input-border: rgba(251, 191, 36, 0.2);
+  --color-input-text: var(--color-text);
+  --color-input-placeholder: var(--color-text-tertiary);
+  
+  --color-navbar-background: rgba(15, 23, 42, 0.9);
+  --color-navbar-border: var(--color-border);
+  --color-navbar-text: var(--color-text);
+  
+  --color-sidebar-background: var(--color-surface);
+  --color-sidebar-border: var(--color-border);
+  --color-sidebar-text: var(--color-text);
+  
+  --color-modal-backdrop: rgba(0, 0, 0, 0.9);
+  --color-modal-background: var(--color-surface-elevated);
+  --color-modal-border: var(--color-border);
+  --color-modal-text: var(--color-text);
+  
+  --color-tooltip-background: var(--color-surface-elevated);
+  --color-tooltip-text: var(--color-text);
+  
+  --color-toast-success: var(--color-success);
+  --color-toast-warning: var(--color-warning);
+  --color-toast-error: var(--color-error);
+  --color-toast-info: var(--color-info);
+  --color-toast-background: var(--color-surface-elevated);
+  --color-toast-text: var(--color-text);
+  
+  --color-progress-background: rgba(255, 255, 255, 0.1);
+  --color-progress-fill: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  
+  --color-avatar-background: var(--color-surface);
+  --color-avatar-border: var(--color-border);
+  
+  --color-badge-primary: var(--color-primary);
+  --color-badge-primary-text: #0F172A;
+  --color-badge-secondary: var(--color-secondary);
+  --color-badge-secondary-text: #FFFFFF;
+  --color-badge-success: var(--color-success);
+  --color-badge-success-text: #FFFFFF;
+  --color-badge-warning: var(--color-warning);
+  --color-badge-warning-text: #FFFFFF;
+  --color-badge-error: var(--color-error);
+  --color-badge-error-text: #FFFFFF;
+  
+  /* Premium Effects */
+  --premium-glow: 0 0 20px rgba(251, 191, 36, 0.3);
+  --premium-shine: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  
+  /* Scrollbar */
+  --color-scrollbar-track: var(--color-surface);
+  --color-scrollbar-thumb: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  --color-scrollbar-thumb-hover: linear-gradient(135deg, var(--color-primary-light), var(--color-secondary));
+}
+
+/* ==========================================================================
+   5. Shame Theme
+   ========================================================================== */
+
+.theme-shame {
+  color-scheme: dark;
+  
+  /* Colors */
+  --color-primary: var(--color-shame-primary);
+  --color-primary-dark: var(--color-shame-primary-dark);
+  --color-primary-light: var(--color-shame-primary-light);
+  --color-secondary: var(--color-shame-secondary);
+  --color-accent: var(--color-shame-accent);
+  --color-success: var(--color-shame-success);
+  --color-warning: var(--color-shame-warning);
+  --color-error: var(--color-shame-error);
+  --color-info: var(--color-shame-info);
+  
+  --color-background: var(--color-shame-background);
+  --color-surface: var(--color-shame-surface);
+  --color-surface-elevated: var(--color-shame-surface-elevated);
+  --color-border: var(--color-shame-border);
+  --color-text: var(--color-shame-text);
+  --color-text-secondary: var(--color-shame-text-secondary);
+  --color-text-tertiary: var(--color-shame-text-tertiary);
+  
+  /* Component Colors */
+  --color-button-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  --color-button-primary-text: #FFFFFF;
+  --color-button-secondary: var(--color-surface);
+  --color-button-secondary-text: var(--color-text);
+  --color-button-outline-border: var(--color-border);
+  --color-button-outline-text: var(--color-text);
+  
+  --color-card-background: var(--color-surface);
+  --color-card-border: var(--color-border);
+  --color-card-shadow: 0 10px 25px rgba(239, 68, 68, 0.1);
+  
+  --color-input-background: rgba(255, 255, 255, 0.03);
+  --color-input-border: rgba(239, 68, 68, 0.2);
+  --color-input-text: var(--color-text);
+  --color-input-placeholder: var(--color-text-tertiary);
+  
+  --color-navbar-background: rgba(28, 25, 23, 0.9);
+  --color-navbar-border: var(--color-border);
+  --color-navbar-text: var(--color-text);
+  
+  --color-sidebar-background: var(--color-surface);
+  --color-sidebar-border: var(--color-border);
+  --color-sidebar-text: var(--color-text);
+  
+  --color-modal-backdrop: rgba(0, 0, 0, 0.9);
+  --color-modal-background: var(--color-surface-elevated);
+  --color-modal-border: var(--color-border);
+  --color-modal-text: var(--color-text);
+  
+  --color-tooltip-background: var(--color-surface-elevated);
+  --color-tooltip-text: var(--color-text);
+  
+  --color-toast-success: var(--color-success);
+  --color-toast-warning: var(--color-warning);
+  --color-toast-error: var(--color-error);
+  --color-toast-info: var(--color-info);
+  --color-toast-background: var(--color-surface-elevated);
+  --color-toast-text: var(--color-text);
+  
+  --color-progress-background: rgba(255, 255, 255, 0.05);
+  --color-progress-fill: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  
+  --color-avatar-background: var(--color-surface);
+  --color-avatar-border: var(--color-border);
+  
+  --color-badge-primary: var(--color-primary);
+  --color-badge-primary-text: #FFFFFF;
+  --color-badge-secondary: var(--color-secondary);
+  --color-badge-secondary-text: #FFFFFF;
+  --color-badge-success: var(--color-success);
+  --color-badge-success-text: #FFFFFF;
+  --color-badge-warning: var(--color-warning);
+  --color-badge-warning-text: #FFFFFF;
+  --color-badge-error: var(--color-error);
+  --color-badge-error-text: #FFFFFF;
+  
+  /* Shame Effects */
+  --shame-pulse: 0 0 10px rgba(239, 68, 68, 0.5);
+  --shame-flicker: 0 0 20px rgba(239, 68, 68, 0.3);
+  
+  /* Scrollbar */
+  --color-scrollbar-track: var(--color-surface);
+  --color-scrollbar-thumb: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  --color-scrollbar-thumb-hover: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+}
+
+/* ==========================================================================
+   6. Business Theme
+   ========================================================================== */
+
+.theme-business {
+  color-scheme: dark;
+  
+  /* Colors */
+  --color-primary: var(--color-business-primary);
+  --color-primary-dark: var(--color-business-primary-dark);
+  --color-primary-light: var(--color-business-primary-light);
+  --color-secondary: var(--color-business-secondary);
+  --color-accent: var(--color-business-accent);
+  --color-success: var(--color-business-success);
+  --color-warning: var(--color-business-warning);
+  --color-error: var(--color-business-error);
+  --color-info: var(--color-business-info);
+  
+  --color-background: var(--color-business-background);
+  --color-surface: var(--color-business-surface);
+  --color-surface-elevated: var(--color-business-surface-elevated);
+  --color-border: var(--color-business-border);
+  --color-text: var(--color-business-text);
+  --color-text-secondary: var(--color-business-text-secondary);
+  --color-text-tertiary: var(--color-business-text-tertiary);
+  
+  /* Component Colors */
+  --color-button-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  --color-button-primary-text: #FFFFFF;
+  --color-button-secondary: var(--color-surface);
+  --color-button-secondary-text: var(--color-text);
+  --color-button-outline-border: var(--color-border);
+  --color-button-outline-text: var(--color-text);
+  
+  --color-card-background: var(--color-surface);
+  --color-card-border: var(--color-border);
+  --color-card-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  
+  --color-input-background: rgba(255, 255, 255, 0.05);
+  --color-input-border: rgba(59, 130, 246, 0.2);
+  --color-input-text: var(--color-text);
+  --color-input-placeholder: var(--color-text-tertiary);
+  
+  --color-navbar-background: rgba(15, 23, 42, 0.95);
+  --color-navbar-border: var(--color-border);
+  --color-navbar-text: var(--color-text);
+  
+  --color-sidebar-background: var(--color-surface);
+  --color-sidebar-border: var(--color-border);
+  --color-sidebar-text: var(--color-text);
+  
+  --color-modal-backdrop: rgba(0, 0, 0, 0.9);
+  --color-modal-background: var(--color-surface-elevated);
+  --color-modal-border: var(--color-border);
+  --color-modal-text: var(--color-text);
+  
+  --color-tooltip-background: var(--color-surface-elevated);
+  --color-tooltip-text: var(--color-text);
+  
+  --color-toast-success: var(--color-success);
+  --color-toast-warning: var(--color-warning);
+  --color-toast-error: var(--color-error);
+  --color-toast-info: var(--color-info);
+  --color-toast-background: var(--color-surface-elevated);
+  --color-toast-text: var(--color-text);
+  
+  --color-progress-background: rgba(255, 255, 255, 0.1);
+  --color-progress-fill: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  
+  --color-avatar-background: var(--color-surface);
+  --color-avatar-border: var(--color-border);
+  
+  --color-badge-primary: var(--color-primary);
+  --color-badge-primary-text: #FFFFFF;
+  --color-badge-secondary: var(--color-secondary);
+  --color-badge-secondary-text: #FFFFFF;
+  --color-badge-success: var(--color-success);
+  --color-badge-success-text: #FFFFFF;
+  --color-badge-warning: var(--color-warning);
+  --color-badge-warning-text: #FFFFFF;
+  --color-badge-error: var(--color-error);
+  --color-badge-error-text: #FFFFFF;
+  
+  /* Business Effects */
+  --business-glow: 0 0 30px rgba(59, 130, 246, 0.2);
+  --business-shine: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  
+  /* Scrollbar */
+  --color-scrollbar-track: var(--color-surface);
+  --color-scrollbar-thumb: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  --color-scrollbar-thumb-hover: linear-gradient(135deg, var(--color-primary-light), var(--color-accent));
+}
+
+/* ==========================================================================
+   7. Theme Application
+   ========================================================================== */
+
+/* Apply Theme Variables */
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family-base);
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--color-button-primary);
+  color: var(--color-button-primary-text);
+}
+
+.btn-secondary {
+  background: var(--color-button-secondary);
+  color: var(--color-button-secondary-text);
+}
+
+.btn-outline {
+  border-color: var(--color-button-outline-border);
+  color: var(--color-button-outline-text);
+}
+
+/* Cards */
+.card {
+  background: var(--color-card-background);
+  border-color: var(--color-card-border);
+  box-shadow: var(--color-card-shadow);
+}
+
+/* Forms */
+.form-control {
+  background: var(--color-input-background);
+  border-color: var(--color-input-border);
+  color: var(--color-input-text);
+}
+
+.form-control::placeholder {
+  color: var(--color-input-placeholder);
+}
+
+/* Navigation */
+.navbar {
+  background: var(--color-navbar-background);
+  border-color: var(--color-navbar-border);
+  color: var(--color-navbar-text);
+}
+
+.sidebar {
+  background: var(--color-sidebar-background);
+  border-color: var(--color-sidebar-border);
+  color: var(--color-sidebar-text);
+}
+
+/* Modals */
+.modal-backdrop {
+  background: var(--color-modal-backdrop);
+}
+
+.modal-content {
+  background: var(--color-modal-background);
+  border-color: var(--color-modal-border);
+  color: var(--color-modal-text);
+}
+
+/* Tooltips */
+.tooltip {
+  background: var(--color-tooltip-background);
+  color: var(--color-tooltip-text);
+}
+
+/* Toasts */
+.toast {
+  background: var(--color-toast-background);
+  color: var(--color-toast-text);
+}
+
+.toast-success {
+  border-left-color: var(--color-toast-success);
+}
+
+.toast-warning {
+  border-left-color: var(--color-toast-warning);
+}
+
+.toast-error {
+  border-left-color: var(--color-toast-error);
+}
+
+.toast-info {
+  border-left-color: var(--color-toast-info);
+}
+
+/* Progress Bars */
+.progress-bar {
+  background: var(--color-progress-background);
+}
+
+.progress-bar-fill {
+  background: var(--color-progress-fill);
+}
+
+/* Avatars */
+.avatar {
+  background: var(--color-avatar-background);
+  border-color: var(--color-avatar-border);
+}
+
+/* Badges */
+.badge-primary {
+  background: var(--color-badge-primary);
+  color: var(--color-badge-primary-text);
+}
+
+.badge-secondary {
+  background: var(--color-badge-secondary);
+  color: var(--color-badge-secondary-text);
+}
+
+.badge-success {
+  background: var(--color-badge-success);
+  color: var(--color-badge-success-text);
+}
+
+.badge-warning {
+  background: var(--color-badge-warning);
+  color: var(--color-badge-warning-text);
+}
+
+.badge-error {
+  background: var(--color-badge-error);
+  color: var(--color-badge-error-text);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar-track {
+  background: var(--color-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-thumb-hover);
+}
+
+/* ==========================================================================
+   8. Theme Switching
+   ========================================================================== */
+
+/* Theme Toggle */
+.theme-toggle {
+  position: relative;
+  width: 60px;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  cursor: pointer;
+  transition: all 0.3s var(--animation-smooth);
+}
+
+.theme-toggle::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  transition: transform 0.3s var(--animation-smooth);
+}
+
+.theme-dark .theme-toggle::before {
+  transform: translateX(30px);
+}
+
+.theme-premium .theme-toggle::before {
+  background: var(--color-primary);
+  box-shadow: 0 0 10px var(--color-primary);
+}
+
+.theme-shame .theme-toggle::before {
+  background: var(--color-primary);
+  animation: shame-pulse 2s infinite;
+}
+
+.theme-business .theme-toggle::before {
+  background: var(--color-primary);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+
+/* Theme Indicator */
+.theme-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-indicator-light::before {
+  content: '☀️';
+}
+
+.theme-indicator-dark::before {
+  content: '🌙';
+}
+
+.theme-indicator-premium::before {
+  content: '💎';
+  animation: spin 2s linear infinite;
+}
+
+.theme-indicator-shame::before {
+  content: '💀';
+  animation: pulse 2s infinite;
+}
+
+.theme-indicator-business::before {
+  content: '💼';
+}
+
+/* ==========================================================================
+   9. Premium Theme Effects
+   ========================================================================== */
+
+.theme-premium .card {
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-premium .card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: var(--premium-shine);
+  animation: shine 3s infinite;
+}
+
+.theme-premium .btn-primary {
+  box-shadow: var(--premium-glow);
+  animation: premium-glow 3s ease-in-out infinite;
+}
+
+.theme-premium .navbar {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.theme-premium .modal-content {
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+/* ==========================================================================
+   10. Shame Theme Effects
+   ========================================================================== */
+
+.theme-shame .card {
+  animation: shame-pulse-card 3s ease-in-out infinite;
+}
+
+.theme-shame .btn-primary {
+  animation: shame-pulse-button 2s ease-in-out infinite;
+}
+
+.theme-shame .navbar {
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.theme-shame .modal-content {
+  border: 2px solid var(--color-primary);
+}
+
+@keyframes shame-pulse-card {
+  0%, 100% {
+    box-shadow: 0 10px 25px rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+  }
+}
+
+@keyframes shame-pulse-button {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(239, 68, 68, 0.5);
+  }
+}
+
+/* ==========================================================================
+   11. Business Theme Effects
+   ========================================================================== */
+
+.theme-business .card {
+  border: 1px solid var(--color-border);
+  transition: all 0.3s var(--animation-smooth);
+}
+
+.theme-business .card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--business-glow);
+}
+
+.theme-business .btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-business .btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: var(--business-shine);
+  animation: business-shine 3s infinite;
+}
+
+.theme-business .navbar {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.theme-business .modal-content {
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@keyframes business-shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+/* ==========================================================================
+   12. Responsive Themes
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .theme-premium .card::after,
+  .theme-business .btn-primary::before {
+    animation: none;
+  }
+  
+  .theme-shame .card,
+  .theme-shame .btn-primary {
+    animation-duration: 4s;
+  }
+}
+
+/* ==========================================================================
+   13. Print Styles for Themes
+   ========================================================================== */
+
+@media print {
+  .theme-light {
+    --color-background: #FFFFFF;
+    --color-text: #000000;
+    --color-border: #000000;
+  }
+  
+  .theme-dark,
+  .theme-premium,
+  .theme-shame,
+  .theme-business {
+    --color-background: #FFFFFF;
+    --color-text: #000000;
+    --color-border: #000000;
+    --color-primary: #000000;
+  }
+  
+  .theme-toggle,
+  .theme-indicator {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   14. Theme Utilities
+   ========================================================================== */
+
+/* Theme Transition */
+.theme-transition * {
+  transition: background-color 0.3s var(--animation-smooth),
+              border-color 0.3s var(--animation-smooth),
+              color 0.3s var(--animation-smooth),
+              box-shadow 0.3s var(--animation-smooth);
+}
+
+/* Theme Detection */
+@media (prefers-color-scheme: light) {
+  .theme-auto {
+    color-scheme: light;
+    --color-primary: var(--color-light-primary);
+    --color-background: var(--color-light-background);
+    --color-text: var(--color-light-text);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .theme-auto {
+    color-scheme: dark;
+    --color-primary: var(--color-dark-primary);
+    --color-background: var(--color-dark-background);
+    --color-text: var(--color-dark-text);
+  }
+}
+
+/* Theme Classes for JavaScript */
+[data-theme="light"] {
+  color-scheme: light;
+  --color-primary: var(--color-light-primary);
+  --color-background: var(--color-light-background);
+  --color-text: var(--color-light-text);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-primary: var(--color-dark-primary);
+  --color-background: var(--color-dark-background);
+  --color-text: var(--color-dark-text);
+}
+
+[data-theme="premium"] {
+  color-scheme: dark;
+  --color-primary: var(--color-premium-primary);
+  --color-background: var(--color-premium-background);
+  --color-text: var(--color-premium-text);
+}
+
+[data-theme="shame"] {
+  color-scheme: dark;
+  --color-primary: var(--color-shame-primary);
+  --color-background: var(--color-shame-background);
+  --color-text: var(--color-shame-text);
+}
+
+[data-theme="business"] {
+  color-scheme: dark;
+  --color-primary: var(--color-business-primary);
+  --color-background: var(--color-business-background);
+  --color-text: var(--color-business-text);
+}
+
+/* ==========================================================================
+   15. International Support
+   ========================================================================== */
+
+/* RTL Support */
+[dir="rtl"] .theme-toggle::before {
+  left: auto;
+  right: 3px;
+}
+
+.theme-dark[dir="rtl"] .theme-toggle::before {
+  transform: translateX(-30px);
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .theme-light {
+    --color-border: #000000;
+    --color-text: #000000;
+  }
+  
+  .theme-dark,
+  .theme-premium,
+  .theme-shame,
+  .theme-business {
+    --color-border: #FFFFFF;
+    --color-text: #FFFFFF;
+  }
+}
