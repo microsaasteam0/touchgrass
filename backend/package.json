@@ -5,11 +5,10 @@
   "main": "server.js",
   "scripts": {
     "build": "CI=false && npm run build",
-    "install": "npm install --legacy-peer-deps",
+
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "Build Command": "npm install",
-    "Start Command": "npm start",
+    "postinstall": "echo 'Installation complete'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
