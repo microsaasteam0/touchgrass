@@ -1,4 +1,6 @@
-// ==============================
+import React from 'react';
+ 
+  // ==============================
 // PURE JAVASCRIPT STATE FILE
 // No JSX allowed here!
 // ==============================

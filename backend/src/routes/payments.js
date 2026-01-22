@@ -1,122 +1,101 @@
 const express = require('express');
 const router = express.Router();
-const { check, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const Payment = require('../models/Payment');
+const { check, validationResult } = require('express-validator');
+const dodoPayments = require('../services/dodopayment');
 const User = require('../models/user');
 const Streak = require('../models/Streak');
-const Notification = require('../models/Notification');
+const Payment = require('../models/Payment');
 
-// @route   POST /api/payments/create-intent
-// @desc    Create payment intent
-// @access  Private
-router.post('/create-intent', auth, [
-  check('amount', 'Amount is required').isInt({ min: 50 }), // Minimum $0.50
-  check('currency', 'Currency is required').isLength({ min: 3, max: 3 }),
-  check('description', 'Description is required').not().isEmpty(),
-  check('type', 'Payment type is required').isIn([
-    'subscription',
-    'streak_restore',
-    'streak_freeze',
-    'challenge_entry',
-    'donation'
-  ])
-], async (req, res) => {
+/**
+ * @route   GET /api/payments/products
+ * @desc    Get available payment products
+ * @access  Public
+ */
+router.get('/products', (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { amount, currency, description, type, metadata = {} } = req.body;
-
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'USER_NOT_FOUND',
-        message: 'User not found'
-      });
-    }
-
-    // Get or create Stripe customer
-    let customerId = user.subscription.stripeCustomerId;
+    const products = dodoPayments.getProducts();
     
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.displayName,
-        metadata: {
-          userId: user.id,
-          username: user.username
-        }
-      });
-      
-      customerId = customer.id;
-      
-      // Save customer ID to user
-      user.subscription.stripeCustomerId = customerId;
-      await user.save();
-    }
-
-    // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount, // Amount in cents
-      currency: currency.toLowerCase(),
-      customer: customerId,
-      description: description,
-      metadata: {
-        type,
-        userId: user.id,
-        ...metadata
-      },
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never'
-      }
-    });
-
-    // Create payment record
-    const payment = new Payment({
-      user: user.id,
-      type,
-      amount,
-      currency,
-      provider: 'stripe',
-      providerData: {
-        paymentIntentId: paymentIntent.id,
-        customerId: customerId
-      },
-      description,
-      metadata,
-      status: 'pending'
-    });
-
-    await payment.save();
-
     res.json({
       success: true,
-      clientSecret: paymentIntent.client_secret,
-      paymentId: payment.id,
-      paymentIntentId: paymentIntent.id
+      products,
+      currency: 'USD',
+      paymentProvider: 'Dodo Payments',
+      mode: process.env.NODE_ENV === 'development' ? 'test' : 'live'
     });
-
   } catch (err) {
-    console.error('Create payment intent error:', err);
-    res.status(500).json({
-      error: 'SERVER_ERROR',
-      message: 'Server error creating payment intent'
-    });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get products' });
   }
 });
 
-// @route   POST /api/payments/confirm
-// @desc    Confirm payment completion
-// @access  Private
-router.post('/confirm', auth, [
-  check('paymentIntentId', 'Payment intent ID is required').not().isEmpty(),
-  check('paymentId', 'Payment ID is required').not().isEmpty()
+/**
+ * @route   GET /api/payments/checkout/:productType
+ * @desc    Get checkout link for a product
+ * @access  Private
+ */
+router.get('/checkout/:productType', auth, async (req, res) => {
+  try {
+    const { productType } = req.params;
+    const validProducts = ['pro', 'enterprise', 'streak_restoration'];
+    
+    if (!validProducts.includes(productType)) {
+      return res.status(400).json({ 
+        error: 'Invalid product type',
+        validProducts 
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // For streak restoration, check if user has broken streak
+    if (productType === 'streak_restoration') {
+      const streak = await Streak.findOne({ userId: req.user.id, status: 'broken' });
+      if (!streak) {
+        return res.status(400).json({ 
+          error: 'No broken streak found',
+          message: 'Your streak is still active'
+        });
+      }
+    }
+
+    // Get checkout URL from Dodo
+    const checkoutData = dodoPayments.getCheckoutUrl(productType, req.user.id, {
+      email: user.email,
+      userName: user.displayName,
+      userAvatar: user.avatar,
+      streakLength: productType === 'streak_restoration' ? user.stats?.currentStreak : null
+    });
+
+    res.json({
+      success: true,
+      message: `Checkout URL for ${productType} created`,
+      user: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName
+      },
+      ...checkoutData
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create checkout' });
+  }
+});
+
+/**
+ * @route   POST /api/payments/verify
+ * @desc    Verify a payment (called from frontend after payment)
+ * @access  Private
+ */
+router.post('/verify', auth, [
+  check('paymentId').isString(),
+  check('productType').isIn(['pro', 'enterprise', 'streak_restoration']),
+  check('amount').isFloat({ min: 0 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -124,99 +103,102 @@ router.post('/confirm', auth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { paymentIntentId, paymentId } = req.body;
+    const { paymentId, productType, amount, metadata = {} } = req.body;
+    const user = await User.findById(req.user.id);
 
-    // Retrieve payment intent from Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    if (!paymentIntent) {
-      return res.status(404).json({
-        error: 'PAYMENT_INTENT_NOT_FOUND',
-        message: 'Payment intent not found'
+    // Verify payment with Dodo
+    const verification = await dodoPayments.verifyPayment(paymentId);
+    
+    if (!verification.success) {
+      return res.status(400).json({ 
+        error: 'Payment verification failed',
+        details: verification
       });
     }
 
-    // Get payment record
-    const payment = await Payment.findOne({
-      _id: paymentId,
-      user: req.user.id
+    // Create payment record
+    const payment = new Payment({
+      userId: req.user.id,
+      paymentId,
+      amount: amount || dodoPayments.getPrices()[productType] || 0,
+      currency: 'USD',
+      status: 'completed',
+      type: productType,
+      provider: 'dodo',
+      metadata: {
+        ...metadata,
+        verification,
+        userEmail: user.email,
+        userName: user.displayName
+      },
+      processedAt: new Date()
     });
 
-    if (!payment) {
-      return res.status(404).json({
-        error: 'PAYMENT_NOT_FOUND',
-        message: 'Payment record not found'
-      });
-    }
+    await payment.save();
+    console.log(`✅ Payment saved: ${paymentId} for user ${req.user.id}`);
 
-    // Update payment status based on Stripe status
-    if (paymentIntent.status === 'succeeded') {
-      await payment.markAsCompleted({
-        paymentMethodId: paymentIntent.payment_method,
-        chargeId: paymentIntent.latest_charge
-      });
-
-      // Handle payment type
-      await handlePaymentSuccess(payment);
-
-      res.json({
-        success: true,
-        message: 'Payment completed successfully',
-        payment: {
-          id: payment.id,
-          amount: payment.amount,
-          currency: payment.currency,
-          type: payment.type,
-          status: payment.status,
-          completedAt: payment.completedAt
+    // Update user based on product type
+    if (productType === 'streak_restoration') {
+      // Restore user's streak
+      await Streak.findOneAndUpdate(
+        { userId: req.user.id, status: 'broken' },
+        {
+          status: 'active',
+          restoredAt: new Date(),
+          restorationPaymentId: paymentId
         }
-      });
-
-    } else if (paymentIntent.status === 'processing') {
-      payment.status = 'processing';
-      await payment.save();
-
-      res.json({
-        success: true,
-        message: 'Payment is processing',
-        status: 'processing'
-      });
-
-    } else if (paymentIntent.status === 'requires_action') {
-      res.status(400).json({
-        error: 'REQUIRES_ACTION',
-        message: 'Payment requires additional action',
-        nextAction: paymentIntent.next_action
-      });
-
-    } else {
-      await payment.markAsFailed(
-        `Stripe status: ${paymentIntent.status}`,
-        { lastError: paymentIntent.last_payment_error }
       );
 
-      res.status(400).json({
-        error: 'PAYMENT_FAILED',
-        message: 'Payment failed',
-        status: paymentIntent.status
+      // Add freeze token
+      await User.findByIdAndUpdate(req.user.id, {
+        $inc: { 'subscription.streakFreezeTokens': 1 }
       });
+
+      console.log(`✅ Streak restored for user ${req.user.id}`);
+
+    } else if (productType === 'pro' || productType === 'enterprise') {
+      // Activate subscription
+      const subscriptionEnd = new Date();
+      subscriptionEnd.setDate(subscriptionEnd.getDate() + 30); // 30 days
+      
+      await User.findByIdAndUpdate(req.user.id, {
+        $set: {
+          'subscription.active': true,
+          'subscription.plan': productType,
+          'subscription.currentPeriodEnd': subscriptionEnd,
+          'subscription.streakFreezeTokens': productType === 'enterprise' ? 10 : 5,
+          'subscription.paymentProvider': 'dodo',
+          'subscription.lastPaymentId': paymentId
+        }
+      });
+
+      console.log(`✅ Subscription activated for user ${req.user.id}, plan: ${productType}`);
     }
 
-  } catch (err) {
-    console.error('Confirm payment error:', err);
-    res.status(500).json({
-      error: 'SERVER_ERROR',
-      message: 'Server error confirming payment'
+    res.json({
+      success: true,
+      message: 'Payment verified and processed successfully',
+      paymentId,
+      productType,
+      userUpdated: true,
+      verification
     });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Payment verification failed' });
   }
 });
 
-// @route   POST /api/payments/subscribe
-// @desc    Create subscription
-// @access  Private
-router.post('/subscribe', auth, [
-  check('plan', 'Plan is required').isIn(['basic', 'premium', 'elite']),
-  check('paymentMethodId', 'Payment method ID is required').not().isEmpty()
+/**
+ * @route   POST /api/payments/manual
+ * @desc    Manually register a payment (for admin/testing)
+ * @access  Private
+ */
+router.post('/manual', auth, [
+  check('userId').isMongoId(),
+  check('productType').isIn(['pro', 'enterprise', 'streak_restoration']),
+  check('amount').isFloat({ min: 0 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -224,670 +206,192 @@ router.post('/subscribe', auth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { plan, paymentMethodId } = req.body;
+    // Check if user is admin
+    const adminUser = await User.findById(req.user.id);
+    if (!adminUser.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
 
-    const user = await User.findById(req.user.id);
-
+    const { userId, productType, amount, notes } = req.body;
+    const user = await User.findById(userId);
+    
     if (!user) {
-      return res.status(404).json({
-        error: 'USER_NOT_FOUND',
-        message: 'User not found'
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get Stripe customer ID
-    let customerId = user.subscription.stripeCustomerId;
+    const paymentId = dodoPayments.generatePaymentId(userId, productType);
     
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.displayName,
-        metadata: {
-          userId: user.id,
-          username: user.username
-        }
-      });
-      
-      customerId = customer.id;
-      user.subscription.stripeCustomerId = customerId;
-    }
-
-    // Attach payment method to customer
-    await stripe.paymentMethods.attach(paymentMethodId, {
-      customer: customerId
+    // Process manual payment
+    const manualPayment = await dodoPayments.processManualPayment({
+      userId,
+      paymentId,
+      amount,
+      productType,
+      metadata: { notes, processedBy: adminUser._id }
     });
-
-    // Set as default payment method
-    await stripe.customers.update(customerId, {
-      invoice_settings: {
-        default_payment_method: paymentMethodId
-      }
-    });
-
-    // Plan prices (in cents)
-    const planPrices = {
-      basic: 499, // $4.99/month
-      premium: 999, // $9.99/month
-      elite: 1999 // $19.99/month
-    };
-
-    const priceId = process.env[`STRIPE_${plan.toUpperCase()}_PRICE_ID`];
-
-    if (!priceId) {
-      return res.status(400).json({
-        error: 'PLAN_NOT_CONFIGURED',
-        message: 'Plan is not configured'
-      });
-    }
-
-    // Create subscription
-    const subscription = await stripe.subscriptions.create({
-      customer: customerId,
-      items: [{ price: priceId }],
-      payment_settings: {
-        payment_method_types: ['card'],
-        save_default_payment_method: 'on_subscription'
-      },
-      expand: ['latest_invoice.payment_intent'],
-      metadata: {
-        userId: user.id,
-        username: user.username,
-        plan: plan
-      }
-    });
-
-    // Update user subscription
-    user.subscription.active = true;
-    user.subscription.plan = plan;
-    user.subscription.stripeSubscriptionId = subscription.id;
-    user.subscription.currentPeriodStart = new Date(subscription.current_period_start * 1000);
-    user.subscription.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    
-    // Set plan features
-    user.subscription.features = getPlanFeatures(plan);
-    
-    await user.save();
 
     // Create payment record
-    const invoice = subscription.latest_invoice;
     const payment = new Payment({
-      user: user.id,
-      type: 'subscription',
-      amount: invoice.amount_paid,
-      currency: invoice.currency,
-      provider: 'stripe',
-      providerData: {
-        paymentIntentId: invoice.payment_intent?.id,
-        subscriptionId: subscription.id,
-        invoiceId: invoice.id,
-        customerId: customerId
-      },
-      description: `Subscription: ${plan} plan`,
-      metadata: {
-        subscriptionPlan: plan,
-        subscriptionPeriod: 'monthly'
-      },
+      userId,
+      paymentId,
+      amount,
+      currency: 'USD',
       status: 'completed',
-      completedAt: new Date(),
-      isRecurring: true,
-      recurrence: {
-        interval: 'monthly',
-        intervalCount: 1,
-        totalCycles: 12,
-        currentCycle: 1
-      }
+      type: productType,
+      provider: 'manual',
+      metadata: {
+        notes,
+        processedBy: adminUser._id,
+        processedAt: new Date(),
+        isManual: true
+      },
+      processedAt: new Date()
     });
 
     await payment.save();
 
-    // Send notification
-    await Notification.create({
-      user: user.id,
-      type: 'payment_success',
-      title: 'Subscription Activated',
-      message: `Your ${plan} subscription has been activated. Enjoy premium features!`,
-      data: {
-        paymentId: payment.id,
-        plan: plan,
-        url: '/subscription',
-        action: 'view_subscription'
-      },
-      priority: 'high',
-      channels: ['in_app', 'email']
-    });
+    // Update user
+    if (productType === 'streak_restoration') {
+      await Streak.findOneAndUpdate(
+        { userId, status: 'broken' },
+        {
+          status: 'active',
+          restoredAt: new Date(),
+          restorationPaymentId: paymentId
+        }
+      );
+
+      await User.findByIdAndUpdate(userId, {
+        $inc: { 'subscription.streakFreezeTokens': 1 }
+      });
+
+    } else if (productType === 'pro' || productType === 'enterprise') {
+      const subscriptionEnd = new Date();
+      subscriptionEnd.setDate(subscriptionEnd.getDate() + 30);
+      
+      await User.findByIdAndUpdate(userId, {
+        $set: {
+          'subscription.active': true,
+          'subscription.plan': productType,
+          'subscription.currentPeriodEnd': subscriptionEnd,
+          'subscription.streakFreezeTokens': productType === 'enterprise' ? 10 : 5,
+          'subscription.paymentProvider': 'manual',
+          'subscription.lastPaymentId': paymentId
+        }
+      });
+    }
 
     res.json({
       success: true,
-      message: 'Subscription created successfully',
-      subscription: {
-        id: subscription.id,
-        plan: plan,
-        status: subscription.status,
-        currentPeriodEnd: user.subscription.currentPeriodEnd,
-        features: user.subscription.features
+      message: 'Manual payment processed successfully',
+      paymentId,
+      productType,
+      amount,
+      user: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName
       },
-      payment: {
-        id: payment.id,
-        amount: payment.amount,
-        receiptUrl: invoice.hosted_invoice_url
-      }
+      processedBy: adminUser._id,
+      timestamp: new Date().toISOString()
     });
 
   } catch (err) {
-    console.error('Create subscription error:', err);
+    console.error(err);
+    res.status(500).json({ error: 'Manual payment failed' });
+  }
+});
+
+/**
+ * @route   GET /api/payments/status/:paymentId
+ * @desc    Check payment status
+ * @access  Private
+ */
+router.get('/status/:paymentId', auth, async (req, res) => {
+  try {
+    const { paymentId } = req.params;
     
-    if (err.type === 'StripeCardError') {
-      return res.status(400).json({
-        error: 'CARD_ERROR',
-        message: err.message
-      });
-    }
-
-    res.status(500).json({
-      error: 'SERVER_ERROR',
-      message: 'Server error creating subscription'
-    });
-  }
-});
-
-// @route   POST /api/payments/cancel-subscription
-// @desc    Cancel subscription
-// @access  Private
-router.post('/cancel-subscription', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'USER_NOT_FOUND',
-        message: 'User not found'
-      });
-    }
-
-    if (!user.subscription.active || !user.subscription.stripeSubscriptionId) {
-      return res.status(400).json({
-        error: 'NO_ACTIVE_SUBSCRIPTION',
-        message: 'No active subscription found'
-      });
-    }
-
-    // Cancel subscription at period end
-    const subscription = await stripe.subscriptions.update(
-      user.subscription.stripeSubscriptionId,
-      { cancel_at_period_end: true }
-    );
-
-    user.subscription.autoRenew = false;
-    await user.save();
-
-    // Send notification
-    await Notification.create({
-      user: user.id,
-      type: 'subscription_expiring',
-      title: 'Subscription Cancelled',
-      message: `Your subscription will end on ${new Date(user.subscription.currentPeriodEnd).toLocaleDateString()}.`,
-      data: {
-        subscriptionId: subscription.id,
-        endsAt: user.subscription.currentPeriodEnd,
-        url: '/subscription',
-        action: 'renew_subscription'
-      },
-      priority: 'medium',
-      channels: ['in_app', 'email']
-    });
-
-    res.json({
-      success: true,
-      message: 'Subscription will be cancelled at the end of the billing period',
-      endsAt: user.subscription.currentPeriodEnd
-    });
-
-  } catch (err) {
-    console.error('Cancel subscription error:', err);
-    res.status(500).json({
-      error: 'SERVER_ERROR',
-      message: 'Server error cancelling subscription'
-    });
-  }
-});
-
-// @route   POST /api/payments/reactivate-subscription
-// @desc    Reactivate cancelled subscription
-// @access  Private
-router.post('/reactivate-subscription', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'USER_NOT_FOUND',
-        message: 'User not found'
-      });
-    }
-
-    if (!user.subscription.stripeSubscriptionId) {
-      return res.status(400).json({
-        error: 'NO_SUBSCRIPTION',
-        message: 'No subscription found'
-      });
-    }
-
-    // Reactivate subscription
-    const subscription = await stripe.subscriptions.update(
-      user.subscription.stripeSubscriptionId,
-      { cancel_at_period_end: false }
-    );
-
-    user.subscription.autoRenew = true;
-    user.subscription.active = true;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Subscription reactivated successfully',
-      subscription: {
-        id: subscription.id,
-        plan: user.subscription.plan,
-        status: subscription.status,
-        autoRenew: true
-      }
-    });
-
-  } catch (err) {
-    console.error('Reactivate subscription error:', err);
-    res.status(500).json({
-      error: 'SERVER_ERROR',
-      message: 'Server error reactivating subscription'
-    });
-  }
-});
-
-// @route   GET /api/payments/invoices
-// @desc    Get payment invoices
-// @access  Private
-router.get('/invoices', auth, async (req, res) => {
-  try {
-    const { limit = 10, offset = 0 } = req.query;
-
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'USER_NOT_FOUND',
-        message: 'User not found'
-      });
-    }
-
-    // Get payments from database
-    const payments = await Payment.findSuccessful(req.user.id, {
-      limit: parseInt(limit),
-      since: req.query.since ? new Date(req.query.since) : undefined
-    });
-
-    // If user has Stripe customer, get invoices from Stripe
-    let stripeInvoices = [];
-    if (user.subscription.stripeCustomerId) {
-      try {
-        const invoices = await stripe.invoices.list({
-          customer: user.subscription.stripeCustomerId,
-          limit: parseInt(limit)
-        });
-        stripeInvoices = invoices.data;
-      } catch (stripeErr) {
-        console.error('Stripe invoices error:', stripeErr);
-      }
-    }
-
-    res.json({
-      success: true,
-      payments: payments.map(payment => ({
-        id: payment.id,
-        date: payment.createdAt,
+    // First check our database
+    const payment = await Payment.findOne({ paymentId });
+    
+    if (payment) {
+      return res.json({
+        success: true,
+        status: payment.status,
         amount: payment.amount,
         currency: payment.currency,
         type: payment.type,
-        description: payment.description,
-        status: payment.status,
-        receiptUrl: payment.providerData.receiptUrl
-      })),
-      stripeInvoices: stripeInvoices.map(invoice => ({
-        id: invoice.id,
-        date: new Date(invoice.created * 1000),
-        amount: invoice.amount_paid,
-        currency: invoice.currency,
-        description: invoice.description,
-        status: invoice.status,
-        receiptUrl: invoice.hosted_invoice_url,
-        invoicePdf: invoice.invoice_pdf
-      })),
-      pagination: {
-        total: payments.length,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: payments.length === parseInt(limit)
-      }
-    });
-
-  } catch (err) {
-    console.error('Get invoices error:', err);
-    res.status(500).json({
-      error: 'SERVER_ERROR',
-      message: 'Server error'
-    });
-  }
-});
-
-// @route   GET /api/payments/subscription
-// @desc    Get current subscription
-// @access  Private
-router.get('/subscription', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'USER_NOT_FOUND',
-        message: 'User not found'
+        createdAt: payment.createdAt,
+        processedAt: payment.processedAt
       });
     }
-
-    let stripeSubscription = null;
     
-    if (user.subscription.stripeSubscriptionId) {
-      try {
-        stripeSubscription = await stripe.subscriptions.retrieve(
-          user.subscription.stripeSubscriptionId
-        );
-      } catch (stripeErr) {
-        console.error('Stripe subscription error:', stripeErr);
-      }
-    }
-
+    // If not in database, try to get from Dodo
+    const status = await dodoPayments.getPaymentStatus(paymentId);
+    
     res.json({
       success: true,
-      subscription: {
-        active: user.subscription.active,
-        plan: user.subscription.plan,
-        autoRenew: user.subscription.autoRenew,
-        currentPeriodStart: user.subscription.currentPeriodStart,
-        currentPeriodEnd: user.subscription.currentPeriodEnd,
-        features: user.subscription.features,
-        stripe: stripeSubscription ? {
-          id: stripeSubscription.id,
-          status: stripeSubscription.status,
-          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-          currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000)
-        } : null
-      }
+      ...status
     });
 
   } catch (err) {
-    console.error('Get subscription error:', err);
-    res.status(500).json({
-      error: 'SERVER_ERROR',
-      message: 'Server error'
-    });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get payment status' });
   }
 });
 
-// @route   POST /api/payments/webhook
-// @desc    Stripe webhook handler
-// @access  Public
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
+/**
+ * @route   GET /api/payments/user/history
+ * @desc    Get user's payment history
+ * @access  Private
+ */
+router.get('/user/history', auth, async (req, res) => {
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    const payments = await Payment.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+    
+    res.json({
+      success: true,
+      payments,
+      count: payments.length
+    });
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get payment history' });
   }
-
-  // Handle the event
-  switch (event.type) {
-    case 'payment_intent.succeeded':
-      await handlePaymentIntentSucceeded(event.data.object);
-      break;
-      
-    case 'payment_intent.payment_failed':
-      await handlePaymentIntentFailed(event.data.object);
-      break;
-      
-    case 'invoice.payment_succeeded':
-      await handleInvoicePaymentSucceeded(event.data.object);
-      break;
-      
-    case 'invoice.payment_failed':
-      await handleInvoicePaymentFailed(event.data.object);
-      break;
-      
-    case 'customer.subscription.updated':
-      await handleSubscriptionUpdated(event.data.object);
-      break;
-      
-    case 'customer.subscription.deleted':
-      await handleSubscriptionDeleted(event.data.object);
-      break;
-      
-    default:
-      console.log(`Unhandled event type ${event.type}`);
-  }
-
-  res.json({ received: true });
 });
 
-// Helper function to handle payment success
-async function handlePaymentSuccess(payment) {
-  const { type, metadata, user } = payment;
-
-  switch (type) {
-    case 'streak_restore':
-      // Restore user's streak
-      const streak = await Streak.findOne({ userId: user });
-      if (streak) {
-        streak.status = 'active';
-        streak.currentStreak = 1;
-        await streak.save();
-        
-        // Update user stats
-        const userDoc = await User.findById(user);
-        userDoc.stats.currentStreak = 1;
-        await userDoc.save();
+/**
+ * @route   GET /api/payments/health
+ * @desc    Health check for payments API
+ * @access  Public
+ */
+router.get('/health', async (req, res) => {
+  try {
+    const health = await dodoPayments.healthCheck();
+    
+    res.json({
+      status: 'healthy',
+      service: 'payments-api',
+      provider: 'Dodo Payments',
+      timestamp: new Date().toISOString(),
+      mode: process.env.NODE_ENV === 'development' ? 'test' : 'live',
+      products: ['pro', 'enterprise', 'streak_restoration'],
+      urls: {
+        test: 'https://test.checkout.dodopayments.com/buy/pdt_0NWPjjq1W9yybN1dR63eF?quantity=1',
+        pro: 'https://checkout.dodopayments.com/buy/pdt_0NWPkwJJcZChm84jRPqIt?quantity=1',
+        enterprise: 'https://checkout.dodopayments.com/buy/pdt_0NWPl4fuR5huBMtu7YAKT?quantity=1'
       }
-      break;
-      
-    case 'streak_freeze':
-      // Add freeze tokens to user
-      const userDoc = await User.findById(user);
-      userDoc.subscription.features.streakFreezeTokens += 1;
-      await userDoc.save();
-      break;
-      
-    case 'challenge_entry':
-      // Handle challenge entry
-      // This would update the challenge participant status
-      break;
-  }
-
-  // Send notification
-  await Notification.create({
-    user: user,
-    type: 'payment_success',
-    title: 'Payment Successful',
-    message: `Your ${type.replace('_', ' ')} payment was successful.`,
-    data: {
-      paymentId: payment.id,
-      type: type,
-      url: '/payments',
-      action: 'view_payment'
-    },
-    priority: 'medium',
-    channels: ['in_app']
-  });
-}
-
-// Helper function to get plan features
-function getPlanFeatures(plan) {
-  const features = {
-    basic: {
-      streakFreezeTokens: 1,
-      customThemes: false,
-      advancedAnalytics: false,
-      prioritySupport: false,
-      adFree: true
-    },
-    premium: {
-      streakFreezeTokens: 3,
-      customThemes: true,
-      advancedAnalytics: true,
-      prioritySupport: false,
-      adFree: true
-    },
-    elite: {
-      streakFreezeTokens: 10,
-      customThemes: true,
-      advancedAnalytics: true,
-      prioritySupport: true,
-      adFree: true
-    }
-  };
-  
-  return features[plan] || features.basic;
-}
-
-// Stripe webhook handlers
-async function handlePaymentIntentSucceeded(paymentIntent) {
-  const payment = await Payment.findOne({
-    'providerData.paymentIntentId': paymentIntent.id
-  });
-  
-  if (payment) {
-    await payment.markAsCompleted({
-      paymentMethodId: paymentIntent.payment_method,
-      chargeId: paymentIntent.latest_charge
     });
-    await handlePaymentSuccess(payment);
-  }
-}
-
-async function handlePaymentIntentFailed(paymentIntent) {
-  const payment = await Payment.findOne({
-    'providerData.paymentIntentId': paymentIntent.id
-  });
-  
-  if (payment) {
-    await payment.markAsFailed(
-      `Stripe failure: ${paymentIntent.last_payment_error?.message || 'Unknown'}`,
-      { lastError: paymentIntent.last_payment_error }
-    );
-  }
-}
-
-async function handleInvoicePaymentSucceeded(invoice) {
-  const subscriptionId = invoice.subscription;
-  const user = await User.findOne({
-    'subscription.stripeSubscriptionId': subscriptionId
-  });
-  
-  if (user) {
-    // Update subscription period
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    
-    user.subscription.currentPeriodStart = new Date(subscription.current_period_start * 1000);
-    user.subscription.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    await user.save();
-    
-    // Create payment record
-    const payment = new Payment({
-      user: user.id,
-      type: 'subscription',
-      amount: invoice.amount_paid,
-      currency: invoice.currency,
-      provider: 'stripe',
-      providerData: {
-        subscriptionId: subscriptionId,
-        invoiceId: invoice.id,
-        customerId: invoice.customer
-      },
-      description: `Subscription renewal: ${user.subscription.plan} plan`,
-      metadata: {
-        subscriptionPlan: user.subscription.plan,
-        subscriptionPeriod: 'monthly'
-      },
-      status: 'completed',
-      completedAt: new Date(),
-      isRecurring: true
-    });
-    
-    await payment.save();
-  }
-}
-
-async function handleInvoicePaymentFailed(invoice) {
-  const user = await User.findOne({
-    'subscription.stripeSubscriptionId': invoice.subscription
-  });
-  
-  if (user) {
-    await Notification.create({
-      user: user.id,
-      type: 'payment_failed',
-      title: 'Payment Failed',
-      message: 'Your subscription payment failed. Please update your payment method.',
-      data: {
-        invoiceId: invoice.id,
-        url: '/subscription',
-        action: 'update_payment'
-      },
-      priority: 'high',
-      channels: ['in_app', 'email']
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ 
+      status: 'unhealthy',
+      error: err.message 
     });
   }
-}
-
-async function handleSubscriptionUpdated(subscription) {
-  const user = await User.findOne({
-    'subscription.stripeSubscriptionId': subscription.id
-  });
-  
-  if (user) {
-    user.subscription.active = subscription.status === 'active';
-    user.subscription.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-    user.subscription.autoRenew = !subscription.cancel_at_period_end;
-    await user.save();
-  }
-}
-
-async function handleSubscriptionDeleted(subscription) {
-  const user = await User.findOne({
-    'subscription.stripeSubscriptionId': subscription.id
-  });
-  
-  if (user) {
-    user.subscription.active = false;
-    user.subscription.plan = 'free';
-    user.subscription.stripeSubscriptionId = null;
-    user.subscription.features = getPlanFeatures('free');
-    await user.save();
-    
-    await Notification.create({
-      user: user.id,
-      type: 'subscription_expiring',
-      title: 'Subscription Ended',
-      message: 'Your subscription has ended. You have been downgraded to the free plan.',
-      data: {
-        url: '/subscription',
-        action: 'renew_subscription'
-      },
-      priority: 'medium',
-      channels: ['in_app', 'email']
-    });
-  }
-}
+});
 
 module.exports = router;

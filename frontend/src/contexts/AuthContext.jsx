@@ -1,368 +1,715 @@
+// // /Users/apple/Documents/touchgrass/frontend/src/contexts/AuthContext.jsx
+// import React, { createContext, useState, useContext, useEffect } from 'react';
+// import { useNavigate } from 'react-router-dom';
+// import { toast } from 'react-toastify';
+// import { supabase } from '../lib/supabase'; // Make sure you have this
+
+// // Create Auth Context
+// const AuthContext = createContext({});
+
+// // Custom hook to use auth context
+// export const useAuth = () => useContext(AuthContext);
+
+// export const AuthProvider = ({ children }) => {
+//   const [user, setUser] = useState(null);
+//   const [loading, setLoading] = useState(true);
+//   const [isAuthenticated, setIsAuthenticated] = useState(false);
+//   const navigate = useNavigate();
+
+//   // Initialize auth state
+//   useEffect(() => {
+//     const checkAuth = async () => {
+//       setLoading(true);
+      
+//       try {
+//         // Check Supabase session first
+//         const { data: { session } } = await supabase.auth.getSession();
+        
+//         if (session) {
+//           console.log('✅ Supabase session found:', session.user.email);
+//           setUser(session.user);
+//           setIsAuthenticated(true);
+          
+//           // Sync with profiles table
+//           await ensureUserProfile(session.user);
+//         } else {
+//           // Fallback to local storage (for backward compatibility)
+//           const token = localStorage.getItem('touchgrass_token');
+//           const userData = localStorage.getItem('touchgrass_user');
+          
+//           if (token && userData) {
+//             const parsedUser = JSON.parse(userData);
+//             setUser(parsedUser);
+//             setIsAuthenticated(true);
+//           }
+//         }
+//       } catch (error) {
+//         console.error('Auth check error:', error);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+
+//     checkAuth();
+
+//     // Listen for auth changes
+//     const { data: { subscription } } = supabase.auth.onAuthStateChange(
+//       async (event, session) => {
+//         console.log('Auth state changed:', event);
+        
+//         if (session) {
+//           setUser(session.user);
+//           setIsAuthenticated(true);
+//           await ensureUserProfile(session.user);
+//         } else {
+//           setUser(null);
+//           setIsAuthenticated(false);
+//         }
+//       }
+//     );
+
+//     return () => subscription.unsubscribe();
+//   }, []);
+
+//   // Helper: Ensure user profile exists in profiles table
+//   const ensureUserProfile = async (supabaseUser) => {
+//     try {
+//       // Check if profile exists
+//       const { data: existingProfile } = await supabase
+//         .from('profiles')
+//         .select('*')
+//         .eq('id', supabaseUser.id)
+//         .single();
+
+//       if (!existingProfile) {
+//         // Create profile
+//         const username = supabaseUser.email.split('@')[0] + '_' + 
+//           Math.random().toString(36).substr(2, 5);
+        
+//         const { error: profileError } = await supabase
+//           .from('profiles')
+//           .insert([
+//             {
+//               id: supabaseUser.id,
+//               username: username,
+//               email: supabaseUser.email,
+//               full_name: supabaseUser.user_metadata.full_name || 
+//                        supabaseUser.user_metadata.name || 
+//                        supabaseUser.email.split('@')[0],
+//               avatar_url: supabaseUser.user_metadata.avatar_url || 
+//                          supabaseUser.user_metadata.picture || 
+//                          `https://ui-avatars.com/api/?name=${encodeURIComponent(supabaseUser.email.split('@')[0])}&background=random`,
+//               stats: {
+//                 current_streak: 0,
+//                 longest_streak: 0,
+//                 total_days: 0,
+//                 total_outdoor_time: 0,
+//                 consistency_score: 0
+//               },
+//               subscription: {
+//                 plan: 'free',
+//                 active: false
+//               }
+//             }
+//           ]);
+
+//         if (profileError) {
+//           console.error('Profile creation error:', profileError);
+//         } else {
+//           console.log('✅ User profile created');
+//         }
+//       }
+//     } catch (error) {
+//       console.error('Error ensuring user profile:', error);
+//     }
+//   };
+
+//   // Login with email/password (using Supabase)
+//   const login = async (email, password) => {
+//     try {
+//       setLoading(true);
+      
+//       console.log('🔑 Attempting Supabase login...');
+      
+//       const { data, error } = await supabase.auth.signInWithPassword({
+//         email,
+//         password
+//       });
+
+//       if (error) throw error;
+
+//       // User is now authenticated via Supabase
+//       setUser(data.user);
+//       setIsAuthenticated(true);
+
+//       // Store in local storage for consistency
+//       localStorage.setItem('supabase_user', JSON.stringify(data.user));
+      
+//       toast.success(`Welcome back, ${data.user.email}! 🌱`, {
+//         position: 'top-right',
+//         theme: 'dark',
+//       });
+      
+//       // Navigate to dashboard
+//       navigate('/dashboard', { replace: true });
+      
+//       return { success: true, user: data.user };
+      
+//     } catch (error) {
+//       console.error('Login error:', error);
+      
+//       toast.error(
+//         error.message || 'Login failed. Please check your credentials.',
+//         {
+//           position: 'top-right',
+//           theme: 'dark',
+//         }
+//       );
+      
+//       return { 
+//         success: false, 
+//         error: error.message 
+//       };
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // Register new user (using Supabase)
+//   const signup = async (userData) => {
+//     try {
+//       setLoading(true);
+      
+//       console.log('🔑 Creating new Supabase account...');
+      
+//       // First, sign up with Supabase
+//       const { data: authData, error: authError } = await supabase.auth.signUp({
+//         email: userData.email,
+//         password: userData.password,
+//         options: {
+//           data: {
+//             username: userData.username,
+//             display_name: userData.displayName,
+//             full_name: userData.displayName
+//           }
+//         }
+//       });
+
+//       if (authError) throw authError;
+
+//       // If signup was successful
+//       if (authData.user) {
+//         // Create profile in profiles table
+//         const { error: profileError } = await supabase
+//           .from('profiles')
+//           .insert([
+//             {
+//               id: authData.user.id,
+//               username: userData.username,
+//               email: userData.email,
+//               full_name: userData.displayName,
+//               avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.displayName)}&background=random`,
+//               stats: {
+//                 current_streak: 0,
+//                 longest_streak: 0,
+//                 total_days: 0,
+//                 total_outdoor_time: 0,
+//                 consistency_score: 0
+//               },
+//               subscription: {
+//                 plan: 'free',
+//                 active: false
+//               }
+//             }
+//           ]);
+
+//         if (profileError) {
+//           console.error('Profile creation error:', profileError);
+//           // Continue anyway - profile can be created later
+//         }
+
+//         toast.success(`Welcome to TouchGrass, ${userData.displayName}! 🎉`, {
+//           position: 'top-right',
+//           theme: 'dark',
+//         });
+
+//         // If email confirmation is required
+//         if (!authData.user.email_confirmed_at) {
+//           toast.info('Please check your email to confirm your account! 📧', {
+//             position: 'top-right',
+//             theme: 'dark',
+//           });
+//           navigate('/', { replace: true });
+//         } else {
+//           // Auto-login if email is already confirmed
+//           setUser(authData.user);
+//           setIsAuthenticated(true);
+//           localStorage.setItem('supabase_user', JSON.stringify(authData.user));
+//           navigate('/dashboard', { replace: true });
+//         }
+
+//         return { success: true, user: authData.user };
+//       }
+
+//       throw new Error('Registration failed');
+
+//     } catch (error) {
+//       console.error('Registration error:', error);
+      
+//       toast.error(
+//         error.message || 'Registration failed. Please try again.',
+//         {
+//           position: 'top-right',
+//           theme: 'dark',
+//         }
+//       );
+      
+//       return { 
+//         success: false, 
+//         error: error.message 
+//       };
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // Google login (using Supabase OAuth)
+//   const googleLogin = async () => {
+//     try {
+//       setLoading(true);
+      
+//       console.log('🔑 Starting Google OAuth...');
+      
+//       const { data, error } = await supabase.auth.signInWithOAuth({
+//         provider: 'google',
+//         options: {
+//           redirectTo: `${window.location.origin}/auth/callback`,
+//           queryParams: {
+//             access_type: 'offline',
+//             prompt: 'consent',
+//           }
+//         }
+//       });
+
+//       if (error) throw error;
+
+//       // Note: The actual authentication happens in the AuthCallback page
+//       // This function will return immediately, and the browser will redirect
+//       return { success: true };
+
+//     } catch (error) {
+//       console.error('Google login error:', error);
+      
+//       toast.error(
+//         error.message || 'Google authentication failed',
+//         {
+//           position: 'top-right',
+//           theme: 'dark',
+//         }
+//       );
+      
+//       return { success: false, error: error.message };
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // Logout
+//   const logout = async () => {
+//     try {
+//       await supabase.auth.signOut();
+//     } catch (error) {
+//       console.error('Logout error:', error);
+//     } finally {
+//       // Clear all local storage
+//       localStorage.removeItem('supabase_session');
+//       localStorage.removeItem('supabase_user');
+//       localStorage.removeItem('touchgrass_user');
+//       localStorage.removeItem('touchgrass_token');
+      
+//       // Clear state
+//       setUser(null);
+//       setIsAuthenticated(false);
+      
+//       toast.info('Logged out successfully', {
+//         position: 'top-right',
+//         theme: 'dark',
+//       });
+      
+//       // Navigate to home
+//       navigate('/', { replace: true });
+//     }
+//   };
+
+//   // Forgot password (using Supabase)
+//   const forgotPassword = async (email) => {
+//     try {
+//       const { error } = await supabase.auth.resetPasswordForEmail(email, {
+//         redirectTo: `${window.location.origin}/reset-password`,
+//       });
+
+//       if (error) throw error;
+
+//       toast.success('Password reset instructions sent to your email! 📧', {
+//         position: 'top-right',
+//         theme: 'dark',
+//       });
+
+//       return { success: true };
+      
+//     } catch (error) {
+//       console.error('Forgot password error:', error);
+//       toast.error(error.message || 'Failed to send reset instructions');
+//       throw error;
+//     }
+//   };
+
+//   // Get current user (with profile data)
+//   const getCurrentUser = async () => {
+//     if (!user) return null;
+    
+//     try {
+//       // Get full profile from profiles table
+//       const { data: profile, error } = await supabase
+//         .from('profiles')
+//         .select('*')
+//         .eq('id', user.id)
+//         .single();
+
+//       if (error) throw error;
+
+//       return {
+//         ...user,
+//         profile: profile || {}
+//       };
+//     } catch (error) {
+//       console.error('Get current user error:', error);
+//       return user;
+//     }
+//   };
+
+//   // Context value
+//   const value = {
+//     user,
+//     loading,
+//     isAuthenticated,
+//     login,
+//     signup,
+//     googleLogin,
+//     logout,
+//     forgotPassword,
+//     getCurrentUser,
+//   };
+
+//   return (
+//     <AuthContext.Provider value={value}>
+//       {children}
+//     </AuthContext.Provider>
+//   );
+// };
+
+// // Export helper function
+// export const getAuthHeaders = async () => {
+//   const { data: { session } } = await supabase.auth.getSession();
+//   return session ? { 
+//     'Authorization': `Bearer ${session.access_token}`,
+//     'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY 
+//   } : {};
+// };
+// /Users/apple/Documents/touchgrass/frontend/src/contexts/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { supabase } from '../lib/supabase';
 
-// Create Auth Context
 const AuthContext = createContext({});
-
-// Custom hook to use auth context
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Mock user data for development (remove in production)
-  const mockUsers = [
-    {
-      id: '1',
-      email: 'demo@touchgrass.com',
-      username: 'demouser',
-      displayName: 'Demo User',
-      avatar: '',
-      stats: {
-        currentStreak: 42,
-        totalDays: 120,
-        longestStreak: 42,
-        consistencyScore: 87,
-        totalOutdoorTime: 1800
-      },
-      subscription: {
-        plan: 'premium',
-        active: true
-      }
-    }
-  ];
-
+  // Initialize auth - FIXED VERSION
   useEffect(() => {
-    // Check for stored auth data on mount
+    let mounted = true;
+    
     const initializeAuth = async () => {
       try {
-        const token = localStorage.getItem('touchgrass_token');
-        const userData = localStorage.getItem('touchgrass_user');
-
-        if (token && userData) {
-          const parsedUser = JSON.parse(userData);
-          setUser(parsedUser);
-          setIsAuthenticated(true);
-          
-          // Optional: Validate token with server
-          // await validateToken(token);
+        console.log('🔄 Initializing auth...');
+        console.log('📍 Current path:', location.pathname);
+        
+        // Get session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('❌ Session error:', error);
+          // Continue anyway
         }
+        
+        console.log('📦 Session data:', session);
+        
+        if (mounted) {
+          if (session?.user) {
+            console.log('✅ User found:', session.user.email);
+            setUser(session.user);
+            
+            // CRITICAL FIX: Check if we should redirect
+            const currentPath = location.pathname;
+            const shouldRedirect = currentPath === '/' || 
+                                  currentPath === '/auth' || 
+                                  currentPath.includes('/login') ||
+                                  currentPath.includes('/register');
+            
+            if (shouldRedirect) {
+              console.log('🔄 Redirecting to dashboard from:', currentPath);
+              // Use setTimeout to avoid React state update warnings
+              setTimeout(() => {
+                if (mounted) {
+                  navigate('/dashboard', { replace: true });
+                }
+              }, 100);
+            }
+          } else {
+            console.log('❌ No active session');
+            setUser(null);
+            
+            // If on dashboard without session, redirect to login
+            if (location.pathname.includes('/dashboard')) {
+              console.log('🔄 No session on dashboard, redirecting to login...');
+              setTimeout(() => {
+                if (mounted) {
+                  navigate('/auth?mode=login', { replace: true });
+                }
+              }, 100);
+            }
+          }
+        }
+        
       } catch (error) {
-        console.error('Auth initialization error:', error);
-        // Clear invalid data
-        localStorage.removeItem('touchgrass_token');
-        localStorage.removeItem('touchgrass_user');
+        console.error('❌ Auth init error:', error);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
       }
     };
 
     initializeAuth();
-  }, []);
 
-  // Simulate API delay
-  const simulateApiDelay = () => new Promise(resolve => setTimeout(resolve, 800));
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔑 Auth event:', event);
+        console.log('📦 Session:', session?.user?.email || 'No user');
+        
+        if (!mounted) return;
+        
+        if (session?.user) {
+          console.log('✅ User authenticated:', session.user.email);
+          setUser(session.user);
+          
+          if (event === 'SIGNED_IN') {
+            toast.success('Welcome! 🎉', { theme: 'dark' });
+            
+            // Clear URL if needed
+            if (window.location.pathname !== '/dashboard') {
+              window.history.replaceState({}, '', '/dashboard');
+            }
+            
+            // Navigate to dashboard
+            setTimeout(() => {
+              if (mounted && !window.location.pathname.includes('/dashboard')) {
+                navigate('/dashboard', { replace: true });
+              }
+            }, 500);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log('❌ User signed out');
+          setUser(null);
+          
+          // Clear auth token
+          localStorage.removeItem('supabase.auth.token');
+          
+          // Only redirect if we're on a protected page
+          if (location.pathname.includes('/dashboard')) {
+            setTimeout(() => {
+              if (mounted) {
+                navigate('/auth?mode=login', { replace: true });
+              }
+            }, 300);
+          }
+        }
+      }
+    );
 
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
+  }, [navigate, location]);
+
+  // Register with email/password
+  const signup = async (email, password) => {
+    try {
+      setLoading(true);
+      console.log('🔑 Signing up:', email);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        }
+      });
+
+      if (error) {
+        console.error('❌ Signup error:', error);
+        
+        if (error.message.includes('already registered')) {
+          throw new Error('Email already registered. Please log in.');
+        }
+        throw error;
+      }
+      
+      console.log('✅ Signup response:', data);
+      
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        toast.info('Account created! Please check your email.', { 
+          theme: 'dark',
+          autoClose: 5000 
+        });
+        navigate('/auth?mode=login');
+      } else {
+        // Auto-signed in
+        toast.success('Account created successfully!', { theme: 'dark' });
+        // Auth state change will handle redirect
+      }
+      
+      return { success: true, data };
+      
+    } catch (error) {
+      console.error('❌ Signup failed:', error);
+      
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.message.includes('already registered')) {
+        errorMessage = 'Email already registered. Please log in.';
+      } else if (error.message.includes('Password should be at least')) {
+        errorMessage = 'Password must be at least 6 characters.';
+      }
+      
+      toast.error(errorMessage, { theme: 'dark' });
+      return { success: false, error: errorMessage };
+      
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Login with email/password
   const login = async (email, password) => {
     try {
       setLoading(true);
+      console.log('🔑 Logging in:', email);
       
-      // Simulate API delay
-      await simulateApiDelay();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
 
-      // DEVELOPMENT MODE: Mock login for demo
-      if (process.env.NODE_ENV === 'development') {
-        // Check if it's the demo account
-        if (email === 'demo@touchgrass.com' && password === 'touchgrass123') {
-          const mockUser = mockUsers[0];
-          
-          // Create mock token
-          const mockToken = 'mock_jwt_token_' + Date.now();
-          
-          // Store in localStorage
-          localStorage.setItem('touchgrass_token', mockToken);
-          localStorage.setItem('touchgrass_user', JSON.stringify(mockUser));
-          
-          // Update state
-          setUser(mockUser);
-          setIsAuthenticated(true);
-          
-          toast.success('Welcome back! 🌱', {
-            icon: '👋',
-            position: 'top-right',
-            theme: 'dark',
-          });
-          
-          return { 
-            success: true, 
-            user: mockUser,
-            redirectTo: '/dashboard'
-          };
+      if (error) {
+        console.error('❌ Login error:', error);
+        
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Invalid email or password.');
         }
-        
-        // For other emails, create a new mock user
-        const newMockUser = {
-          id: Date.now().toString(),
-          email,
-          username: email.split('@')[0],
-          displayName: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-          avatar: '',
-          stats: {
-            currentStreak: 1,
-            totalDays: 1,
-            longestStreak: 1,
-            consistencyScore: 100,
-            totalOutdoorTime: 15
-          },
-          subscription: {
-            plan: 'free',
-            active: true
-          }
-        };
-        
-        const mockToken = 'mock_jwt_token_' + Date.now();
-        localStorage.setItem('touchgrass_token', mockToken);
-        localStorage.setItem('touchgrass_user', JSON.stringify(newMockUser));
-        
-        setUser(newMockUser);
-        setIsAuthenticated(true);
-        
-        toast.success('Welcome to TouchGrass! 🌱', {
-          icon: '🎉',
-          position: 'top-right',
-          theme: 'dark',
-        });
-        
-        return { 
-          success: true, 
-          user: newMockUser,
-          redirectTo: '/verify' // First time users go to verify page
-        };
+        throw error;
       }
-
-      // PRODUCTION MODE: Real API call (uncomment for production)
-      /*
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
-      }
-
-      const data = await response.json();
       
-      // Store token and user data
-      localStorage.setItem('touchgrass_token', data.token);
-      localStorage.setItem('touchgrass_user', JSON.stringify(data.user));
+      console.log('✅ Login successful:', data.user.email);
       
-      setUser(data.user);
-      setIsAuthenticated(true);
+      toast.success('Welcome back! 🌱', { theme: 'dark' });
       
-      toast.success('Welcome back! 🌱', {
-        icon: '👋',
-        position: 'top-right',
-        theme: 'dark',
-      });
+      // The onAuthStateChange will handle redirect
+      return { success: true, user: data.user };
       
-      return { 
-        success: true, 
-        user: data.user,
-        redirectTo: data.user?.stats?.currentStreak > 0 ? '/dashboard' : '/verify'
-      };
-      */
-
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login failed:', error);
       
-      toast.error(error.message || 'Login failed. Please try again.', {
-        position: 'top-right',
-        theme: 'dark',
-      });
+      let errorMessage = 'Login failed. Please try again.';
       
-      return { 
-        success: false, 
-        error: error.message || 'Login failed' 
-      };
+      if (error.message.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password.';
+      }
+      
+      toast.error(errorMessage, { theme: 'dark' });
+      return { success: false, error: errorMessage };
+      
     } finally {
       setLoading(false);
     }
   };
 
-  const signup = async (userData) => {
+  // Google OAuth
+  const googleLogin = async () => {
     try {
       setLoading(true);
-      
-      // Simulate API delay
-      await simulateApiDelay();
+      console.log('🔑 Starting Google OAuth...');
 
-      // DEVELOPMENT MODE: Mock signup
-      if (process.env.NODE_ENV === 'development') {
-        const newUser = {
-          id: Date.now().toString(),
-          email: userData.email,
-          username: userData.username || userData.email.split('@')[0],
-          displayName: userData.displayName || userData.username || userData.email.split('@')[0],
-          avatar: '',
-          location: userData.location || {},
-          stats: {
-            currentStreak: 0,
-            totalDays: 0,
-            longestStreak: 0,
-            consistencyScore: 0,
-            totalOutdoorTime: 0
-          },
-          subscription: {
-            plan: 'free',
-            active: true
-          },
-          createdAt: new Date().toISOString()
-        };
-        
-        const mockToken = 'mock_jwt_token_' + Date.now();
-        
-        localStorage.setItem('touchgrass_token', mockToken);
-        localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
-        
-        setUser(newUser);
-        setIsAuthenticated(true);
-        
-        toast.success('Account created successfully! 🎉', {
-          icon: '🚀',
-          position: 'top-right',
-          theme: 'dark',
-          autoClose: 3000,
-        });
-        
-        return { 
-          success: true, 
-          user: newUser,
-          redirectTo: '/verify' // New users start at verification
-        };
-      }
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      console.log('📍 Redirect URL:', redirectUrl);
 
-      // PRODUCTION MODE: Real API call (uncomment for production)
-      /*
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
-        body: JSON.stringify(userData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Signup failed');
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-      
-      localStorage.setItem('touchgrass_token', data.token);
-      localStorage.setItem('touchgrass_user', JSON.stringify(data.user));
-      
-      setUser(data.user);
-      setIsAuthenticated(true);
-      
-      toast.success('Account created successfully! 🎉', {
-        icon: '🚀',
-        position: 'top-right',
-        theme: 'dark',
-      });
-      
-      return { 
-        success: true, 
-        user: data.user,
-        redirectTo: '/verify'
-      };
-      */
+      console.log('🔄 Redirecting to Google...');
 
     } catch (error) {
-      console.error('Signup error:', error);
-      
-      toast.error(error.message || 'Signup failed. Please try again.', {
-        position: 'top-right',
-        theme: 'dark',
-      });
-      
-      return { 
-        success: false, 
-        error: error.message || 'Signup failed' 
-      };
-    } finally {
+      console.error('❌ Google OAuth error:', error);
+      toast.error('Google login failed. Please try email/password.', { theme: 'dark' });
       setLoading(false);
+      throw error;
     }
   };
 
-  const logout = () => {
-    // Clear local storage
-    localStorage.removeItem('touchgrass_token');
-    localStorage.removeItem('touchgrass_user');
-    
-    // Reset state
-    setUser(null);
-    setIsAuthenticated(false);
-    
-    toast.info('Logged out successfully', {
-      icon: '👋',
-      position: 'top-right',
-      theme: 'dark',
-      autoClose: 2000,
-    });
-    
-    // Note: Navigation should be handled by the component that calls logout
-  };
-
-  const updateUser = (updates) => {
-    const updatedUser = { ...user, ...updates };
-    setUser(updatedUser);
-    localStorage.setItem('touchgrass_user', JSON.stringify(updatedUser));
-    return updatedUser;
-  };
-
-  // Check if user has completed first verification
-  const hasStartedStreak = () => {
-    return user?.stats?.currentStreak > 0;
-  };
-
-  // Get user's next step
-  const getUserNextStep = () => {
-    if (!user) return '/';
-    if (!hasStartedStreak()) return '/verify';
-    return '/dashboard';
+  // Logout
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      localStorage.removeItem('supabase.auth.token');
+      toast.info('Logged out successfully', { theme: 'dark' });
+      navigate('/auth?mode=login', { replace: true });
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+    }
   };
 
   const value = {
     user,
     loading,
-    isAuthenticated,
-    login,
+    initialized,
+    isAuthenticated: !!user,
     signup,
+    login,
+    googleLogin,
     logout,
-    updateUser,
-    hasStartedStreak,
-    getUserNextStep
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-// Export a function to get auth headers for API calls
-export const getAuthHeaders = () => {
-  const token = localStorage.getItem('touchgrass_token');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

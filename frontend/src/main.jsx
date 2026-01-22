@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { RecoilRoot } from 'recoil';
 import App from './App';
+// import './global.css';
 
 // Initialize theme before render
 const savedTheme = localStorage.getItem('theme') || 'dark';

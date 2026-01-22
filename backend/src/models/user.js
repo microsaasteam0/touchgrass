@@ -243,7 +243,6 @@
 // };
 
 // module.exports = mongoose.model('User', userSchema);
-
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -257,7 +256,7 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     minlength: 3,
     maxlength: 30,
-    match: /^[a-zA-Z0-9_]+$/ // Only letters, numbers, underscores
+    match: /^[a-zA-Z0-9_]+$/
   },
   email: {
     type: String,
@@ -265,16 +264,16 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ // Email validation
+    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   },
   password: {
     type: String,
     required: true,
     minlength: 8,
-    select: false // Don't return password in queries
+    select: false
   },
-  
-  // Profile Info (set during registration)
+
+  // Profile Info
   displayName: {
     type: String,
     required: true,
@@ -292,38 +291,25 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: 30
   },
-  
-  // Avatar System
+
+  // Avatar
   avatar: {
     type: String,
-    default: function() {
-      // Generate avatar based on username
-      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${this.username}&backgroundColor=b6e3f4,c0aede,d1d4f9`
+    default: function () {
+      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${this.username}`;
     }
   },
   customAvatar: {
     type: String,
     default: ''
   },
-  
-  // Bio & Personal Info
-  bio: {
-    type: String,
-    maxlength: 250,
-    default: ''
-  },
-  website: {
-    type: String,
-    maxlength: 100,
-    default: ''
-  },
-  occupation: {
-    type: String,
-    maxlength: 50,
-    default: ''
-  },
-  
-  // Location (optional)
+
+  // Bio
+  bio: { type: String, maxlength: 250, default: '' },
+  website: { type: String, maxlength: 100, default: '' },
+  occupation: { type: String, maxlength: 50, default: '' },
+
+  // Location
   location: {
     country: String,
     city: String,
@@ -333,369 +319,184 @@ const userSchema = new mongoose.Schema({
       lng: Number
     }
   },
-  
-  // Privacy & Preferences
+
+  // Preferences
   preferences: {
     profileVisibility: {
       type: String,
       enum: ['public', 'private', 'friends_only'],
       default: 'public'
     },
-    showOnLeaderboard: {
-      type: Boolean,
-      default: true
-    },
+    showOnLeaderboard: { type: Boolean, default: true },
     notifications: {
       streakReminder: { type: Boolean, default: true },
       leaderboardUpdates: { type: Boolean, default: true },
       challengeInvites: { type: Boolean, default: true },
       marketingEmails: { type: Boolean, default: false }
     },
-    emailVerified: {
-      type: Boolean,
-      default: false
-    },
-    twoFactorEnabled: {
-      type: Boolean,
-      default: false
-    }
+    emailVerified: { type: Boolean, default: false },
+    twoFactorEnabled: { type: Boolean, default: false }
   },
-  
-  // Real Statistics (Calculated from actual streak data)
+
+  // Stats
   stats: {
-    currentStreak: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    longestStreak: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    totalDays: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    totalOutdoorTime: { // in minutes
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    averageDailyTime: { // in minutes (calculated)
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    consistencyScore: { // percentage (0-100)
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100
-    },
-    shameDays: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    challengesWon: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    challengesParticipated: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    sharesCount: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    referralCount: {
-      type: Number,
-      default: 0,
-      min: 0
-    }
+    currentStreak: { type: Number, default: 0 },
+    longestStreak: { type: Number, default: 0 },
+    totalDays: { type: Number, default: 0 },
+    totalOutdoorTime: { type: Number, default: 0 },
+    averageDailyTime: { type: Number, default: 0 },
+    consistencyScore: { type: Number, default: 0 },
+    shameDays: { type: Number, default: 0 },
+    challengesWon: { type: Number, default: 0 },
+    challengesParticipated: { type: Number, default: 0 },
+    sharesCount: { type: Number, default: 0 },
+    referralCount: { type: Number, default: 0 }
   },
-  
-  // Financial Stats (for monetization)
+
+  // Revenue
   revenue: {
-    totalSpent: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    streakRestorations: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    subscriptionMonths: {
-      type: Number,
-      default: 0,
-      min: 0
-    }
+    totalSpent: { type: Number, default: 0 },
+    streakRestorations: { type: Number, default: 0 },
+    subscriptionMonths: { type: Number, default: 0 }
   },
-  
-  // Achievements & Badges
+
+  // ✅ SUBSCRIPTION (NEW)
+  subscription: {
+    status: {
+      type: String,
+      enum: ['free', 'trial', 'active', 'expired'],
+      default: 'free'
+    },
+    plan: { type: String, default: 'free' },
+    provider: { type: String, default: 'stripe' },
+    providerCustomerId: { type: String, default: null },
+    providerSubscriptionId: { type: String, default: null },
+    currentPeriodEnd: Date
+  },
+
+  // Achievements
   achievements: [{
     id: String,
     name: String,
     description: String,
     icon: String,
     earnedAt: Date,
-    rarity: {
-      type: String,
-      enum: ['common', 'rare', 'epic', 'legendary']
-    },
-    progress: {
-      current: Number,
-      required: Number
-    }
+    rarity: { type: String }
   }],
-  
-  // Referral System
-  referralCode: {
-    type: String,
-    unique: true,
-    sparse: true
-  },
-  referredBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  
+
+  // Referral
+  referralCode: { type: String, unique: true, sparse: true },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
   // Status & Activity
   status: {
     type: String,
     enum: ['active', 'inactive', 'suspended', 'deleted'],
     default: 'active'
   },
-  lastActive: {
-    type: Date,
-    default: Date.now
-  },
+  lastActive: { type: Date, default: Date.now },
   lastVerification: Date,
-  
-  // Analytics Tracking
-  analytics: {
-    firstLogin: Date,
-    totalLogins: { type: Number, default: 1 },
-    sessions: [{
-      date: Date,
-      duration: Number, // in minutes
-      actions: Number
-    }],
-    deviceInfo: {
-      type: String,
-      default: ''
-    },
-    ipAddress: {
-      type: String,
-      default: ''
-    }
-  },
-  
-  // Timestamps
-  createdAt: {
+
+  // ✅ STREAK SOURCE OF TRUTH (NEW)
+  lastTouchDate: {
     type: Date,
-    default: Date.now,
-    immutable: true
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+    default: null,
+    index: true
   }
+
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// Indexes for performance
+// Indexes
 userSchema.index({ username: 1 });
 userSchema.index({ email: 1 });
 userSchema.index({ 'stats.currentStreak': -1 });
-userSchema.index({ 'stats.consistencyScore': -1 });
-userSchema.index({ 'location.city': 1 });
-userSchema.index({ 'location.country': 1 });
-userSchema.index({ referralCode: 1 });
-userSchema.index({ lastActive: -1 });
-userSchema.index({ createdAt: -1 });
+userSchema.index({ lastTouchDate: -1 });
 
-// Virtual for full name
-userSchema.virtual('fullName').get(function() {
-  if (this.firstName && this.lastName) {
-    return `${this.firstName} ${this.lastName}`;
-  }
-  return this.displayName;
+// Virtuals
+userSchema.virtual('fullName').get(function () {
+  return this.firstName && this.lastName
+    ? `${this.firstName} ${this.lastName}`
+    : this.displayName;
 });
 
-// Virtual for join date formatted
-userSchema.virtual('joinDateFormatted').get(function() {
-  return this.createdAt.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric'
-  });
-});
-
-// Virtual for streak start date (calculated from streaks collection)
-userSchema.virtual('streakStartDate', {
-  ref: 'Streak',
-  localField: '_id',
-  foreignField: 'userId',
-  justOne: true,
-  options: { 
-    sort: { 'history.date': 1 },
-    limit: 1 
-  }
-});
-
-// Pre-save middleware
-userSchema.pre('save', async function(next) {
-  // Hash password if modified
+// Pre-save
+userSchema.pre('save', async function (next) {
   if (this.isModified('password')) {
     this.password = await bcrypt.hash(this.password, 12);
   }
-  
-  // Update updatedAt timestamp
-  this.updatedAt = new Date();
-  
-  // Generate referral code if not exists
+
   if (!this.referralCode) {
     this.referralCode = this.generateReferralCode();
   }
-  
-  // Calculate average daily time
-  if (this.stats.totalDays > 0 && this.stats.totalOutdoorTime > 0) {
-    this.stats.averageDailyTime = Math.round(this.stats.totalOutdoorTime / this.stats.totalDays);
-  }
-  
-  // Calculate consistency score
-  if (this.stats.totalDays > 0) {
-    const consistency = (this.stats.longestStreak / this.stats.totalDays) * 100;
-    this.stats.consistencyScore = Math.min(100, Math.round(consistency * 10) / 10);
-  }
-  
+
   next();
 });
 
 // Methods
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+userSchema.methods.comparePassword = function (candidate) {
+  return bcrypt.compare(candidate, this.password);
 };
 
-userSchema.methods.generateReferralCode = function() {
+userSchema.methods.generateReferralCode = function () {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
   for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars[Math.floor(Math.random() * chars.length)];
   }
   return `TG-${code}`;
 };
 
-userSchema.methods.updateStreakStats = function(verified, duration = 0) {
-  if (verified) {
-    this.stats.currentStreak += 1;
+// ✅ FIXED STREAK LOGIC (DATE-BASED)
+userSchema.methods.updateStreakStats = function (duration = 0) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const last = this.lastTouchDate
+    ? new Date(this.lastTouchDate).setHours(0, 0, 0, 0)
+    : null;
+
+  if (!last) {
+    this.stats.currentStreak = 1;
     this.stats.totalDays += 1;
-    this.stats.totalOutdoorTime += duration;
-    
-    // Update longest streak if current is longer
-    if (this.stats.currentStreak > this.stats.longestStreak) {
-      this.stats.longestStreak = this.stats.currentStreak;
-    }
   } else {
-    // Streak broken
-    this.stats.currentStreak = 0;
-    this.stats.shameDays += 1;
+    const diff = (today - last) / (1000 * 60 * 60 * 24);
+
+    if (diff === 0) return this;
+
+    if (diff === 1) {
+      this.stats.currentStreak += 1;
+      this.stats.totalDays += 1;
+    } else {
+      this.stats.currentStreak = 1;
+      this.stats.totalDays += 1;
+      this.stats.shameDays += 1;
+    }
   }
-  
-  // Update average and consistency
-  if (this.stats.totalDays > 0) {
-    this.stats.averageDailyTime = Math.round(this.stats.totalOutdoorTime / this.stats.totalDays);
-    const consistency = (this.stats.longestStreak / this.stats.totalDays) * 100;
-    this.stats.consistencyScore = Math.min(100, Math.round(consistency * 10) / 10);
-  }
-  
+
+  this.lastTouchDate = today;
   this.lastVerification = new Date();
   this.lastActive = new Date();
-  
+
+  this.stats.totalOutdoorTime += duration;
+
+  if (this.stats.currentStreak > this.stats.longestStreak) {
+    this.stats.longestStreak = this.stats.currentStreak;
+  }
+
+  this.stats.averageDailyTime = Math.round(
+    this.stats.totalOutdoorTime / this.stats.totalDays
+  );
+
+  this.stats.consistencyScore = Math.min(
+    100,
+    Math.round((this.stats.longestStreak / this.stats.totalDays) * 1000) / 10
+  );
+
   return this.save();
-};
-
-userSchema.methods.getRank = async function() {
-  const User = this.constructor;
-  const count = await User.countDocuments({
-    'stats.currentStreak': { $gt: this.stats.currentStreak },
-    'preferences.showOnLeaderboard': true
-  });
-  return count + 1;
-};
-
-userSchema.methods.getPercentile = async function() {
-  const User = this.constructor;
-  const total = await User.countDocuments({ 'preferences.showOnLeaderboard': true });
-  const rank = await this.getRank();
-  return Math.round(((total - rank) / total) * 100);
-};
-
-userSchema.methods.toProfileJSON = function(viewerId = null) {
-  const isSelf = viewerId && viewerId.toString() === this._id.toString();
-  const isPublic = this.preferences.profileVisibility === 'public';
-  const canView = isSelf || isPublic;
-  
-  return {
-    id: this._id,
-    username: this.username,
-    displayName: this.displayName,
-    fullName: this.fullName,
-    avatar: this.customAvatar || this.avatar,
-    bio: canView ? this.bio : '',
-    location: canView ? this.location : {},
-    joinDate: this.createdAt,
-    joinDateFormatted: this.joinDateFormatted,
-    
-    // Public stats (always visible)
-    stats: {
-      currentStreak: this.stats.currentStreak,
-      longestStreak: this.stats.longestStreak,
-      totalDays: this.stats.totalDays,
-      consistencyScore: this.stats.consistencyScore,
-      averageDailyTime: this.stats.averageDailyTime,
-      challengesWon: this.stats.challengesWon,
-      sharesCount: this.stats.sharesCount
-    },
-    
-    // Private stats (only visible to self)
-    privateStats: isSelf ? {
-      shameDays: this.stats.shameDays,
-      totalOutdoorTime: this.stats.totalOutdoorTime,
-      challengesParticipated: this.stats.challengesParticipated,
-      referralCount: this.stats.referralCount,
-      revenue: this.revenue
-    } : undefined,
-    
-    // Achievements (always visible)
-    achievements: this.achievements.map(ach => ({
-      name: ach.name,
-      icon: ach.icon,
-      earnedAt: ach.earnedAt,
-      rarity: ach.rarity
-    })),
-    
-    // Status
-    lastActive: this.lastActive,
-    todayVerified: this.lastVerification 
-      ? this.lastVerification.toDateString() === new Date().toDateString()
-      : false,
-    
-    // Permissions
-    canEdit: isSelf,
-    canMessage: canView && !isSelf
-  };
 };
 
 module.exports = mongoose.model('User', userSchema);

@@ -188,21 +188,10 @@ export const StreakProvider = ({ children }) => {
   const loadStreakData = async () => {
     try {
       const token = localStorage.getItem('touchgrass_token');
-      
-      if (!token || token.startsWith('mock_')) {
-        console.log('Using mock streak data (mock token)');
-        // Return mock data that matches Dashboard
-        return {
-          streak: {
-            currentStreak: 2,
-            longestStreak: 2,
-            totalDays: 2,
-            totalOutdoorTime: 71,
-            todayVerified: false,
-            history: [],
-            consistencyScore: 85
-          }
-        };
+
+      if (!token) {
+        console.log('No token found for streak data');
+        return null;
       }
 
       const response = await fetch(`${API_BASE_URL}/streaks/current`, {
@@ -212,28 +201,14 @@ export const StreakProvider = ({ children }) => {
         }
       });
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.log('Streak endpoint returned HTML, using mock');
-        return {
-          streak: {
-            currentStreak: 1,
-            longestStreak: 1,
-            totalDays: 1,
-            totalOutdoorTime: 30,
-            todayVerified: false,
-            history: []
-          }
-        };
-      }
-
       if (response.ok) {
         return await response.json();
       }
-      
+
+      console.error('Failed to load streak data:', response.status);
       return null;
     } catch (error) {
-      console.warn('Streak error:', error.message);
+      console.error('Streak error:', error.message);
       return null;
     }
   };

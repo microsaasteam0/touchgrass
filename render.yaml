@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: touchgrass-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+    plan: free

@@ -1,4 +1,6 @@
-/**
+import React from 'react';
+  
+  /**
  * TouchGrass Streak Service - Premium Habit Tracking
  * Enterprise-grade streak management with behavioral analytics
  */

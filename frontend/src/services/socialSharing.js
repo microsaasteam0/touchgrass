@@ -1,4 +1,6 @@
-/**
+import React from 'react';
+ 
+  /**
  * TouchGrass Social Sharing Service - Premium Viral Marketing
  * Enterprise-grade social sharing with advanced analytics
  */

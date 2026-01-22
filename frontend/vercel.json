@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "name": "touchgrass",
+  "public": true,
+  "alias": ["touchgrass.entrext.in"],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "VITE_API_URL": "http://localhost:5001",
+    "VITE_SITE_URL": "https://touchgrass.entrext.in"
+  }
+}

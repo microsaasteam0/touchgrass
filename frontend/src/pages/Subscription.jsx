@@ -1,1061 +1,556 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../components/ui/Card';
+import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
+import { 
+  CheckCircle, Crown, Sparkles, Zap, Shield, Users, 
+  Award, TrendingUp, Star, Gift, CreditCard, 
+  Target, Battery, Clock, Heart, BarChart3,
+  ExternalLink, ChevronRight, Loader2
+} from 'lucide-react';
+import { useRecoilValue } from 'recoil';
+import { authState } from '../state/auth';
 import Button from '../components/ui/Button';
-import Modal from '../components/ui/Model';
-import Confetti from '../components/ui/Confetti';
+import Card from '../components/ui/Card';
 
-/**
- * Premium Subscription Page
- * Business-minded pricing with advanced animations and psychology
- */
 const Subscription = () => {
   const navigate = useNavigate();
-  const [selectedPlan, setSelectedPlan] = useState('elite');
-  const [billingCycle, setBillingCycle] = useState('yearly');
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState('free');
+  const auth = useRecoilValue(authState);
+  const [selectedPlan, setSelectedPlan] = useState('pro');
   const [isLoading, setIsLoading] = useState(false);
-  const animationRef = useRef(null);
-  const particlesRef = useRef([]);
+  const [currentPlan, setCurrentPlan] = useState('free');
 
-  useEffect(() => {
-    // Load current user plan
-    setCurrentPlan('free');
-    createSubscriptionAnimations();
-    return () => {
-      particlesRef.current.forEach(p => clearInterval(p.interval));
-    };
-  }, []);
-
-  const createSubscriptionAnimations = () => {
-    const container = animationRef.current;
-    if (!container) return;
-
-    // Create floating premium particles
-    for (let i = 0; i < 15; i++) {
-      const particle = document.createElement('div');
-      particle.className = 'premium-particle';
-      
-      const symbols = ['⭐', '🌟', '✨', '💎', '👑', '🏆', '💫', '🔥'];
-      particle.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-      
-      const size = 16 + Math.random() * 24;
-      const left = Math.random() * 100;
-      const duration = 8 + Math.random() * 12;
-      const delay = Math.random() * 5;
-      
-      particle.style.fontSize = `${size}px`;
-      particle.style.left = `${left}%`;
-      particle.style.animationDuration = `${duration}s`;
-      particle.style.animationDelay = `${delay}s`;
-      particle.style.opacity = 0.1 + Math.random() * 0.3;
-      
-      container.appendChild(particle);
-      
-      // Add interval to reset position
-      const interval = setInterval(() => {
-        const newLeft = Math.random() * 100;
-        particle.style.left = `${newLeft}%`;
-      }, duration * 1000);
-      
-      particlesRef.current.push({ element: particle, interval });
-    }
-  };
-
-  const plans = {
-    free: {
+  const plans = [
+    {
+      id: 'free',
       name: 'Free',
-      price: { monthly: 0, yearly: 0 },
-      description: 'Basic streak tracking for casual users',
-      color: '#3b82f6',
+      price: 0,
+      period: 'forever',
+      description: 'Start your discipline journey',
+      color: '#6b7280',
+      icon: <Star className="w-8 h-8" />,
       features: [
-        '✅ Basic streak tracking',
-        '✅ Daily verification',
-        '❌ No streak protection',
-        '❌ Limited leaderboard access',
-        '❌ Basic analytics only',
-        '❌ No priority support'
+        { text: 'Basic streak tracking', icon: <Target size={16} /> },
+        { text: 'Daily verification', icon: <CheckCircle size={16} /> },
+        { text: 'Public leaderboard access', icon: <TrendingUp size={16} /> },
+        { text: '7-day streak limit', icon: <Clock size={16} /> },
+        { text: 'Basic analytics', icon: <BarChart3 size={16} /> }
       ],
       cta: 'Current Plan',
-      disabled: true
+      disabled: true,
+      popular: false,
+      gradient: 'from-gray-500 to-gray-700'
     },
-    premium: {
-      name: 'Premium',
-      price: { monthly: 9.99, yearly: 99.99 },
-      description: 'Advanced features for serious discipline builders',
-      color: '#8b5cf6',
-      features: [
-        '✅ Everything in Free',
-        '✅ Streak freeze tokens (3/month)',
-        '✅ Advanced analytics dashboard',
-        '✅ Full leaderboard access',
-        '✅ Priority customer support',
-        '✅ Custom achievement badges'
-      ],
-      cta: 'Upgrade to Premium',
-      popular: false
-    },
-    elite: {
-      name: 'Elite',
-      price: { monthly: 19.99, yearly: 199.99 },
-      description: 'Maximum accountability for peak performers',
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: 14.99,
+      period: '/month',
+      description: 'For serious performers',
       color: '#fbbf24',
+      icon: <Crown className="w-8 h-8" />,
       features: [
-        '✅ Everything in Premium',
-        '✅ Unlimited streak freezes',
-        '✅ VIP leaderboard placement',
-        '✅ 1-on-1 coaching sessions',
-        '✅ Early access to new features',
-        '✅ Custom challenge creation'
+        { text: 'Unlimited streaks', icon: <Battery size={16} /> },
+        { text: 'Advanced analytics dashboard', icon: <BarChart3 size={16} /> },
+        { text: '5 streak freeze tokens/month', icon: <Zap size={16} /> },
+        { text: 'Priority customer support', icon: <Shield size={16} /> },
+        { text: 'Custom achievement badges', icon: <Award size={16} /> },
+        { text: 'Ad-free experience', icon: <Heart size={16} /> },
+        { text: 'Early access to features', icon: <Sparkles size={16} /> }
       ],
-      cta: 'Go Elite',
-      popular: true
+      cta: 'Get Pro',
+      popular: true,
+      badge: 'MOST POPULAR',
+      gradient: 'from-premium-gold to-yellow-600'
     },
-    team: {
-      name: 'Team',
-      price: { monthly: 49.99, yearly: 499.99 },
-      description: 'Group accountability for organizations',
-      color: '#10b981',
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: 59.99,
+      period: '/month',
+      description: 'Teams & organizations',
+      color: '#3b82f6',
+      icon: <Users className="w-8 h-8" />,
       features: [
-        '✅ Everything in Elite',
-        '✅ Team leaderboards & challenges',
-        '✅ Admin dashboard & analytics',
-        '✅ Custom branding options',
-        '✅ Dedicated account manager',
-        '✅ API access'
+        { text: 'Everything in Pro', icon: <CheckCircle size={16} /> },
+        { text: 'White-label solution', icon: <BarChart3 size={16} /> },
+        { text: 'API access', icon: <Zap size={16} /> },
+        { text: 'Custom reporting', icon: <BarChart3 size={16} /> },
+        { text: 'Dedicated success manager', icon: <Users size={16} /> },
+        { text: 'SLA guarantee', icon: <Shield size={16} /> },
+        { text: 'Unlimited team members', icon: <Users size={16} /> }
       ],
-      cta: 'Contact Sales',
-      enterprise: true
+      cta: 'Get Enterprise',
+      popular: false,
+      badge: 'FOR TEAMS',
+      gradient: 'from-blue-500 to-indigo-600'
     }
-  };
+  ];
 
-  const handleUpgrade = () => {
-    if (selectedPlan === 'team') {
-      // Open contact form for enterprise
-      window.location.href = 'mailto:sales@touchgrass.now?subject=Team%20Plan%20Inquiry';
+  useEffect(() => {
+    // Set current user plan
+    if (auth.user?.subscription?.plan) {
+      setCurrentPlan(auth.user.subscription.plan);
+      if (auth.user.subscription.plan !== 'free') {
+        setSelectedPlan(auth.user.subscription.plan);
+      }
+    }
+  }, [auth.user]);
+
+  const handleUpgrade = async (planId) => {
+    console.log('handleUpgrade called for plan:', planId);
+    
+    if (!auth.isAuthenticated) {
+      toast.error('Please login to upgrade');
+      navigate('/auth');
       return;
     }
 
-    if (currentPlan === selectedPlan) return;
-    
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setShowPaymentModal(true);
-    }, 500);
-  };
-
-  const handlePaymentComplete = () => {
-    setShowPaymentModal(false);
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-      navigate('/dashboard');
-    }, 3000);
-  };
-
-  const calculateSavings = (plan) => {
-    if (billingCycle === 'yearly') {
-      const monthlyTotal = plans[plan].price.monthly * 12;
-      const yearlyPrice = plans[plan].price.yearly;
-      const savings = monthlyTotal - yearlyPrice;
-      return {
-        amount: savings.toFixed(2),
-        percent: Math.round((savings / monthlyTotal) * 100)
-      };
+    if (planId === currentPlan) {
+      toast.success('You already have this plan!');
+      return;
     }
-    return { amount: '0', percent: 0 };
+
+    setIsLoading(true);
+    toast.loading('Opening Dodo payment...', { id: 'payment' });
+
+    try {
+      // Direct Dodo payment URLs from your .env
+      const dodoUrls = {
+        pro: 'https://checkout.dodopayments.com/buy/pdt_0NWPkwJJcZChm84jRPqIt',
+        enterprise: 'https://checkout.dodopayments.com/buy/pdt_0NWPl4fuR5huBMtu7YAKT'
+      };
+      
+      if (!dodoUrls[planId]) {
+        throw new Error('Payment URL not found for this plan');
+      }
+      
+      // Construct the Dodo payment URL
+      let url = dodoUrls[planId] + '?quantity=1';
+      
+      // Add user metadata to URL
+      if (auth.user) {
+        const urlObj = new URL(url);
+        urlObj.searchParams.append('client_reference_id', auth.user.id);
+        if (auth.user.email) {
+          urlObj.searchParams.append('prefilled_email', encodeURIComponent(auth.user.email));
+        }
+        urlObj.searchParams.append('product_name', `${planId === 'pro' ? 'Pro' : 'Enterprise'} Plan - TouchGrass`);
+        url = urlObj.toString();
+      }
+      
+      console.log('Opening Dodo payment URL:', url);
+      
+      // Open payment in new window
+      const paymentWindow = window.open(
+        url,
+        'dodo_payment',
+        'width=600,height=700,scrollbars=yes'
+      );
+
+      if (!paymentWindow) {
+        toast.error('Please allow popups to complete payment');
+        setIsLoading(false);
+        toast.dismiss('payment');
+        return;
+      }
+
+      // Monitor payment window
+      const checkWindow = setInterval(() => {
+        if (paymentWindow.closed) {
+          clearInterval(checkWindow);
+          toast.success('Payment completed! Updating your account...', { id: 'payment' });
+          
+          // You might want to add a webhook listener or poll the server
+          // For now, we'll just reload after 3 seconds
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
+        }
+      }, 1000);
+
+      // Timeout for checking payment
+      setTimeout(() => {
+        clearInterval(checkWindow);
+      }, 60000); // 60 seconds timeout
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error(error.message || 'Payment setup failed. Please try again.', { id: 'payment' });
+    } finally {
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2000);
+    }
   };
 
-  const pageStyles = `
+  const handleFreePlan = () => {
+    console.log('handleFreePlan called');
+    if (auth.isAuthenticated) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+    }
+  };
+
+  const subscriptionStyles = `
     .subscription-container {
       min-height: 100vh;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      padding: 2rem;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .subscription-background {
-      position: absolute;
-      inset: 0;
-      background: 
-        radial-gradient(circle at 20% 30%, rgba(251, 191, 36, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
-      animation: backgroundFloat 20s ease-in-out infinite;
-    }
-
-    .subscription-content {
-      position: relative;
-      z-index: 2;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    .subscription-header {
-      text-align: center;
-      margin-bottom: 4rem;
-      animation: fadeInUp 0.6s ease-out;
-    }
-
-    .subscription-title {
-      font-size: 3.5rem;
-      font-weight: 900;
-      background: linear-gradient(135deg, #fbbf24 0%, #d97706 50%, #8b5cf6 100%);
-      background-clip: text;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin: 0 0 1rem 0;
-      letter-spacing: -0.02em;
-    }
-
-    .subscription-subtitle {
-      font-size: 1.25rem;
-      color: rgba(255, 255, 255, 0.7);
-      margin: 0 0 2rem 0;
-      line-height: 1.6;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .billing-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 1rem;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 0.5rem;
-      margin-top: 1rem;
-    }
-
-    .billing-option {
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      background: transparent;
-      border: none;
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .billing-option:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .billing-option.active {
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(21, 128, 61, 0.2) 100%);
+      background: linear-gradient(135deg, #0a0a0a 0%, #111827 50%, #0a0a0a 100%);
       color: white;
     }
-
-    .plans-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
-      margin-bottom: 4rem;
-      animation: fadeInUp 0.6s ease-out 0.2s both;
-    }
-
-    .plan-card {
+    
+    .premium-plan-highlight {
       position: relative;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      padding: 2rem;
-      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-      display: flex;
-      flex-direction: column;
-      height: 100%;
+      border: double 2px transparent;
+      background-image: linear-gradient(#111827, #111827), 
+                        linear-gradient(135deg, #fbbf24, #d97706, #fbbf24);
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+      animation: premiumGlow 3s ease-in-out infinite;
     }
-
+    
+    @keyframes premiumGlow {
+      0%, 100% {
+        box-shadow: 0 0 40px rgba(251, 191, 36, 0.2);
+      }
+      50% {
+        box-shadow: 0 0 60px rgba(251, 191, 36, 0.4);
+      }
+    }
+    
+    .plan-card {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    
     .plan-card:hover {
       transform: translateY(-8px);
-      border-color: rgba(255, 255, 255, 0.2);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     }
-
-    .plan-card.selected {
-      border-width: 2px;
-      box-shadow: 0 0 40px rgba(var(--plan-color-rgb), 0.3);
+    
+    .plan-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--plan-color, #6b7280), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
     }
-
-    .plan-card.popular::before {
-      content: 'MOST POPULAR';
+    
+    .plan-card:hover::before {
+      opacity: 1;
+    }
+    
+    .feature-item {
+      transition: all 0.3s ease;
+      padding: 8px 0;
+    }
+    
+    .feature-item:hover {
+      transform: translateX(8px);
+    }
+    
+    .dodo-payment-section {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    
+    .money-back-guarantee {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+    
+    .faq-item {
+      transition: all 0.3s ease;
+    }
+    
+    .faq-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+    
+    .plan-badge {
       position: absolute;
       top: -12px;
       left: 50%;
       transform: translateX(-50%);
-      background: linear-gradient(135deg, #fbbf24, #d97706);
-      color: #1c1917;
-      padding: 0.5rem 1.5rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
+      padding: 6px 20px;
+      border-radius: 100px;
       font-weight: 700;
+      font-size: 12px;
       letter-spacing: 0.05em;
       text-transform: uppercase;
-      z-index: 2;
-      animation: popularPulse 2s ease-in-out infinite;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      z-index: 10;
     }
-
-    .plan-header {
-      text-align: center;
-      margin-bottom: 2rem;
-      position: relative;
-    }
-
-    .plan-name {
-      font-size: 2rem;
-      font-weight: 700;
-      color: white;
-      margin: 0 0 0.5rem 0;
-    }
-
-    .plan-description {
-      font-size: 0.875rem;
-      color: rgba(255, 255, 255, 0.6);
-      margin: 0;
-    }
-
-    .plan-price {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .price-amount {
-      font-size: 3.5rem;
-      font-weight: 800;
-      color: white;
-      margin: 0;
-      line-height: 1;
-    }
-
-    .price-period {
-      font-size: 0.875rem;
-      color: rgba(255, 255, 255, 0.6);
-      margin: 0.5rem 0 0 0;
-    }
-
-    .price-savings {
-      display: inline-block;
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(21, 128, 61, 0.2) 100%);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      color: #22c55e;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      margin-top: 0.5rem;
-      animation: savingsPulse 2s ease-in-out infinite;
-    }
-
-    .plan-features {
-      flex: 1;
-      margin-bottom: 2rem;
-    }
-
-    .feature-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .feature-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      font-size: 0.875rem;
-      color: rgba(255, 255, 255, 0.8);
-    }
-
-    .feature-item:last-child {
-      border-bottom: none;
-    }
-
-    .feature-icon {
-      font-size: 1rem;
-      flex-shrink: 0;
-    }
-
-    .plan-actions {
-      text-align: center;
-    }
-
-    .comparison-table {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      padding: 2rem;
-      margin-bottom: 4rem;
-      animation: fadeInUp 0.6s ease-out 0.4s both;
-    }
-
-    .comparison-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .comparison-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: white;
-      margin: 0 0 0.5rem 0;
-    }
-
-    .comparison-subtitle {
-      font-size: 0.875rem;
-      color: rgba(255, 255, 255, 0.6);
-      margin: 0;
-    }
-
-    .comparison-grid {
-      display: grid;
-      grid-template-columns: 2fr repeat(4, 1fr);
-      gap: 1rem;
-      overflow-x: auto;
-    }
-
-    .comparison-row {
-      display: contents;
-    }
-
-    .comparison-cell {
-      padding: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 60px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .comparison-cell:first-child {
-      justify-content: flex-start;
-      text-align: left;
-    }
-
-    .cell-header {
-      font-weight: 600;
-      color: white;
-    }
-
-    .cell-value {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.875rem;
-    }
-
-    .cell-check {
-      color: #22c55e;
-      font-size: 1.25rem;
-    }
-
-    .cell-cross {
-      color: #ef4444;
-      font-size: 1.25rem;
-    }
-
-    .cell-premium {
-      color: #fbbf24;
-      font-weight: 600;
-    }
-
-    .faq-section {
-      margin-bottom: 4rem;
-      animation: fadeInUp 0.6s ease-out 0.6s both;
-    }
-
-    .faq-title {
-      font-size: 2rem;
-      font-weight: 700;
-      color: white;
-      text-align: center;
-      margin: 0 0 2rem 0;
-    }
-
-    .faq-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .faq-item {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 1.5rem;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
-
-    .faq-item:hover {
-      background: rgba(255, 255, 255, 0.08);
-      transform: translateY(-4px);
-    }
-
-    .faq-question {
-      font-size: 1rem;
-      font-weight: 600;
-      color: white;
-      margin: 0 0 0.75rem 0;
-    }
-
-    .faq-answer {
-      font-size: 0.875rem;
-      color: rgba(255, 255, 255, 0.7);
-      margin: 0;
-      line-height: 1.6;
-    }
-
-    .premium-particle {
-      position: absolute;
-      pointer-events: none;
-      z-index: 1;
-      animation: premiumFloat linear infinite;
-    }
-
-    .current-plan-badge {
-      display: inline-block;
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(21, 128, 61, 0.2) 100%);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      color: #22c55e;
-      padding: 0.5rem 1rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-top: 1rem;
-    }
-
-    .money-back-guarantee {
-      text-align: center;
-      padding: 2rem;
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(21, 128, 61, 0.1) 100%);
-      border: 1px solid rgba(34, 197, 94, 0.2);
-      border-radius: 20px;
-      margin-top: 3rem;
-      animation: guaranteePulse 3s ease-in-out infinite;
-    }
-
-    .guarantee-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-
-    .guarantee-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: white;
-      margin: 0 0 0.5rem 0;
-    }
-
-    .guarantee-text {
-      font-size: 1rem;
-      color: rgba(255, 255, 255, 0.8);
-      margin: 0;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    @keyframes backgroundFloat {
-      0%, 100% { transform: translate(0, 0); }
-      25% { transform: translate(-10px, 10px); }
-      50% { transform: translate(10px, -10px); }
-      75% { transform: translate(-10px, -10px); }
-    }
-
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes premiumFloat {
-      0% {
-        transform: translateY(100vh) rotate(0deg);
-        opacity: 0;
-      }
-      10% {
-        opacity: 0.5;
-      }
-      90% {
-        opacity: 0.5;
-      }
-      100% {
-        transform: translateY(-100px) rotate(360deg);
-        opacity: 0;
-      }
-    }
-
-    @keyframes popularPulse {
-      0%, 100% { transform: translateX(-50%) scale(1); }
-      50% { transform: translateX(-50%) scale(1.05); }
-    }
-
-    @keyframes savingsPulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-
-    @keyframes guaranteePulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.01); }
-    }
-
-    .payment-methods {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-      gap: 0.5rem;
-      margin: 1.5rem 0;
-    }
-
-    .payment-method {
-      padding: 0.75rem;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .payment-method:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .payment-method.selected {
-      background: rgba(34, 197, 94, 0.2);
-      border-color: rgba(34, 197, 94, 0.3);
-    }
-
-    @media (max-width: 1024px) {
-      .plans-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      
-      .comparison-grid {
-        grid-template-columns: 1.5fr repeat(4, 1fr);
-      }
-    }
-
+    
     @media (max-width: 768px) {
       .subscription-container {
-        padding: 1rem;
+        padding: 20px 16px;
       }
       
-      .subscription-title {
-        font-size: 2.5rem;
+      .plan-card {
+        margin-bottom: 24px;
       }
       
-      .plans-grid {
+      .features-grid {
         grid-template-columns: 1fr;
-      }
-      
-      .billing-toggle {
-        flex-direction: column;
-        width: 100%;
-      }
-      
-      .billing-option {
-        width: 100%;
-      }
-      
-      .comparison-grid {
-        display: block;
-      }
-      
-      .comparison-row {
-        display: flex;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-      }
-      
-      .comparison-cell {
-        flex: 1;
-        min-width: 100px;
-      }
-      
-      .comparison-cell:first-child {
-        flex-basis: 100%;
-        margin-bottom: 0.5rem;
       }
     }
   `;
 
-  const features = [
-    { name: 'Daily Verification', free: '✅', premium: '✅', elite: '✅', team: '✅' },
-    { name: 'Streak Freeze Tokens', free: '❌', premium: '3/month', elite: 'Unlimited', team: 'Unlimited' },
-    { name: 'Advanced Analytics', free: '❌', premium: '✅', elite: '✅', team: '✅' },
-    { name: 'Priority Support', free: '❌', premium: '✅', elite: '✅', team: '✅' },
-    { name: 'Custom Challenges', free: '❌', premium: '❌', elite: '✅', team: '✅' },
-    { name: 'Team Management', free: '❌', premium: '❌', elite: '❌', team: '✅' },
-    { name: 'API Access', free: '❌', premium: '❌', elite: '❌', team: '✅' }
-  ];
-
-  const faqs = [
-    {
-      question: 'Can I switch plans later?',
-      answer: 'Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.'
-    },
-    {
-      question: 'What payment methods do you accept?',
-      answer: 'We accept all major credit cards, PayPal, and cryptocurrency. Enterprise plans also support invoicing.'
-    },
-    {
-      question: 'Is there a free trial?',
-      answer: 'All paid plans come with a 7-day free trial. No credit card required to start.'
-    },
-    {
-      question: 'What happens if I miss a payment?',
-      answer: 'You\'ll have a 14-day grace period. After that, you\'ll be downgraded to Free until payment is made.'
-    },
-    {
-      question: 'Can I get a refund?',
-      answer: 'We offer a 30-day money-back guarantee. If you\'re not satisfied, we\'ll refund your payment.'
-    },
-    {
-      question: 'Do you offer discounts for non-profits?',
-      answer: 'Yes, we offer special pricing for educational institutions and non-profit organizations.'
-    }
-  ];
-
   return (
-    <>
-      <style>{pageStyles}</style>
-      <div className="subscription-container" ref={animationRef}>
-        {showSuccess && <Confetti active={true} duration={3000} />}
-        <div className="subscription-background" />
-        
-        <div className="subscription-content">
-          <div className="subscription-header">
-            <h1 className="subscription-title">Choose Your Discipline Level</h1>
-            <p className="subscription-subtitle">
-              Invest in your consistency. Higher tiers unlock powerful features that 
-              leverage psychology to keep you accountable and build unbreakable habits.
-            </p>
+    <div className="subscription-container">
+      <style>{subscriptionStyles}</style>
+      
+      {/* Header */}
+      <div className="container mx-auto px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-6xl mx-auto"
+        >
+          <div className="text-center mb-16">
+            <motion.div 
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-grass-500/10 border border-grass-500/20 mb-6"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200 }}
+            >
+              <Crown className="w-5 h-5 text-grass-400" />
+              <span className="text-sm font-medium">Upgrade Your Account</span>
+            </motion.div>
             
-            <div className="billing-toggle">
-              <button
-                className={`billing-option ${billingCycle === 'monthly' ? 'active' : ''}`}
-                onClick={() => setBillingCycle('monthly')}
-              >
-                Monthly Billing
-              </button>
-              <button
-                className={`billing-option ${billingCycle === 'yearly' ? 'active' : ''}`}
-                onClick={() => setBillingCycle('yearly')}
-              >
-                Yearly Billing
-                <span style={{ 
-                  marginLeft: '0.5rem',
-                  background: 'rgba(34, 197, 94, 0.2)',
-                  color: '#22c55e',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '4px',
-                  fontSize: '0.75rem'
-                }}>
-                  Save 16%
-                </span>
-              </button>
-            </div>
+            <motion.h1 
+              className="text-5xl md:text-6xl font-bold mb-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              Choose Your <span className="text-grass-400">Plan</span>
+            </motion.h1>
+            
+            <motion.p 
+              className="text-xl text-gray-400 max-w-2xl mx-auto"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              Start free, upgrade anytime. All payments processed securely via Dodo Payments.
+            </motion.p>
           </div>
-          
-          <div className="plans-grid">
-            {Object.entries(plans).map(([key, plan]) => {
-              const isSelected = selectedPlan === key;
-              const isCurrent = currentPlan === key;
-              const savings = calculateSavings(key);
+
+          {/* Plans Grid */}
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            {plans.map((plan) => {
+              const isCurrent = currentPlan === plan.id;
+              const isSelected = selectedPlan === plan.id;
               
               return (
-                <Card
-                  key={key}
-                  className={`plan-card ${plan.popular ? 'popular' : ''} ${isSelected ? 'selected' : ''}`}
-                  style={{
-                    '--plan-color-rgb': plan.color.replace('#', '').match(/.{2}/g).map(c => parseInt(c, 16)).join(', '),
-                    borderColor: isSelected ? plan.color : undefined
-                  }}
-                  hoverEffect="lift"
-                  onClick={() => !plan.disabled && setSelectedPlan(key)}
+                <motion.div
+                  key={plan.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: plans.indexOf(plan) * 0.1 }}
+                  className={`plan-card relative p-8 rounded-3xl border-2 transition-all duration-300 ${
+                    isSelected
+                      ? 'border-grass-500 bg-gradient-to-br from-gray-900 to-gray-950 shadow-2xl'
+                      : plan.popular
+                      ? 'premium-plan-highlight'
+                      : 'border-white/10 bg-gray-900/50 hover:border-white/20'
+                  }`}
+                  onClick={() => !plan.disabled && setSelectedPlan(plan.id)}
+                  style={{ '--plan-color': plan.color }}
                 >
-                  <div className="plan-header">
-                    <h2 className="plan-name">{plan.name}</h2>
-                    <p className="plan-description">{plan.description}</p>
-                    
-                    {isCurrent && (
-                      <div className="current-plan-badge">
-                        Current Plan
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="plan-price">
-                    <h3 className="price-amount">
-                      ${billingCycle === 'yearly' ? plan.price.yearly : plan.price.monthly}
-                      <span style={{ fontSize: '1.5rem', color: 'rgba(255, 255, 255, 0.6)' }}>
-                        {plan.price.monthly === 0 ? '' : billingCycle === 'yearly' ? '/yr' : '/mo'}
-                      </span>
-                    </h3>
-                    <p className="price-period">
-                      {plan.price.monthly === 0 ? 'Forever free' : billingCycle === 'yearly' ? 'Billed annually' : 'Billed monthly'}
-                    </p>
-                    
-                    {savings.percent > 0 && (
-                      <div className="price-savings">
-                        Save ${savings.amount} ({savings.percent}%)
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="plan-features">
-                    <ul className="feature-list">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="feature-item">
-                          <span className="feature-icon">
-                            {feature.startsWith('✅') ? '✅' : '❌'}
-                          </span>
-                          <span>{feature.substring(2)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="plan-actions">
-                    <Button
-                      variant={plan.enterprise ? 'secondary' : plan.popular ? 'premium' : 'primary'}
-                      size="large"
-                      onClick={handleUpgrade}
-                      disabled={plan.disabled || isCurrent}
-                      isLoading={isLoading && selectedPlan === key}
-                      fullWidth
+                  {plan.badge && (
+                    <div 
+                      className="plan-badge"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${plan.color}, ${plan.color}80)`,
+                        color: '#1e293b'
+                      }}
                     >
-                      {isCurrent ? 'Current Plan' : plan.cta}
-                    </Button>
+                      {plan.badge}
+                    </div>
+                  )}
+
+                  <div className="text-center mb-8">
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <div 
+                        className="p-3 rounded-xl"
+                        style={{ 
+                          background: `linear-gradient(135deg, ${plan.color}20, ${plan.color}40)`,
+                          color: plan.color
+                        }}
+                      >
+                        {plan.icon}
+                      </div>
+                      <h3 className="text-2xl font-bold">{plan.name}</h3>
+                    </div>
+                    
+                    <div className="flex items-baseline justify-center gap-1 mb-2">
+                      {plan.price === 0 ? (
+                        <span className="text-5xl font-bold">Free</span>
+                      ) : (
+                        <>
+                          <span className="text-5xl font-bold">${plan.price}</span>
+                          <span className="text-gray-400">{plan.period}</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    <p className="text-gray-400">{plan.description}</p>
                   </div>
-                </Card>
+
+                  <ul className="space-y-4 mb-8">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="feature-item flex items-center gap-3">
+                        <div 
+                          className="p-1.5 rounded-lg"
+                          style={{ 
+                            background: `${plan.color}20`,
+                            color: plan.color
+                          }}
+                        >
+                          {feature.icon}
+                        </div>
+                        <span className="text-gray-300">{feature.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* FIXED BUTTON - Now correctly calls handleUpgrade for premium plan */}
+                  <Button
+                    variant={plan.popular ? "premium" : plan.id === 'free' ? "primary" : "secondary"}
+                    size="large"
+                    fullWidth
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Button clicked for plan:', plan.id);
+                      if (plan.id === 'free') {
+                        handleFreePlan();
+                      } else {
+                        handleUpgrade(plan.id);
+                      }
+                    }}
+                    isLoading={isLoading && selectedPlan === plan.id}
+                    disabled={isCurrent || plan.disabled}
+                    leftIcon={isCurrent ? <CheckCircle size={18} /> : 
+                             plan.id === 'free' ? <Sparkles size={18} /> : 
+                             <ExternalLink size={18} />}
+                    animationType={plan.popular ? "ripple" : "none"}
+                  >
+                    {isLoading && selectedPlan === plan.id ? (
+                      'Processing...'
+                    ) : isCurrent ? (
+                      'Current Plan'
+                    ) : (
+                      plan.cta
+                    )}
+                  </Button>
+
+                  {isCurrent && (
+                    <div className="mt-4 text-center">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-grass-500/10 border border-grass-500/20">
+                        <CheckCircle className="w-4 h-4 text-grass-400" />
+                        <span className="text-sm text-grass-400">Active Plan</span>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
               );
             })}
           </div>
-          
-          <div className="comparison-table">
-            <div className="comparison-header">
-              <h2 className="comparison-title">Feature Comparison</h2>
-              <p className="comparison-subtitle">See how each plan stacks up against your needs</p>
+
+          {/* Dodo Payment Info */}
+          <Card variant="glass" borderGradient className="mb-16 p-8 dodo-payment-section">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                <div className="text-2xl">🕊️</div>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold">Secure Payment with Dodo</h3>
+                <p className="text-gray-400">All payments processed securely via Dodo Payments</p>
+              </div>
             </div>
             
-            <div className="comparison-grid">
-              <div className="comparison-row">
-                <div className="comparison-cell cell-header">Feature</div>
-                <div className="comparison-cell cell-header">Free</div>
-                <div className="comparison-cell cell-header">Premium</div>
-                <div className="comparison-cell cell-header">Elite</div>
-                <div className="comparison-cell cell-header">Team</div>
-              </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              <Card variant="glass" className="p-6 text-center">
+                <CreditCard className="w-8 h-8 text-green-400 mx-auto mb-4" />
+                <h4 className="font-bold mb-2">Secure Checkout</h4>
+                <p className="text-sm text-gray-400">256-bit SSL encryption</p>
+              </Card>
               
-              {features.map((feature, index) => (
-                <div key={index} className="comparison-row">
-                  <div className="comparison-cell cell-value">{feature.name}</div>
-                  <div className="comparison-cell">
-                    {feature.free === '✅' ? (
-                      <span className="cell-check">✅</span>
-                    ) : feature.free === '❌' ? (
-                      <span className="cell-cross">❌</span>
-                    ) : (
-                      <span className="cell-value">{feature.free}</span>
-                    )}
-                  </div>
-                  <div className="comparison-cell">
-                    {feature.premium === '✅' ? (
-                      <span className="cell-check">✅</span>
-                    ) : feature.premium === '❌' ? (
-                      <span className="cell-cross">❌</span>
-                    ) : (
-                      <span className="cell-premium">{feature.premium}</span>
-                    )}
-                  </div>
-                  <div className="comparison-cell">
-                    {feature.elite === '✅' ? (
-                      <span className="cell-check">✅</span>
-                    ) : feature.elite === '❌' ? (
-                      <span className="cell-cross">❌</span>
-                    ) : (
-                      <span className="cell-premium">{feature.elite}</span>
-                    )}
-                  </div>
-                  <div className="comparison-cell">
-                    {feature.team === '✅' ? (
-                      <span className="cell-check">✅</span>
-                    ) : feature.team === '❌' ? (
-                      <span className="cell-cross">❌</span>
-                    ) : (
-                      <span className="cell-premium">{feature.team}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+              <Card variant="glass" className="p-6 text-center">
+                <Shield className="w-8 h-8 text-blue-400 mx-auto mb-4" />
+                <h4 className="font-bold mb-2">PCI DSS Compliant</h4>
+                <p className="text-sm text-gray-400">Highest security standards</p>
+              </Card>
+              
+              <Card variant="glass" className="p-6 text-center">
+                <Zap className="w-8 h-8 text-yellow-400 mx-auto mb-4" />
+                <h4 className="font-bold mb-2">Instant Activation</h4>
+                <p className="text-sm text-gray-400">Features available immediately</p>
+              </Card>
             </div>
-          </div>
-          
-          <div className="faq-section">
-            <h2 className="faq-title">Frequently Asked Questions</h2>
-            <div className="faq-grid">
-              {faqs.map((faq, index) => (
-                <Card key={index} className="faq-item" hoverEffect="lift">
-                  <h3 className="faq-question">{faq.question}</h3>
-                  <p className="faq-answer">{faq.answer}</p>
+          </Card>
+
+          {/* FAQ */}
+          <div className="mb-16">
+            <h2 className="text-3xl font-bold mb-8 text-center">Frequently Asked Questions</h2>
+            <div className="space-y-4 max-w-3xl mx-auto">
+              {[
+                {
+                  q: 'How does Dodo payment work?',
+                  a: 'Click "Get Pro" or "Get Enterprise" to open a secure Dodo payment window. Complete your payment and your account will be upgraded automatically.'
+                },
+                {
+                  q: 'Can I cancel my subscription?',
+                  a: 'Yes, you can cancel anytime from your account settings. Your premium features remain until the billing period ends.'
+                },
+                {
+                  q: 'What payment methods are accepted?',
+                  a: 'Dodo accepts all major credit cards, debit cards, and other popular payment methods.'
+                },
+                {
+                  q: 'Is my payment information secure?',
+                  a: 'Yes! We never see your payment details. All payments are processed directly by Dodo Payments with bank-level security.'
+                }
+              ].map((faq, index) => (
+                <Card 
+                  key={index} 
+                  variant="glass" 
+                  hoverEffect="lift"
+                  className="faq-item p-6"
+                >
+                  <h3 className="font-bold mb-2">{faq.q}</h3>
+                  <p className="text-gray-400">{faq.a}</p>
                 </Card>
               ))}
             </div>
           </div>
-          
-          <div className="money-back-guarantee">
-            <div className="guarantee-icon">💯</div>
-            <h3 className="guarantee-title">30-Day Money-Back Guarantee</h3>
-            <p className="guarantee-text">
-              We're confident TouchGrass will transform your discipline. 
-              If you're not satisfied within 30 days, we'll refund your payment, no questions asked.
-            </p>
-          </div>
-        </div>
-      </div>
 
-      {/* Payment Modal */}
-      <Modal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        title={`Upgrade to ${plans[selectedPlan].name}`}
-        size="medium"
-      >
-        <div style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            marginBottom: '1.5rem',
-            padding: '1rem',
-            background: 'rgba(255, 255, 255, 0.05)',
-            borderRadius: '12px'
-          }}>
-            <div style={{
-              fontSize: '2rem',
-              color: plans[selectedPlan].color
-            }}>
-              {selectedPlan === 'elite' ? '⭐' : selectedPlan === 'premium' ? '💎' : '🚀'}
-            </div>
-            <div>
-              <h3 style={{ color: 'white', margin: '0 0 0.25rem 0' }}>
-                {plans[selectedPlan].name} Plan
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.875rem' }}>
-                ${billingCycle === 'yearly' 
-                  ? `${plans[selectedPlan].price.yearly}/year` 
-                  : `${plans[selectedPlan].price.monthly}/month`
-                }
-              </p>
-            </div>
-          </div>
-          
-          <h4 style={{ color: 'white', margin: '1.5rem 0 0.75rem 0' }}>Payment Method</h4>
-          <div className="payment-methods">
-            {['💳', '🏦', '💰', '🎴'].map((method, index) => (
-              <div key={index} className="payment-method">
-                {method}
-              </div>
-            ))}
-          </div>
-          
-          <div style={{ margin: '1.5rem 0' }}>
-            <input
-              type="text"
-              placeholder="Card Number"
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                color: 'white',
-                fontSize: '0.875rem',
-                marginBottom: '0.75rem'
-              }}
-            />
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <input
-                type="text"
-                placeholder="MM/YY"
-                style={{
-                  padding: '0.75rem 1rem',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '12px',
-                  color: 'white',
-                  fontSize: '0.875rem'
-                }}
-              />
-              <input
-                type="text"
-                placeholder="CVC"
-                style={{
-                  padding: '0.75rem 1rem',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '12px',
-                  color: 'white',
-                  fontSize: '0.875rem'
-                }}
-              />
-            </div>
-          </div>
-          
-          <div style={{
-            background: 'rgba(34, 197, 94, 0.1)',
-            border: '1px solid rgba(34, 197, 94, 0.2)',
-            borderRadius: '12px',
-            padding: '1rem',
-            marginBottom: '1.5rem'
-          }}>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: '#22c55e' }}>
-              🔒 Your payment is secured with 256-bit encryption. We never store your card details.
+          {/* Money Back Guarantee */}
+          <Card 
+            variant="glass" 
+            borderGradient 
+            className="money-back-guarantee p-8 text-center"
+          >
+            <Gift className="w-16 h-16 text-grass-400 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold mb-4">30-Day Money-Back Guarantee</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Not satisfied with your upgrade? Contact us within 30 days for a full refund, no questions asked.
             </p>
-          </div>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-          <Button
-            variant="primary"
-            onClick={handlePaymentComplete}
-            fullWidth
-            isLoading={isLoading}
-          >
-            💳 Pay ${billingCycle === 'yearly' 
-              ? plans[selectedPlan].price.yearly 
-              : plans[selectedPlan].price.monthly
-            }
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setShowPaymentModal(false)}
-            fullWidth
-          >
-            Cancel
-          </Button>
-        </div>
-      </Modal>
-    </>
+          </Card>
+        </motion.div>
+      </div>
+    </div>
   );
 };
 

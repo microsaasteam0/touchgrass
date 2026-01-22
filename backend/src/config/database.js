@@ -1,39 +1,37 @@
 const mongoose = require('mongoose');
-const redis = require('redis');
 
 /**
  * Database Configuration
- * Handles MongoDB and Redis connections with advanced features
+ * Handles MongoDB connections with advanced features
  */
 
 // MongoDB Configuration
 const configureMongoDB = async () => {
   const {
-    MONGODB_URI,
+    MONGODB_URI = 'mongodb://localhost:27017/touchgrass',
     MONGODB_USER,
     MONGODB_PASSWORD,
     MONGODB_DATABASE,
-    NODE_ENV
+    NODE_ENV = 'development'
   } = process.env;
 
-  // Validate configuration
-  if (!MONGODB_URI) {
-    console.error('❌ MONGODB_URI is required');
-    process.exit(1);
-  }
+  console.log('🔄 Attempting to connect to MongoDB...');
+  console.log(`📁 Database URI: ${MONGODB_URI.replace(/:([^:@]+)@/, ':****@')}`);
 
   const isProduction = NODE_ENV === 'production';
   
   // Connection options
   const connectionOptions = {
-    maxPoolSize: 50, // Maximum number of sockets in the connection pool
-    minPoolSize: 10, // Minimum number of sockets in the connection pool
-    socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-    serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds if no server is selected
-    heartbeatFrequencyMS: 10000, // Send heartbeat every 10 seconds
+    maxPoolSize: 50,
+    minPoolSize: 10,
+    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 5000,
+    heartbeatFrequencyMS: 10000,
     retryWrites: true,
     w: 'majority',
-    appName: 'touchgrass-backend'
+    appName: 'touchgrass-backend',
+    useNewUrlParser: true,
+    useUnifiedTopology: true
   };
 
   // Add auth if credentials are provided
@@ -45,17 +43,14 @@ const configureMongoDB = async () => {
     connectionOptions.authSource = 'admin';
   }
 
-  // Add SSL/TLS for production
-  if (isProduction) {
-    connectionOptions.ssl = true;
-    connectionOptions.tlsAllowInvalidCertificates = false;
-    connectionOptions.tlsAllowInvalidHostnames = false;
-  }
-
   // Set mongoose global options
   mongoose.set('strictQuery', true);
-  mongoose.set('autoIndex', !isProduction); // Disable autoIndex in production for performance
-  mongoose.set('debug', !isProduction && process.env.MONGODB_DEBUG === 'true');
+  mongoose.set('autoIndex', !isProduction);
+  
+  // Enable mongoose debug only in development if explicitly requested
+  if (NODE_ENV === 'development' && process.env.MONGODB_DEBUG === 'true') {
+    mongoose.set('debug', true);
+  }
 
   // Connection event handlers
   mongoose.connection.on('connecting', () => {
@@ -64,8 +59,8 @@ const configureMongoDB = async () => {
 
   mongoose.connection.on('connected', () => {
     console.log('✅ MongoDB connected successfully');
-    console.log(`📊 Database: ${mongoose.connection.db?.databaseName || MONGODB_DATABASE}`);
-    console.log(`👥 Connections: ${mongoose.connection.readyState === 1 ? 'Active' : 'Inactive'}`);
+    console.log(`📊 Database: ${mongoose.connection.db?.databaseName || MONGODB_DATABASE || 'touchgrass'}`);
+    console.log(`👥 Connection state: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
   });
 
   mongoose.connection.on('disconnected', () => {
@@ -79,21 +74,8 @@ const configureMongoDB = async () => {
   mongoose.connection.on('error', (error) => {
     console.error('❌ MongoDB connection error:', error.message);
     
-    // In production, we might want to exit if we can't connect to database
     if (isProduction && error.message.includes('ENOTFOUND')) {
       console.error('Fatal database error. Exiting...');
-      process.exit(1);
-    }
-  });
-
-  // Handle process termination
-  process.on('SIGINT', async () => {
-    try {
-      await mongoose.connection.close();
-      console.log('MongoDB connection closed through app termination');
-      process.exit(0);
-    } catch (error) {
-      console.error('Error closing MongoDB connection:', error);
       process.exit(1);
     }
   });
@@ -106,7 +88,7 @@ const configureMongoDB = async () => {
     await mongoose.connection.db.admin().ping();
     console.log('✅ MongoDB ping successful');
     
-    // Set up indexes (in production, indexes should be created via migrations)
+    // Set up indexes
     if (!isProduction) {
       await createIndexes();
     }
@@ -115,10 +97,13 @@ const configureMongoDB = async () => {
   } catch (error) {
     console.error('❌ Failed to connect to MongoDB:', error.message);
     
-    // Implement exponential backoff for reconnection
     if (isProduction) {
       console.log('Attempting to reconnect in 5 seconds...');
       setTimeout(() => configureMongoDB(), 5000);
+    } else {
+      console.log('💡 Development tip: Make sure MongoDB is running locally:');
+      console.log('   brew services start mongodb-community (on macOS)');
+      console.log('   or: mongod --config /usr/local/etc/mongod.conf');
     }
     
     throw error;
@@ -130,24 +115,27 @@ const configureMongoDB = async () => {
  */
 const createIndexes = async () => {
   try {
-    // Get all models
-    const models = mongoose.modelNames();
-    
     console.log('🔄 Creating/updating database indexes...');
     
+    // Get all registered models
+    const models = mongoose.modelNames();
+    
+    if (models.length === 0) {
+      console.log('📝 No models registered yet. Indexes will be created when models are loaded.');
+      return;
+    }
+    
     for (const modelName of models) {
-      const model = mongoose.model(modelName);
-      
-      // Only create indexes if they don't exist
-      const indexes = await model.collection.indexes();
-      const indexCount = indexes.length;
-      
-      if (indexCount > 1) { // 1 is for _id index
-        console.log(`   ${modelName}: ${indexCount - 1} indexes found`);
+      try {
+        const model = mongoose.model(modelName);
+        await model.syncIndexes();
+        console.log(`   ✅ ${modelName}: Indexes synchronized`);
+      } catch (error) {
+        console.warn(`   ⚠️  ${modelName}: Failed to sync indexes - ${error.message}`);
       }
     }
     
-    console.log('✅ Database indexes checked');
+    console.log('✅ Database indexes synchronized');
   } catch (error) {
     console.warn('⚠️  Failed to create indexes:', error.message);
   }
@@ -158,29 +146,34 @@ const createIndexes = async () => {
  */
 const checkDatabaseHealth = async () => {
   try {
-    // Check MongoDB connection
+    // Check if we're connected
+    if (mongoose.connection.readyState !== 1) {
+      return {
+        status: 'unhealthy',
+        error: 'Not connected to MongoDB',
+        timestamp: new Date().toISOString()
+      };
+    }
+    
+    // Try to ping the database
     const mongoPing = await mongoose.connection.db.admin().ping();
     
-    // Get database stats
+    // Get basic database stats
     const dbStats = await mongoose.connection.db.stats();
-    
-    // Get active connections
-    const serverStatus = await mongoose.connection.db.admin().serverStatus();
     
     return {
       status: 'healthy',
       mongodb: {
-        connected: mongoose.connection.readyState === 1,
+        connected: true,
         ping: mongoPing.ok === 1 ? 'ok' : 'failed',
         database: mongoose.connection.db.databaseName,
         collections: dbStats.collections,
         objects: dbStats.objects,
-        avgObjSize: dbStats.avgObjSize,
         dataSize: dbStats.dataSize,
         storageSize: dbStats.storageSize,
         indexes: dbStats.indexes,
         indexSize: dbStats.indexSize,
-        connections: serverStatus.connections ? serverStatus.connections.current : 'unknown'
+        uptime: dbStats.uptime || 'unknown'
       },
       timestamp: new Date().toISOString()
     };
@@ -229,12 +222,19 @@ const dbUtils = {
     return collections.some(col => col.name === collectionName);
   },
   
-  // Backup database (simple implementation)
-  backup: async (backupPath = './backups') => {
-    // This is a simple backup. In production, use mongodump or cloud backups
-    console.log('Creating database backup...');
-    // Implementation would depend on your infrastructure
-    return { success: true, path: backupPath };
+  // Drop database (use with caution!)
+  dropDatabase: async () => {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Cannot drop database in production');
+    }
+    await mongoose.connection.db.dropDatabase();
+    console.log('🗑️  Database dropped');
+  },
+  
+  // List all collections
+  listCollections: async () => {
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    return collections.map(col => col.name);
   }
 };
 
@@ -250,7 +250,7 @@ const isRetryableError = (error) => {
   ];
   
   return retryableErrors.includes(error.name) || 
-         (error.code && [11000, 11001].includes(error.code)); // Duplicate key errors
+         (error.code && [11000, 11001].includes(error.code));
 };
 
 /**
@@ -260,29 +260,30 @@ const closeConnections = async () => {
   try {
     console.log('Closing database connections...');
     
-    // Close MongoDB connection
     if (mongoose.connection.readyState === 1) {
       await mongoose.connection.close();
-      console.log('MongoDB connection closed');
+      console.log('✅ MongoDB connection closed');
     }
     
-    // Close Redis connection if exists
-    if (global.redisClient && global.redisClient.isOpen) {
-      await global.redisClient.quit();
-      console.log('Redis connection closed');
-    }
-    
-    console.log('All database connections closed');
+    console.log('✅ All database connections closed');
   } catch (error) {
-    console.error('Error closing connections:', error);
+    console.error('❌ Error closing connections:', error);
     throw error;
   }
 };
+
+// Export connection function
+const getConnection = () => mongoose.connection;
+
+// Export mongoose for direct access if needed
+const getMongoose = () => mongoose;
 
 module.exports = {
   configureMongoDB,
   checkDatabaseHealth,
   dbUtils,
   closeConnections,
+  getConnection,
+  getMongoose,
   mongoose
 };

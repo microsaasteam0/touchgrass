@@ -1,4 +1,14 @@
-// Professional Roast System for Accountability
+import React from 'react';
+  
+  const Roasts = () =>  {
+	return (
+	  <div>
+	  </div>
+	);
+  }
+  
+  export default Roasts;
+  // Professional Roast System for Accountability
 
 // CSS for roast animations and styles
 export const ROASTS_CSS = `

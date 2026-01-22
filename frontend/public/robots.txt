@@ -1,0 +1,62 @@
+# TouchGrass Robots.txt - Universal Sitemap Implementation
+# Generated: 2026-01-22
+# Contact: business@entrext.com
+# Philosophy: Only public pages allowed, all private/authenticated pages disallowed
+
+User-agent: *
+Allow: /
+
+# Disallow all private/authenticated pages (Universal Sitemap principle)
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /settings
+Disallow: /verify
+Disallow: /subscription
+Disallow: /chat
+Disallow: /challenges
+Disallow: /leaderboard
+Disallow: /admin
+Disallow: /api/
+Disallow: /forgot-password
+Disallow: /reset-password
+
+# Sitemap
+Sitemap: https://touchgrass.now/sitemap.xml
+
+# Crawl delay (optional)
+Crawl-delay: 1
+
+# Specific bots
+User-agent: Googlebot
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /profile
+Disallow: /settings
+Disallow: /verify
+Disallow: /subscription
+Disallow: /chat
+Disallow: /challenges
+Disallow: /leaderboard
+
+User-agent: Bingbot
+Allow: /
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /settings
+Disallow: /verify
+Disallow: /subscription
+Disallow: /chat
+Disallow: /challenges
+Disallow: /leaderboard
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /settings
+Disallow: /verify
+Disallow: /subscription
+Disallow: /chat
+Disallow: /challenges
+Disallow: /leaderboard

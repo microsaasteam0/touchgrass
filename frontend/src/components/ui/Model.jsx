@@ -25,31 +25,33 @@ const Modal = ({
 }) => {
   const modalRef = useRef(null);
   const contentRef = useRef(null);
+  const particlesTimeoutRef = useRef(null);
 
+  // Handle body scroll prevention
   useEffect(() => {
-    if (!isOpen) return;
-
-    if (preventScroll) {
+    if (preventScroll && isOpen) {
       document.body.style.overflow = 'hidden';
-    }
-
-    if (closeOnEsc) {
-      const handleEsc = (e) => {
-        if (e.key === 'Escape') {
-          onClose();
-        }
-      };
-      document.addEventListener('keydown', handleEsc);
-      return () => document.removeEventListener('keydown', handleEsc);
-    }
-
-    return () => {
-      if (preventScroll) {
+      return () => {
         document.body.style.overflow = 'unset';
+      };
+    }
+  }, [isOpen, preventScroll]);
+
+  // Handle ESC key press
+  useEffect(() => {
+    if (!isOpen || !closeOnEsc) return;
+
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
       }
     };
-  }, [isOpen, closeOnEsc, onClose, preventScroll]);
+    
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [isOpen, closeOnEsc, onClose]);
 
+  // Handle animation state
   useEffect(() => {
     if (isOpen && contentRef.current) {
       requestAnimationFrame(() => {
@@ -59,6 +61,49 @@ const Modal = ({
       });
     }
   }, [isOpen]);
+
+  // Handle particle effects - ALWAYS called, but conditionally runs code inside
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleOpen = () => {
+      if (modalRef.current) {
+        const createParticles = () => {
+          const particles = [];
+          for (let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI * 2;
+            const distance = 100;
+            const tx = Math.cos(angle) * distance;
+            const ty = Math.sin(angle) * distance;
+            
+            const particle = document.createElement('div');
+            particle.className = 'modal-particle';
+            particle.style.setProperty('--tx', `${tx}px`);
+            particle.style.setProperty('--ty', `${ty}px`);
+            particle.style.left = '50%';
+            particle.style.top = '50%';
+            
+            particles.push(particle);
+          }
+          return particles;
+        };
+
+        const particles = createParticles();
+        particles.forEach(particle => {
+          modalRef.current.appendChild(particle);
+          setTimeout(() => particle.remove(), 600);
+        });
+      }
+    };
+
+    particlesTimeoutRef.current = setTimeout(handleOpen, 100);
+    
+    return () => {
+      if (particlesTimeoutRef.current) {
+        clearTimeout(particlesTimeoutRef.current);
+      }
+    };
+  }, [isOpen]); // This useEffect is ALWAYS called, just conditionally runs code inside
 
   const handleOverlayClick = (e) => {
     if (closeOnOverlayClick && e.target === modalRef.current) {
@@ -378,42 +423,6 @@ const Modal = ({
   `;
 
   if (!isOpen) return null;
-
-  const createParticles = () => {
-    const particles = [];
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2;
-      const distance = 100;
-      const tx = Math.cos(angle) * distance;
-      const ty = Math.sin(angle) * distance;
-      
-      const particle = document.createElement('div');
-      particle.className = 'modal-particle';
-      particle.style.setProperty('--tx', `${tx}px`);
-      particle.style.setProperty('--ty', `${ty}px`);
-      particle.style.left = '50%';
-      particle.style.top = '50%';
-      
-      particles.push(particle);
-    }
-    return particles;
-  };
-
-  const handleOpen = () => {
-    if (modalRef.current) {
-      const particles = createParticles();
-      particles.forEach(particle => {
-        modalRef.current.appendChild(particle);
-        setTimeout(() => particle.remove(), 600);
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(handleOpen, 100);
-    }
-  }, [isOpen]);
 
   return createPortal(
     <>

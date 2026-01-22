@@ -1,11 +1,12 @@
-/**
+
+  /**
  * TouchGrass API Service - Premium Business API Layer
  * International-grade API client with advanced features
  */
 
 class PremiumAPIService {
   constructor() {
-    this.baseURL = process.env.REACT_APP_API_URL || 'https://api.touchgrass.now/v1';
+    this.baseURL = import.meta.env.REACT_APP_API_URL || 'https://api.touchgrass.now/v1';
     this.retryAttempts = 3;
     this.requestTimeout = 30000; // 30 seconds
     this.cache = new Map();

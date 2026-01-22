@@ -1,514 +1,37 @@
-// import React, { useState, useEffect, Suspense } from 'react';
-// import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-// import { motion, AnimatePresence } from 'framer-motion';
-// import { ToastContainer, toast } from 'react-toastify';
-// import 'react-toastify/dist/ReactToastify.css';
-
-// // Lazy load pages for better performance
-// const Home = React.lazy(() => import('./pages/Home'));
-// const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-// const Verify = React.lazy(() => import('./pages/Verify'));
-// const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
-// const Profile = React.lazy(() => import('./pages/Profile'));
-// const Subscription = React.lazy(() => import('./pages/Subscription'));
-// const Auth = React.lazy(() => import('./pages/Auth'));
-// const Chat = React.lazy(() => import('./pages/Chatpage'));
-// const Challenges = React.lazy(() => import('./pages/Challenges'));
-// const Settings = React.lazy(() => import('./pages/Settings'));
-// const NotFound = React.lazy(() => import('./pages/NotFound'));
-
-// // Components
-// import Navbar from './components/layout/Navbar';
-// import Footer from './components/layout/Footer';
-// import LoadingScreen from './components/ui/LoadingScreen';
-// // import ParticleBackground from './components/effects/ParticleBackground';
-// import Confetti from './components/ui/Confetti';
-// // import ConnectionStatus from './components/ui/ConnectionStatus';
-
-// // // Context & State
-// // import { AuthProvider, useAuth } from './contexts/AuthContext';
-// // import { StreakProvider } from './contexts/StreakContext';
-// // import { ChatProvider } from './contexts/ChatContext';
-// // import { NotificationProvider } from './contexts/NotificationContext';
-
-// // CSS imports
-// import './global.css';
-// import './styles/animations.css';
-// import './styles/themes.css';
-
-// // Custom hooks
-// // import useSocket from './hooks/useSocket';
-// // import useAnalytics from './hooks/useAnalytics';
-
-// function AppContent() {
-//   const { isAuthenticated, user, loading } = useAuth();
-//   const [showConfetti, setShowConfetti] = useState(false);
-//   const [connectionStatus, setConnectionStatus] = useState('connected');
-//   const [theme, setTheme] = useState('dark');
-//   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-//   const location = useLocation();
-
-//   // Initialize analytics
-//   useAnalytics();
-
-//   // WebSocket URL from environment
-//   const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:5000';
-  
-//   // Initialize WebSocket connection (only when authenticated)
-//   const socket = useSocket({
-//     url: WS_URL,
-//     enabled: isAuthenticated,
-//     onConnect: () => {
-//       setConnectionStatus('connected');
-//       toast.success('Live connection established', {
-//         icon: '🔗',
-//         theme: 'dark',
-//       });
-//     },
-//     onDisconnect: () => {
-//       setConnectionStatus('disconnected');
-//       toast.warning('Connection lost - working offline', {
-//         theme: 'dark',
-//       });
-//     },
-//     onReconnect: () => {
-//       setConnectionStatus('reconnecting');
-//       toast.info('Reconnecting...', {
-//         theme: 'dark',
-//       });
-//     },
-//   });
-
-//   // Handle confetti for achievements
-//   useEffect(() => {
-//     const handleAchievement = (event) => {
-//       setShowConfetti(true);
-//       setTimeout(() => setShowConfetti(false), 5000);
-//     };
-
-//     window.addEventListener('achievement-unlocked', handleAchievement);
-//     return () => window.removeEventListener('achievement-unlocked', handleAchievement);
-//   }, []);
-
-//   // Handle theme
-//   useEffect(() => {
-//     const savedTheme = localStorage.getItem('theme') || 'dark';
-//     setTheme(savedTheme);
-//     document.documentElement.setAttribute('data-theme', savedTheme);
-//   }, []);
-
-//   const toggleTheme = () => {
-//     const newTheme = theme === 'dark' ? 'light' : 'dark';
-//     setTheme(newTheme);
-//     localStorage.setItem('theme', newTheme);
-//     document.documentElement.setAttribute('data-theme', newTheme);
-//   };
-
-//   // Route protection
-//   const ProtectedRoute = ({ children }) => {
-//     if (loading) {
-//       return <LoadingScreen />;
-//     }
-
-//     if (!isAuthenticated) {
-//       toast.info('Please sign in to continue', {
-//         theme: 'dark',
-//         icon: '🔒',
-//       });
-//       return <Navigate to="/auth" />;
-//     }
-
-//     return children;
-//   };
-
-//   // Public route (redirect if authenticated)
-//   const PublicRoute = ({ children }) => {
-//     if (loading) {
-//       return <LoadingScreen />;
-//     }
-
-//     // Redirect authenticated users away from auth pages
-//     if (isAuthenticated && (location.pathname === '/auth' || location.pathname === '/')) {
-//       return <Navigate to="/dashboard" />;
-//     }
-
-//     return children;
-//   };
-
-//   // Check if current route is auth-related
-//   const isAuthRoute = location.pathname === '/auth' || 
-//                       location.pathname.startsWith('/auth/');
-
-//   // App loading screen
-//   if (loading) {
-//     return <LoadingScreen fullScreen />;
-//   }
-
-//   return (
-//     <div className={`app-container theme-${theme}`}>
-//       {/* Background Effects */}
-//       <ParticleBackground intensity={theme === 'dark' ? 0.3 : 0.1} />
-//       {showConfetti && <ConfettiEffect />}
-
-//       {/* Connection Status Indicator */}
-//       <ConnectionStatus status={connectionStatus} />
-
-//       {/* Global Navigation - Hide on auth pages for cleaner look */}
-//       {!isAuthRoute && (
-//         <Navbar 
-//           isAuthenticated={isAuthenticated}
-//           user={user}
-//           theme={theme}
-//           toggleTheme={toggleTheme}
-//           isMobileMenuOpen={isMobileMenuOpen}
-//           setIsMobileMenuOpen={setIsMobileMenuOpen}
-//         />
-//       )}
-
-//       {/* Main Content */}
-//       <main className={`main-content ${isAuthRoute ? 'auth-layout' : ''}`}>
-//         <AnimatePresence mode="wait">
-//           <Suspense fallback={<LoadingScreen />}>
-//             <Routes location={location} key={location.pathname}>
-//               {/* Home Route - Public but redirects to dashboard if authenticated */}
-//               <Route 
-//                 path="/" 
-//                 element={
-//                   <PublicRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0 }}
-//                       animate={{ opacity: 1 }}
-//                       exit={{ opacity: 0 }}
-//                       transition={{ duration: 0.5 }}
-//                     >
-//                       <Home />
-//                     </motion.div>
-//                   </PublicRoute>
-//                 } 
-//               />
-
-//               {/* Auth Route - Sign in / Sign up */}
-//               <Route 
-//                 path="/auth" 
-//                 element={
-//                   <PublicRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0, y: 20 }}
-//                       animate={{ opacity: 1, y: 0 }}
-//                       exit={{ opacity: 0, y: -20 }}
-//                       transition={{ duration: 0.4 }}
-//                       className="auth-page-container"
-//                     >
-//                       <Auth />
-//                     </motion.div>
-//                   </PublicRoute>
-//                 } 
-//               />
-
-//               {/* Auth with action (signup, login, reset) */}
-//               <Route 
-//                 path="/auth/:action" 
-//                 element={
-//                   <PublicRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0, scale: 0.95 }}
-//                       animate={{ opacity: 1, scale: 1 }}
-//                       exit={{ opacity: 0, scale: 0.95 }}
-//                       transition={{ duration: 0.3 }}
-//                     >
-//                       <Auth />
-//                     </motion.div>
-//                   </PublicRoute>
-//                 } 
-//               />
-
-//               {/* Protected Routes - Dashboard */}
-//               <Route 
-//                 path="/dashboard" 
-//                 element={
-//                   <ProtectedRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0, scale: 0.95 }}
-//                       animate={{ opacity: 1, scale: 1 }}
-//                       exit={{ opacity: 0, scale: 0.95 }}
-//                       transition={{ duration: 0.3 }}
-//                     >
-//                       <Dashboard socket={socket} />
-//                     </motion.div>
-//                   </ProtectedRoute>
-//                 } 
-//               />
-
-//               {/* Daily Verification */}
-//               <Route 
-//                 path="/verify" 
-//                 element={
-//                   <ProtectedRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0, x: -20 }}
-//                       animate={{ opacity: 1, x: 0 }}
-//                       exit={{ opacity: 0, x: 20 }}
-//                       transition={{ duration: 0.3 }}
-//                     >
-//                       <Verify />
-//                     </motion.div>
-//                   </ProtectedRoute>
-//                 } 
-//               />
-
-//               {/* Leaderboard - Public */}
-//               <Route 
-//                 path="/leaderboard" 
-//                 element={
-//                   <motion.div
-//                     initial={{ opacity: 0 }}
-//                     animate={{ opacity: 1 }}
-//                     exit={{ opacity: 0 }}
-//                     transition={{ duration: 0.5 }}
-//                   >
-//                     <Leaderboard />
-//                   </motion.div>
-//                 } 
-//               />
-
-//               {/* Profile - Protected */}
-//               <Route 
-//                 path="/profile" 
-//                 element={
-//                   <ProtectedRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0, y: 20 }}
-//                       animate={{ opacity: 1, y: 0 }}
-//                       exit={{ opacity: 0, y: -20 }}
-//                       transition={{ duration: 0.3 }}
-//                     >
-//                       <Profile />
-//                     </motion.div>
-//                   </ProtectedRoute>
-//                 } 
-//               />
-
-//               {/* Profile with username */}
-//               <Route 
-//                 path="/profile/:username" 
-//                 element={
-//                   <motion.div
-//                     initial={{ opacity: 0, rotateX: 90 }}
-//                     animate={{ opacity: 1, rotateX: 0 }}
-//                     exit={{ opacity: 0, rotateX: -90 }}
-//                     transition={{ duration: 0.4 }}
-//                   >
-//                     <Profile />
-//                   </motion.div>
-//                 } 
-//               />
-
-//               {/* Subscription Plans */}
-//               <Route 
-//                 path="/subscription" 
-//                 element={
-//                   <ProtectedRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0, scale: 0.9 }}
-//                       animate={{ opacity: 1, scale: 1 }}
-//                       exit={{ opacity: 0, scale: 0.9 }}
-//                       transition={{ duration: 0.4 }}
-//                     >
-//                       <Subscription />
-//                     </motion.div>
-//                   </ProtectedRoute>
-//                 } 
-//               />
-
-//               {/* Chat */}
-//               <Route 
-//                 path="/chat" 
-//                 element={
-//                   <ProtectedRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0 }}
-//                       animate={{ opacity: 1 }}
-//                       exit={{ opacity: 0 }}
-//                       transition={{ duration: 0.3 }}
-//                       className="chat-page-container"
-//                     >
-//                       <Chat socket={socket} />
-//                     </motion.div>
-//                   </ProtectedRoute>
-//                 } 
-//               />
-
-//               {/* Challenges */}
-//               <Route 
-//                 path="/challenges" 
-//                 element={
-//                   <ProtectedRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0, x: 20 }}
-//                       animate={{ opacity: 1, x: 0 }}
-//                       exit={{ opacity: 0, x: -20 }}
-//                       transition={{ duration: 0.3 }}
-//                     >
-//                       <Challenges />
-//                     </motion.div>
-//                   </ProtectedRoute>
-//                 } 
-//               />
-
-//               {/* Settings */}
-//               <Route 
-//                 path="/settings" 
-//                 element={
-//                   <ProtectedRoute>
-//                     <motion.div
-//                       initial={{ opacity: 0, rotateX: 90 }}
-//                       animate={{ opacity: 1, rotateX: 0 }}
-//                       exit={{ opacity: 0, rotateX: -90 }}
-//                       transition={{ duration: 0.4 }}
-//                     >
-//                       <Settings />
-//                     </motion.div>
-//                   </ProtectedRoute>
-//                 } 
-//               />
-
-//               {/* 404 Route */}
-//               <Route 
-//                 path="*" 
-//                 element={
-//                   <motion.div
-//                     initial={{ opacity: 0 }}
-//                     animate={{ opacity: 1 }}
-//                     exit={{ opacity: 0 }}
-//                     transition={{ duration: 0.5 }}
-//                   >
-//                     <NotFound />
-//                   </motion.div>
-//                 } 
-//               />
-//             </Routes>
-//           </Suspense>
-//         </AnimatePresence>
-//       </main>
-
-//       {/* Global Footer - Hide on auth pages */}
-//       {!isAuthRoute && <Footer theme={theme} />}
-
-//       {/* Toast Notifications */}
-//       <ToastContainer
-//         position="top-right"
-//         autoClose={5000}
-//         hideProgressBar={false}
-//         newestOnTop
-//         closeOnClick
-//         rtl={false}
-//         pauseOnFocusLoss
-//         draggable
-//         pauseOnHover
-//         theme="dark"
-//         toastClassName="custom-toast"
-//         bodyClassName="toast-body"
-//         progressClassName="toast-progress"
-//       />
-
-//       {/* Global Modals Portal */}
-//       <div id="modal-root"></div>
-
-//       {/* Floating Action Button for Mobile - Only when authenticated */}
-//       {isAuthenticated && location.pathname !== '/verify' && (
-//         <motion.button
-//           className="floating-action-button"
-//           initial={{ scale: 0, opacity: 0 }}
-//           animate={{ scale: 1, opacity: 1 }}
-//           whileHover={{ scale: 1.1 }}
-//           whileTap={{ scale: 0.9 }}
-//           onClick={() => window.location.href = '/verify'}
-//         >
-//           <span className="fab-icon">🌱</span>
-//           <span className="fab-text">Verify Today</span>
-//           <span className="fab-pulse"></span>
-//         </motion.button>
-//       )}
-
-//       {/* Join Now Floating Button on Home Page - Only for non-authenticated users */}
-//       {!isAuthenticated && location.pathname === '/' && (
-//         <motion.button
-//           className="join-now-button"
-//           initial={{ y: 100, opacity: 0 }}
-//           animate={{ y: 0, opacity: 1 }}
-//           whileHover={{ scale: 1.05 }}
-//           whileTap={{ scale: 0.95 }}
-//           onClick={() => window.location.href = '/auth?action=signup'}
-//         >
-//           <span className="join-icon">🚀</span>
-//           <span className="join-text">Join Now - Start Free</span>
-//           <span className="join-glow"></span>
-//         </motion.button>
-//       )}
-
-//       {/* Performance Metrics (Development Only) */}
-//       {process.env.NODE_ENV === 'development' && (
-//         <div className="performance-monitor">
-//           <div className="fps-counter">60 FPS</div>
-//           <div className="memory-usage">45 MB</div>
-//           <div className="route-info">{location.pathname}</div>
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
-
-// // Main App Component with Providers
-// function App() {
-//   return (
-//     <Router>
-//       <AuthProvider>
-//         <StreakProvider>
-//           <ChatProvider>
-//             <NotificationProvider>
-//               <AppContent />
-//             </NotificationProvider>
-//           </ChatProvider>
-//         </StreakProvider>
-//       </AuthProvider>
-//     </Router>
-//   );
-// }
 import React, { useState, useEffect, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastContainer } from 'react-toastify';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Lazy load pages for better performance
+// Lazy load pages
 const Home = React.lazy(() => import('./pages/Home'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Verify = React.lazy(() => import('./pages/Verify'));
 const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
-const Profile = React.lazy(() => import('./pages/Profile'));
+const Profile = React.lazy(() => import('./pages/profile'));
 const Subscription = React.lazy(() => import('./pages/Subscription'));
 const Auth = React.lazy(() => import('./pages/Auth'));
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
 const Challenges = React.lazy(() => import('./pages/Challenges'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
+const PaymentPage = React.lazy(() => import('./pages/Payment'));
+const PaymentSuccess = React.lazy(() => import('./pages/PaymentSuccess'));
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
+const AuthCallback = React.lazy(() => import('./pages/AuthCallBack'));
 
-// Components
-import Navbar from './components/layout/Navbar';
-import Footer from './components/layout/Footer';
-import LoadingScreen from './components/ui/LoadingScreen';
-import Confetti from './components/ui/Confetti';
-
-// Context & State
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+// Context - FIXED IMPORT
+import { AuthProvider, useAuth } from './contexts/AuthContext';  // Add AuthProvider here
 import { StreakProvider } from './contexts/StreakContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-
-// CSS imports
-import './global.css';
-import './styles/animations.css';
-import './styles/themes.css';
+// Get Google Client ID
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 
+                         import.meta.env.REACT_APP_GOOGLE_CLIENT_ID || 
+                         '';
 
 // Route transition wrapper
 const RouteTransition = ({ children, animation = 'fade' }) => {
@@ -557,56 +80,84 @@ const RouteTransition = ({ children, animation = 'fade' }) => {
   );
 };
 
-// Protected Route Component - FIXED
-const ProtectedRoute = ({ children, requireAuth = true }) => {
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
-    return <LoadingScreen />;
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading authentication...</p>
+        </div>
+      </div>
+    );
   }
   
-  if (requireAuth && !isAuthenticated) {
-    return <Navigate to="/auth" />;
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
   }
   
   return children;
 };
 
-// Public Route Component - FIXED
+// Public Route Component (for auth pages)
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
-    return <LoadingScreen />;
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading authentication...</p>
+        </div>
+      </div>
+    );
   }
   
-  // Only redirect to dashboard if trying to access auth page
-  const isAuthPage = window.location.pathname === '/auth';
-  if (isAuthenticated && isAuthPage) {
-    return <Navigate to="/dashboard" />;
+  // If already authenticated, redirect to dashboard
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
   }
   
   return children;
 };
 
+// Special route handler for AuthCallback - NO redirects
+const AuthCallbackRoute = () => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Processing authentication...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // NEVER redirect from AuthCallback - let the AuthCallback component handle everything
+  return <AuthCallback />;
+};
+
 // Main App Content
 function AppContent() {
-  const { user, loading } = useAuth();
-  const [showConfetti, setShowConfetti] = useState(false);
+  const { loading, isAuthenticated } = useAuth();
   const [theme, setTheme] = useState('dark');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Handle confetti for achievements
+  // Auto-redirect authenticated users from home to dashboard
   useEffect(() => {
-    const handleAchievement = (event) => {
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 5000);
-    };
-
-    window.addEventListener('achievement-unlocked', handleAchievement);
-    return () => window.removeEventListener('achievement-unlocked', handleAchievement);
-  }, []);
+    if (isAuthenticated && location.pathname === '/') {
+      console.log('🔄 Auto-redirecting from home to dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, location.pathname, navigate]);
 
   // Handle theme
   useEffect(() => {
@@ -615,176 +166,57 @@ function AppContent() {
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  };
-
-  // App loading screen
   if (loading) {
-    return <LoadingScreen fullScreen />;
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading TouchGrass...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className={`app-container theme-${theme}`}>
-      {/* Confetti Effect */}
-      {showConfetti && <Confetti />}
+      <AnimatePresence mode="wait">
+        <Suspense fallback={
+          <div className="loading-screen">
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+              <p>Loading page...</p>
+            </div>
+          </div>
+        }>
+          <Routes location={location} key={location.pathname}>
+            {/* Public Routes */}
+            <Route path="/" element={<RouteTransition animation="fade"><Home /></RouteTransition>} />
+            <Route path="/auth" element={<PublicRoute><RouteTransition animation="slideUp"><Auth /></RouteTransition></PublicRoute>} />
+            <Route path="/forgot-password" element={<PublicRoute><RouteTransition animation="slideUp"><ForgotPassword /></RouteTransition></PublicRoute>} />
+            <Route path="/reset-password/:token" element={<PublicRoute><RouteTransition animation="slideUp"><ResetPassword /></RouteTransition></PublicRoute>} />
+            <Route path="/leaderboard" element={<RouteTransition animation="fade"><Leaderboard /></RouteTransition>} />
+            
+            {/* IMPORTANT: AuthCallback must NOT be wrapped in PublicRoute */}
+            <Route path="/auth/callback" element={<AuthCallbackRoute />} />
+            
+            {/* Protected Routes */}
+            <Route path="/dashboard" element={<ProtectedRoute><RouteTransition animation="scale"><Dashboard /></RouteTransition></ProtectedRoute>} />
+            <Route path="/verify" element={<ProtectedRoute><RouteTransition animation="slideIn"><Verify /></RouteTransition></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><RouteTransition animation="slideUp"><Profile /></RouteTransition></ProtectedRoute>} />
+            <Route path="/profile/:username" element={<ProtectedRoute><RouteTransition animation="slideUp"><Profile /></RouteTransition></ProtectedRoute>} />
+            <Route path="/subscription" element={<ProtectedRoute><RouteTransition animation="scale"><Subscription /></RouteTransition></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute><RouteTransition animation="fade"><ChatPage /></RouteTransition></ProtectedRoute>} />
+            <Route path="/challenges" element={<ProtectedRoute><RouteTransition animation="slideIn"><Challenges /></RouteTransition></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><RouteTransition animation="scale"><Settings /></RouteTransition></ProtectedRoute>} />
+            <Route path="/payment" element={<ProtectedRoute><RouteTransition animation="fade"><PaymentPage /></RouteTransition></ProtectedRoute>} />
+            <Route path="/payment/success" element={<RouteTransition animation="fade"><PaymentSuccess /></RouteTransition>} />
+            
+            {/* 404 Route */}
+            <Route path="*" element={<RouteTransition animation="fade"><NotFound /></RouteTransition>} />
+          </Routes>
+        </Suspense>
+      </AnimatePresence>
 
-      {/* Global Navigation */}
-      <Navbar 
-        isAuthenticated={!!user}
-        user={user}
-        theme={theme}
-        toggleTheme={toggleTheme}
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
-      />
-
-      {/* Main Content */}
-      <main className="main-content">
-        <AnimatePresence mode="wait">
-          <Suspense fallback={<LoadingScreen />}>
-            <Routes location={location} key={location.pathname}>
-              {/* Public Routes */}
-              <Route 
-                path="/" 
-                element={
-                  <RouteTransition animation="fade">
-                    <Home />
-                  </RouteTransition>
-                } 
-              />
-
-              <Route 
-                path="/auth" 
-                element={
-                  <PublicRoute>
-                    <RouteTransition animation="slideUp">
-                      <Auth />
-                    </RouteTransition>
-                  </PublicRoute>
-                } 
-              />
-
-              <Route 
-                path="/leaderboard" 
-                element={
-                  <RouteTransition animation="fade">
-                    <Leaderboard />
-                  </RouteTransition>
-                } 
-              />
-
-              {/* Protected Routes */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <RouteTransition animation="scale">
-                      <Dashboard />
-                    </RouteTransition>
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
-                path="/verify" 
-                element={
-                  <ProtectedRoute>
-                    <RouteTransition animation="slideIn">
-                      <Verify />
-                    </RouteTransition>
-                  </ProtectedRoute>
-                } 
-              />
-
-              {/* FIXED: Profile routes should NOT redirect to dashboard */}
-              <Route 
-                path="/profile" 
-                element={
-                  <ProtectedRoute>
-                    <RouteTransition animation="slideUp">
-                      <Profile />
-                    </RouteTransition>
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
-                path="/profile/:username" 
-                element={
-                  <ProtectedRoute>
-                    <RouteTransition animation="slideUp">
-                      <Profile />
-                    </RouteTransition>
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
-                path="/subscription" 
-                element={
-                  <ProtectedRoute>
-                    <RouteTransition animation="scale">
-                      <Subscription />
-                    </RouteTransition>
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
-                path="/chat" 
-                element={
-                  <ProtectedRoute>
-                    <RouteTransition animation="fade">
-                      <ChatPage />
-                    </RouteTransition>
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
-                path="/challenges" 
-                element={
-                  <ProtectedRoute>
-                    <RouteTransition animation="slideIn">
-                      <Challenges />
-                    </RouteTransition>
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
-                path="/settings" 
-                element={
-                  <ProtectedRoute>
-                    <RouteTransition animation="scale">
-                      <Settings />
-                    </RouteTransition>
-                  </ProtectedRoute>
-                } 
-              />
-
-              {/* 404 Route */}
-              <Route 
-                path="*" 
-                element={
-                  <RouteTransition animation="fade">
-                    <NotFound />
-                  </RouteTransition>
-                } 
-              />
-            </Routes>
-          </Suspense>
-        </AnimatePresence>
-      </main>
-
-      {/* Global Footer */}
-      <Footer theme={theme} />
-
-      {/* Toast Notifications */}
       <ToastContainer
         position="top-right"
         autoClose={5000}
@@ -796,46 +228,27 @@ function AppContent() {
         draggable
         pauseOnHover
         theme="dark"
-        toastClassName="custom-toast"
-        bodyClassName="toast-body"
-        progressClassName="toast-progress"
       />
-
-      {/* Global Modals Portal */}
-      <div id="modal-root"></div>
-
-      {/* Floating Action Button for Mobile */}
-      {user && (
-        <motion.button
-          className="floating-action-button"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => window.location.href = '/verify'}
-        >
-          <span className="fab-icon">🌱</span>
-          <span className="fab-pulse"></span>
-        </motion.button>
-      )}
     </div>
   );
 }
 
-// Main App Component with Providers
+// Main App Component
 function App() {
   return (
-    <AuthProvider>
-      <StreakProvider>
-        <ChatProvider>
-          <NotificationProvider>
-            <Router>
-              <AppContent />
-            </Router>
-          </NotificationProvider>
-        </ChatProvider>
-      </StreakProvider>
-    </AuthProvider>
+    <Router>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <AuthProvider>
+          <StreakProvider>
+            <ChatProvider>
+              <NotificationProvider>
+                <AppContent />
+              </NotificationProvider>
+            </ChatProvider>
+          </StreakProvider>
+        </AuthProvider>
+      </GoogleOAuthProvider>
+    </Router>
   );
 }
 

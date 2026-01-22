@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+  import React, { useState, useEffect } from 'react';
 import { atom, useRecoilState } from 'recoil';
 import { createGlobalStyle } from 'styled-components';
 
@@ -1319,4 +1320,4 @@ rippleAnimation.split('}').forEach(rule => {
   if (rule.trim()) streakStyleSheet.insertRule(rule + '}', streakStyleSheet.cssRules.length);
 });
 
-export default streakState;
+export default StreakCounter;

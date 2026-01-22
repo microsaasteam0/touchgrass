@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
+import SEO from '../components/seo/SEO';
+import { SEO_CONFIG } from '../config/seo';
 
 /**
  * 404 Not Found Page with Premium Animations

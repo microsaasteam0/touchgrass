@@ -1,4 +1,7 @@
-/**
+import React from 'react';
+  
+  
+  /**
  * TouchGrass Chat Service - Premium Real-time Communication
  * Enterprise-grade chat with business features
  */

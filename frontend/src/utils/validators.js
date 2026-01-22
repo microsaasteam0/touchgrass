@@ -1,4 +1,5 @@
-// Professional Validation System for Business Applications
+
+  // Professional Validation System for Business Applications
 
 // CSS for validation feedback
 export const VALIDATION_CSS = `

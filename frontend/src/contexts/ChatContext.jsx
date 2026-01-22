@@ -202,21 +202,10 @@ export const ChatProvider = ({ children }) => {
   const loadChats = async () => {
     try {
       const token = localStorage.getItem('touchgrass_token');
-      
-      if (!token || token.startsWith('mock_')) {
-        console.log('Using mock chats (mock token)');
-        return {
-          messages: [
-            {
-              id: '1',
-              userId: 'mock1',
-              username: 'system',
-              displayName: 'System',
-              message: 'Chat using mock data',
-              timestamp: new Date().toISOString()
-            }
-          ]
-        };
+
+      if (!token) {
+        console.log('No token found for chat');
+        return { messages: [] };
       }
 
       const response = await fetch(`${API_BASE_URL}/chat/messages`, {
@@ -226,31 +215,14 @@ export const ChatProvider = ({ children }) => {
         }
       });
 
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.log('Chat endpoint returned HTML, using mock');
-        return {
-          messages: [
-            {
-              id: '1',
-              userId: 'mock1',
-              username: 'demo_user',
-              displayName: 'Demo User',
-              message: 'Welcome to TouchGrass chat! 🌱',
-              timestamp: new Date().toISOString()
-            }
-          ]
-        };
-      }
-
       if (response.ok) {
         return await response.json();
       }
-      
+
+      console.error('Failed to load chats:', response.status);
       return { messages: [] };
     } catch (error) {
-      console.warn('Chat error:', error.message);
+      console.error('Chat error:', error.message);
       return { messages: [] };
     }
   };
@@ -274,12 +246,13 @@ export const ChatProvider = ({ children }) => {
         };
       }
 
-      const response = await fetch(`${API_BASE_URL}/chat/online-users`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // const response = await fetch(`${API_BASE_URL}/chat/online-users`, {
+      //   headers: {
+      //     'Authorization': `Bearer ${token}`,
+      //     'Content-Type': 'application/json'
+      //   }
+      // });
+       
 
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
