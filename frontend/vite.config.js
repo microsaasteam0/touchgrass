@@ -4,12 +4,17 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000,
+    allowedHosts: [
+      'touchgrass2.onrender.com',  // Your frontend domain
+      'touchgrass-backend.onrender.com',  // Your backend
+      'touchgrass-7.onrender.com'  // Your other backend
+    ]
   },
   build: {
     outDir: 'dist',
     sourcemap: false,
     rollupOptions: {
+      external: [],  // <-- Comma was missing here!
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
