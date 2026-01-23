@@ -1,0 +1,27 @@
+@react-oauth/google
+@react-spring/web
+@stripe/react-stripe-js
+@stripe/stripe-js
+@supabase/supabase-js
+@tanstack/react-virtual
+axios
+canvas-confetti
+framer-motion
+import React from "react";
+jwt-decode
+lucide-react
+prop-types
+qrcode
+react
+react-chartjs-2
+react-confetti
+react-countup
+react-dom
+react-dom/client
+react-helmet-async
+react-hot-toast
+react-intersection-observer
+react-router-dom
+react-toastify
+recoil
+styled-components
