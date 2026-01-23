@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 // MongoDB Configuration
 const configureMongoDB = async () => {
   const {
-    MONGODB_URI = 'mongodb://localhost:27017/touchgrass',
+    MONGODB_URI = 'mongodb+srv://hitanshiee:Hitanshii14@touchgrass.dgyxbbm.mongodb.net/touchgrass?retryWrites=true&w=majority&appName=touchgrass',
     MONGODB_USER,
     MONGODB_PASSWORD,
     MONGODB_DATABASE,
