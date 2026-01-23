@@ -70,7 +70,7 @@ const ForgotPassword = () => {
         }}
       >
         <h2 style={{
-          color: 'white',
+          // color: 'white',
           marginBottom: '8px',
           fontSize: '24px',
           fontWeight: '700',
