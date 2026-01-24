@@ -503,10 +503,10 @@ const NotFound = () => {
             </div>
           </div>
           
-          <h1 className="error-code">404</h1>
+          <h1 className="error-code"></h1>
           
           <h2 className="error-title">
-            Page Lost in the Digital Wilderness
+            
           </h2>
           
           <p className="error-subtitle">

@@ -2243,7 +2243,7 @@ const LandingPage = ({ onStart }) => {
           whileHover={{ scale: 1.05, y: -2 }}
           whileTap={{ scale: 0.95 }}
           className="contact-button"
-          onClick={() => window.location.href = 'mailto:support@touchgrass.now'}
+          onClick={() => window.location.href = 'mailto:business@entrext.in'}
         >
           <Mail size={16} />
           Contact Support
@@ -2253,7 +2253,7 @@ const LandingPage = ({ onStart }) => {
           whileHover={{ scale: 1.05, y: -2 }}
           whileTap={{ scale: 0.95 }}
           className="contact-button"
-          onClick={() => window.location.href = 'mailto:business@touchgrass.now'}
+          onClick={() => window.location.href = 'mailto:business@entrext.in'}
           style={{ background: 'linear-gradient(135deg, #7F00FF, #22c55e)' }}
         >
           <MessageSquare size={16} />
@@ -2569,11 +2569,11 @@ const LandingPage = ({ onStart }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <p className="footer-copyright">© 2026 touchgrass.now — Go outside. 🍃</p>
               <div style={{ display: 'flex', gap: '1.5rem' }}>
-                {/* <a href="mailto:contact@touchgrass.now" style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'none' }}>
+                {/* <a href="mailto:business@entrext.in" style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'none' }}>
                   contact@touchgrass.now
                 </a> */}
-                <a href="mailto:business@entrext.now" style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'none' }}>
-                  business@entrext.now
+                <a href="mailto:business@entrext.in" style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'none' }}>
+                  business@entrext.in
                 </a>
               </div>
             </div>

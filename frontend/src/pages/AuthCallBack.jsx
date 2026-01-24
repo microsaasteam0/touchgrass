@@ -54,10 +54,10 @@ const AuthCallback = () => {
           errorMessage += errorDescription;
         }
 
-        toast.error(errorMessage, {
-          theme: 'dark',
-          autoClose: 10000
-        });
+        // toast.error(errorMessage, {
+        //   theme: 'dark',
+        //   autoClose: 10000
+        // });
 
         // Show detailed instructions
         if (detailedInstructions) {
@@ -90,12 +90,12 @@ const AuthCallback = () => {
         setStatus('no_code');
         
         // Check if this is a redirect from Google without code (might be configuration issue)
-        if (Object.keys(allParams).length === 0) {
-          toast.error('Google OAuth configuration incomplete. No authorization code received.', { 
-            theme: 'dark',
-            autoClose: 5000 
-          });
-        }
+        // if (Object.keys(allParams).length === 0) {
+        //   toast.error('Google OAuth configuration incomplete. No authorization code received.', { 
+        //     theme: 'dark',
+        //     autoClose: 5000 
+        //   });
+        // }
         
         // Clear URL and redirect
         window.history.replaceState({}, '', '/auth?mode=login');
@@ -219,7 +219,7 @@ const AuthCallback = () => {
                 </svg>
               </div>
               <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                Authentication Failed
+                {/* Authentication Failed */}
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 {status === 'no_code' 

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ToastContainer } from 'react-toastify';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import 'react-toastify/dist/ReactToastify.css';
+import LoadingScreen from './components/ui/LoadingScreen';
 
 // Lazy load pages
 const Home = React.lazy(() => import('./pages/Home'));
@@ -167,27 +168,13 @@ function AppContent() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="app-loading">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading TouchGrass...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
     <div className={`app-container theme-${theme}`}>
       <AnimatePresence mode="wait">
-        <Suspense fallback={
-          <div className="loading-screen">
-            <div className="loading-spinner">
-              <div className="spinner"></div>
-              <p>Loading page...</p>
-            </div>
-          </div>
-        }>
+        <Suspense fallback={<LoadingScreen />}>
           <Routes location={location} key={location.pathname}>
             {/* Public Routes */}
             <Route path="/" element={<RouteTransition animation="fade"><Home /></RouteTransition>} />
