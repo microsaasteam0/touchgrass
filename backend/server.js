@@ -296,6 +296,269 @@ userSchema.methods.generateResetToken = function() {
 
 const User = mongoose.model('User', userSchema);
 
+// Import models
+// const uploadRoutes = require('./routes/upload');
+
+// Verification Wall Schema (keeping for reference but using imported model)
+const verificationWallSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+
+  // Photo details
+  photoUrl: {
+    type: String,
+    required: true
+  },
+  photoThumbnail: String,
+  photoMetadata: {
+    width: Number,
+    height: Number,
+    size: Number,
+    format: String,
+    uploadedAt: Date
+  },
+
+  // Verification details
+  streakId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Streak'
+  },
+  activityType: {
+    type: String,
+    enum: ['walk', 'run', 'hike', 'sports', 'gardening', 'picnic', 'meditation', 'reading', 'other'],
+    required: true
+  },
+  duration: {
+    type: Number, // in minutes
+    required: true,
+    min: 1,
+    max: 1440
+  },
+  location: {
+    lat: Number,
+    lng: Number,
+    name: String,
+    address: String
+  },
+
+  // User content
+  caption: {
+    type: String,
+    maxlength: 500,
+    trim: true
+  },
+  tags: [String],
+
+  // Social features
+  likes: [{
+    userId: mongoose.Schema.Types.ObjectId,
+    timestamp: Date
+  }],
+  comments: [{
+    userId: mongoose.Schema.Types.ObjectId,
+    text: String,
+    timestamp: Date,
+    likes: [{
+      userId: mongoose.Schema.Types.ObjectId,
+      timestamp: Date
+    }]
+  }],
+
+  // Reporting system
+  reports: [{
+    userId: mongoose.Schema.Types.ObjectId,
+    reason: {
+      type: String,
+      enum: ['fake_photo', 'inappropriate', 'spam', 'copyright', 'other'],
+      required: true
+    },
+    details: String,
+    timestamp: Date,
+    status: {
+      type: String,
+      enum: ['pending', 'reviewed', 'dismissed'],
+      default: 'pending'
+    }
+  }],
+
+  // Moderation
+  isBlocked: {
+    type: Boolean,
+    default: false
+  },
+  blockedReason: String,
+  blockedAt: Date,
+  blockedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+
+  // Analytics
+  views: {
+    type: Number,
+    default: 0
+  },
+  shares: {
+    type: Number,
+    default: 0
+  },
+
+  // Verification status
+  isVerified: {
+    type: Boolean,
+    default: true // Assume genuine unless reported
+  },
+  verificationScore: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 100
+  }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Indexes
+verificationWallSchema.index({ userId: 1, createdAt: -1 });
+verificationWallSchema.index({ createdAt: -1 });
+verificationWallSchema.index({ isBlocked: 1 });
+verificationWallSchema.index({ 'reports.status': 1 });
+
+// Virtual for total reports
+verificationWallSchema.virtual('totalReports').get(function() {
+  return this.reports.length;
+});
+
+// Virtual for pending reports
+verificationWallSchema.virtual('pendingReports').get(function() {
+  return this.reports.filter(report => report.status === 'pending').length;
+});
+
+// Virtual for like count
+verificationWallSchema.virtual('likeCount').get(function() {
+  return this.likes.length;
+});
+
+// Virtual for comment count
+verificationWallSchema.virtual('commentCount').get(function() {
+  return this.comments.length;
+});
+
+// Method to add report
+verificationWallSchema.methods.addReport = async function(userId, reason, details = '') {
+  // Check if user already reported
+  const existingReport = this.reports.find(report =>
+    report.userId.toString() === userId.toString()
+  );
+
+  if (existingReport) {
+    throw new Error('You have already reported this post');
+  }
+
+  this.reports.push({
+    userId,
+    reason,
+    details,
+    timestamp: new Date(),
+    status: 'pending'
+  });
+
+  // Auto-block if too many reports
+  if (this.pendingReports >= 5) {
+    this.isBlocked = true;
+    this.blockedReason = 'Multiple reports received';
+    this.blockedAt = new Date();
+    this.verificationScore = Math.max(0, this.verificationScore - 20);
+  }
+
+  return this.save();
+};
+
+// Method to moderate report
+verificationWallSchema.methods.moderateReport = async function(reportId, action, moderatorId) {
+  const report = this.reports.id(reportId);
+  if (!report) {
+    throw new Error('Report not found');
+  }
+
+  report.status = action === 'block' ? 'reviewed' : 'dismissed';
+
+  if (action === 'block') {
+    this.isBlocked = true;
+    this.blockedReason = `Blocked due to report: ${report.reason}`;
+    this.blockedAt = new Date();
+    this.blockedBy = moderatorId;
+    this.verificationScore = Math.max(0, this.verificationScore - 30);
+  }
+
+  return this.save();
+};
+
+// Method to add comment
+verificationWallSchema.methods.addComment = async function(userId, text) {
+  if (this.isBlocked) {
+    throw new Error('Cannot comment on blocked post');
+  }
+
+  this.comments.push({
+    userId,
+    text: text.trim(),
+    timestamp: new Date()
+  });
+
+  return this.save();
+};
+
+// Method to like/unlike
+verificationWallSchema.methods.toggleLike = async function(userId) {
+  const existingLike = this.likes.find(like =>
+    like.userId.toString() === userId.toString()
+  );
+
+  if (existingLike) {
+    // Unlike
+    this.likes = this.likes.filter(like =>
+      like.userId.toString() !== userId.toString()
+    );
+  } else {
+    // Like
+    this.likes.push({
+      userId,
+      timestamp: new Date()
+    });
+  }
+
+  return this.save();
+};
+
+// Static method to get public posts
+verificationWallSchema.statics.getPublicPosts = function(limit = 20, skip = 0) {
+  return this.find({ isBlocked: false })
+    .populate('userId', 'username displayName avatar')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+};
+
+// Static method to get reported posts for moderation
+verificationWallSchema.statics.getReportedPosts = function() {
+  return this.find({
+    'reports.status': 'pending',
+    isBlocked: false
+  })
+    .populate('userId', 'username displayName avatar')
+    .populate('reports.userId', 'username')
+    .sort({ 'reports.timestamp': -1 });
+};
+
+const VerificationWall = mongoose.model('VerificationWall', verificationWallSchema);
+
 // Password Reset Token Schema
 const passwordResetTokenSchema = new mongoose.Schema({
   userId: {
@@ -462,6 +725,8 @@ const webhookLogSchema = new mongoose.Schema({
 });
 
 const WebhookLog = mongoose.model('WebhookLog', webhookLogSchema);
+
+
 
 // ========== AUTHENTICATION MIDDLEWARE ==========
 
@@ -1569,15 +1834,15 @@ app.get('/api/dodo/checkout/:plan', authenticateToken, async (req, res) => {
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
-    
+
     const users = await User.find({ 'preferences.showOnLeaderboard': true })
       .select('username displayName avatar stats subscription location')
       .sort({ 'stats.currentStreak': -1, 'stats.consistencyScore': -1 })
       .skip(parseInt(offset))
       .limit(parseInt(limit));
-    
+
     const total = await User.countDocuments({ 'preferences.showOnLeaderboard': true });
-    
+
     const leaderboard = users.map((user, index) => ({
       rank: parseInt(offset) + index + 1,
       username: user.username,
@@ -1591,7 +1856,7 @@ app.get('/api/leaderboard', async (req, res) => {
       longestStreak: user.stats.longestStreak,
       followers: user.stats.followersCount
     }));
-    
+
     res.json({
       success: true,
       leaderboard,
@@ -1599,7 +1864,7 @@ app.get('/api/leaderboard', async (req, res) => {
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
-    
+
   } catch (error) {
     console.error('Leaderboard error:', error);
     res.status(500).json({
@@ -1612,15 +1877,15 @@ app.get('/api/leaderboard', async (req, res) => {
 app.get('/api/leaderboard/user-rank/:userId', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const allUsers = await User.find({ 'preferences.showOnLeaderboard': true })
       .select('_id stats.currentStreak stats.consistencyScore')
       .sort({ 'stats.currentStreak': -1, 'stats.consistencyScore': -1 });
-    
+
     const rank = allUsers.findIndex(user => user._id.toString() === userId) + 1;
-    
+
     const user = await User.findById(userId).select('stats');
-    
+
     res.json({
       success: true,
       rank: rank > 0 ? rank : null,
@@ -1628,7 +1893,7 @@ app.get('/api/leaderboard/user-rank/:userId', authenticateToken, async (req, res
       streak: user?.stats?.currentStreak || 0,
       consistency: user?.stats?.consistencyScore || 0
     });
-    
+
   } catch (error) {
     console.error('Get user rank error:', error);
     res.status(500).json({
@@ -1642,15 +1907,15 @@ app.get('/api/leaderboard/city/:city', async (req, res) => {
   try {
     const { city } = req.params;
     const { limit = 20 } = req.query;
-    
-    const users = await User.find({ 
+
+    const users = await User.find({
       'preferences.showOnLeaderboard': true,
       'location.city': new RegExp(city, 'i')
     })
     .select('username displayName avatar stats subscription')
     .sort({ 'stats.currentStreak': -1 })
     .limit(parseInt(limit));
-    
+
     const leaderboard = users.map((user, index) => ({
       rank: index + 1,
       username: user.username,
@@ -1660,16 +1925,252 @@ app.get('/api/leaderboard/city/:city', async (req, res) => {
       consistency: user.stats.consistencyScore,
       isPremium: user.subscription?.plan !== 'free'
     }));
-    
+
     res.json({
       success: true,
       city,
       leaderboard,
       count: users.length
     });
-    
+
   } catch (error) {
     console.error('City leaderboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// ========== VERIFICATION WALL ROUTES ==========
+
+// Get verification wall posts
+app.get('/api/verification-wall', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, filter = 'recent' } = req.query;
+
+    let query = { isBlocked: false }; // Only show public posts
+    let sort = { createdAt: -1 }; // recent first
+
+    switch (filter) {
+      case 'popular':
+        sort = { likeCount: -1, createdAt: -1 };
+        break;
+      case 'verified':
+        query.isVerified = true;
+        break;
+      case 'reported':
+        query.reports = { $exists: true, $ne: [] };
+        break;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const posts = await VerificationWall.find(query)
+      .populate('userId', 'username displayName avatar')
+      .populate('streakId', 'currentStreak')
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await VerificationWall.countDocuments(query);
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    const postsWithDetails = posts.map(post => ({
+      _id: post._id,
+      userId: {
+        _id: post.userId._id,
+        username: post.userId.username,
+        displayName: post.userId.displayName,
+        avatar: post.userId.avatar
+      },
+      streakId: post.streakId,
+      photoUrl: post.photoUrl,
+      caption: post.caption,
+      activityType: post.activityType,
+      duration: post.duration,
+      location: post.location,
+      likeCount: post.likeCount,
+      commentCount: post.commentCount,
+      reportCount: post.totalReports,
+      isVerified: post.isVerified,
+      verificationScore: post.verificationScore,
+      createdAt: post.createdAt,
+      likes: post.likes,
+      comments: post.comments.slice(-3), // Last 3 comments
+      reports: post.reports
+    }));
+
+    res.json({
+      success: true,
+      posts: postsWithDetails,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: totalPages,
+        hasNext: parseInt(page) < totalPages,
+        hasPrev: parseInt(page) > 1
+      }
+    });
+
+  } catch (error) {
+    console.error('Get verification wall error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Like a post
+app.post('/api/verification-wall/:postId/like', authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user._id;
+
+    const post = await VerificationWall.findById(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    const likeIndex = post.likes.findIndex(like => like.userId.toString() === userId.toString());
+
+    if (likeIndex > -1) {
+      // Unlike
+      post.likes.splice(likeIndex, 1);
+      await post.save();
+
+      res.json({
+        success: true,
+        message: 'Post unliked',
+        liked: false
+      });
+    } else {
+      // Like
+      post.likes.push({ userId, createdAt: new Date() });
+      await post.save();
+
+      res.json({
+        success: true,
+        message: 'Post liked',
+        liked: true
+      });
+    }
+
+  } catch (error) {
+    console.error('Like post error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Report a post
+app.post('/api/verification-wall/:postId/report', authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { reason, details } = req.body;
+    const userId = req.user._id;
+
+    const post = await VerificationWall.findById(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Check if user already reported
+    const existingReport = post.reports.find(report => report.reportedBy.toString() === userId.toString());
+    if (existingReport) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reported this post'
+      });
+    }
+
+    post.reports.push({
+      reportedBy: userId,
+      reason,
+      details,
+      createdAt: new Date()
+    });
+
+    await post.save();
+
+    res.json({
+      success: true,
+      message: 'Report submitted successfully'
+    });
+
+  } catch (error) {
+    console.error('Report post error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Add comment to post
+app.post('/api/verification-wall/:postId/comment', authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { text } = req.body;
+    const userId = req.user._id;
+
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment cannot be empty'
+      });
+    }
+
+    const post = await VerificationWall.findById(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    const comment = {
+      userId,
+      text: text.trim(),
+      createdAt: new Date()
+    };
+
+    post.comments.push(comment);
+    await post.save();
+
+    // Populate user info for response
+    await post.populate('comments.userId', 'username displayName avatar');
+
+    const newComment = post.comments[post.comments.length - 1];
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      comment: {
+        _id: newComment._id,
+        userId: {
+          _id: newComment.userId._id,
+          username: newComment.userId.username,
+          displayName: newComment.userId.displayName,
+          avatar: newComment.userId.avatar
+        },
+        text: newComment.text,
+        createdAt: newComment.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Add comment error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

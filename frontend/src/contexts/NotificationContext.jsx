@@ -150,75 +150,96 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   
-  // Use the same API base as Profile.jsx
-  const API_BASE_URL = 'http://localhost:5001/api';
+  // Disable API for now
+  const USE_API = false;
+
+  const getAuthToken = () => {
+    const tokens = [
+      localStorage.getItem('touchgrass_token'),
+      localStorage.getItem('supabase.auth.token'),
+      localStorage.getItem('sb-auth-token')
+    ];
+    
+    const token = tokens.find(t => t !== null && t !== 'undefined');
+    
+    if (token) {
+      try {
+        const parsed = JSON.parse(token);
+        return parsed.access_token || token;
+      } catch {
+        return token;
+      }
+    }
+    
+    return null;
+  };
 
   const loadNotifications = async () => {
-    try {
-      const token = localStorage.getItem('touchgrass_token');
-      
-      // If using mock token, return mock data
-      if (!token || token.startsWith('mock_')) {
-        console.log('Using mock notifications (mock token)');
-        return {
-          notifications: [
-            {
-              id: '1',
-              type: 'streak',
-              title: 'Daily Reminder',
-              message: 'Time to verify your streak!',
-              read: false,
-              createdAt: new Date().toISOString()
-            }
-          ]
-        };
+    // Use local storage if API is disabled or no token
+    if (!USE_API || !getAuthToken()) {
+      const storedData = localStorage.getItem('touchgrass_notifications');
+      if (storedData) {
+        try {
+          const data = JSON.parse(storedData);
+          return { notifications: data };
+        } catch (e) {
+          console.warn('Failed to parse stored notifications:', e);
+        }
       }
+      
+      // Default mock notifications
+      const mockNotifications = [
+        {
+          id: '1',
+          type: 'streak',
+          title: 'Daily Reminder',
+          message: 'Time to verify your streak!',
+          read: false,
+          createdAt: new Date().toISOString(),
+          icon: '🔥'
+        },
+        {
+          id: '2',
+          type: 'achievement',
+          title: 'Achievement Unlocked',
+          message: 'You reached a 3-day streak!',
+          read: true,
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          icon: '🏆'
+        }
+      ];
+      
+      return { notifications: mockNotifications };
+    }
 
-      // Try to get real data
-      const response = await fetch(`${API_BASE_URL}/notifications`, {
+    try {
+      const token = getAuthToken();
+      const response = await fetch('http://localhost:5001/api/notifications', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      // If endpoint doesn't exist (returns HTML), use mock
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.log('Notifications endpoint returned HTML, using mock');
-        return {
-          notifications: [
-            {
-              id: '1',
-              type: 'streak',
-              title: 'Streak Reminder',
-              message: 'Mock: Verify your daily streak!',
-              read: false,
-              createdAt: new Date().toISOString()
-            }
-          ]
-        };
-      }
-
       if (response.ok) {
-        return await response.json();
+        const data = await response.json();
+        localStorage.setItem('touchgrass_notifications', JSON.stringify(data.notifications || []));
+        return data;
       }
       
-      // If error, use mock
-      return {
-        notifications: [
-          {
-            id: '1',
-            type: 'system',
-            title: 'System',
-            message: 'Backend notifications not available',
-            read: true,
-            createdAt: new Date().toISOString()
-          }
-        ]
-      };
+      // Fallback to localStorage
+      const storedData = localStorage.getItem('touchgrass_notifications');
+      if (storedData) {
+        return { notifications: JSON.parse(storedData) };
+      }
+      
+      return { notifications: [] };
     } catch (error) {
-      console.warn('Notifications error:', error.message);
+      console.warn('Notifications API error, using local data:', error.message);
+      const storedData = localStorage.getItem('touchgrass_notifications');
+      if (storedData) {
+        return { notifications: JSON.parse(storedData) };
+      }
       return { notifications: [] };
     }
   };

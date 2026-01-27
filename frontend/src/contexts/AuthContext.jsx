@@ -416,7 +416,6 @@
 //     'apikey': process.env.REACT_APP_SUPABASE_ANON_KEY 
 //   } : {};
 // };
-// /Users/apple/Documents/touchgrass/frontend/src/contexts/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -431,6 +430,73 @@ export const AuthProvider = ({ children }) => {
   const [initialized, setInitialized] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Email validation function - ADD THIS ONCE
+  const isValidEmail = (email) => {
+    const emailTrimmed = email.trim().toLowerCase();
+    
+    // 1. Basic format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailTrimmed)) {
+      return { valid: false, reason: 'Invalid email format' };
+    }
+    
+    const domain = emailTrimmed.split('@')[1];
+    
+    // 2. Block disposable/temporary email domains
+    const disposableDomains = [
+      'example.com', 'test.com', 'example.org', 'test.org',
+      'mailinator.com', '10minutemail.com', 'guerrillamail.com',
+      'yopmail.com', 'throwawaymail.com', 'tempmail.com',
+      'fakeinbox.com', 'trashmail.com', 'getairmail.com',
+      'temp-mail.org', 'temp-mail.io', 'dispostable.com',
+      'maildrop.cc', 'getnada.com', 'temp-mail.ru',
+      'sharklasers.com', 'grr.la', 'guerrillamail.org',
+      'mailnesia.com', 'spam4.me', 'tempmailaddress.com',
+      'mohmal.com', 'fake-mail.net', 'jetable.org',
+      'harakirimail.com', 'mailcatch.com', 'tmpmail.org'
+    ];
+    
+    if (disposableDomains.some(d => domain.includes(d))) {
+      return { valid: false, reason: 'Disposable/temporary emails are not allowed' };
+    }
+    
+    // 3. Block obviously fake domains
+    const fakePatterns = [
+      /^fake/, /^test/, /^temp/, /^dummy/, /^example/,
+      /^invalid/, /^nonexistent/, /^notreal/, /^placeholder/
+    ];
+    
+    if (fakePatterns.some(pattern => pattern.test(domain))) {
+      return { valid: false, reason: 'Please use a valid email domain' };
+    }
+    
+    // 4. Block suspicious TLDs
+    const suspiciousTLDs = ['.local', '.test', '.example', '.invalid'];
+    if (suspiciousTLDs.some(tld => domain.endsWith(tld))) {
+      return { valid: false, reason: 'Invalid email domain' };
+    }
+    
+    // 5. Block specific suspicious emails (like "you@gmail.com")
+    const suspiciousEmails = [
+      'you@gmail.com', 'me@gmail.com', 'test@gmail.com',
+      'fake@gmail.com', 'temp@gmail.com', 'email@gmail.com',
+      'user@gmail.com', 'demo@gmail.com', 'sample@gmail.com',
+      'admin@gmail.com', 'info@gmail.com', 'contact@gmail.com',
+      'hello@gmail.com', 'hi@gmail.com', 'hey@gmail.com'
+    ];
+    
+    if (suspiciousEmails.includes(emailTrimmed)) {
+      return { valid: false, reason: 'Please use your personal email address' };
+    }
+    
+    // 6. Check email length
+    if (emailTrimmed.length < 6 || emailTrimmed.length > 254) {
+      return { valid: false, reason: 'Invalid email length' };
+    }
+    
+    return { valid: true };
+  };
 
   // Initialize auth - FIXED VERSION
   useEffect(() => {
@@ -552,11 +618,17 @@ export const AuthProvider = ({ children }) => {
     };
   }, [navigate, location]);
 
-  // Register with email/password
+  // Register with email/password - UPDATED WITH EMAIL VALIDATION
   const signup = async (email, password) => {
     try {
       setLoading(true);
       console.log('🔑 Signing up:', email);
+      
+      // Validate email BEFORE sending to Supabase
+      const emailValidation = isValidEmail(email);
+      if (!emailValidation.valid) {
+        throw new Error(emailValidation.reason);
+      }
       
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
@@ -601,6 +673,11 @@ export const AuthProvider = ({ children }) => {
         errorMessage = 'Email already registered. Please log in.';
       } else if (error.message.includes('Password should be at least')) {
         errorMessage = 'Password must be at least 6 characters.';
+      } else if (error.message.includes('Disposable') || 
+                 error.message.includes('Invalid email') || 
+                 error.message.includes('Please use')) {
+        // Keep the validation error message
+        errorMessage = error.message;
       }
       
       toast.error(errorMessage, { theme: 'dark' });
@@ -611,11 +688,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login with email/password
+  // Login with email/password - UPDATED WITH EMAIL VALIDATION
   const login = async (email, password) => {
     try {
       setLoading(true);
       console.log('🔑 Logging in:', email);
+      
+      // Validate email BEFORE sending to Supabase
+      const emailValidation = isValidEmail(email);
+      if (!emailValidation.valid) {
+        throw new Error(emailValidation.reason);
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -645,6 +728,11 @@ export const AuthProvider = ({ children }) => {
       
       if (error.message.includes('Invalid login credentials')) {
         errorMessage = 'Invalid email or password.';
+      } else if (error.message.includes('Disposable') || 
+                 error.message.includes('Invalid email') || 
+                 errorMessage.includes('Please use')) {
+        // Keep the validation error message
+        errorMessage = error.message;
       }
       
       toast.error(errorMessage, { theme: 'dark' });
@@ -655,7 +743,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Google OAuth
+  // Google OAuth - UNCHANGED
   const googleLogin = async () => {
     try {
       setLoading(true);
@@ -687,14 +775,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout
+  // Logout - UPDATED TO NAVIGATE TO HOME
   const logout = async () => {
     try {
       await supabase.auth.signOut();
       setUser(null);
       localStorage.removeItem('supabase.auth.token');
       toast.info('Logged out successfully', { theme: 'dark' });
-      navigate('/auth?mode=login', { replace: true });
+      navigate('/', { replace: true });
     } catch (error) {
       console.error('❌ Logout error:', error);
     }

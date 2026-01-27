@@ -26,6 +26,11 @@ const Challenges = lazyLoad('Challenges');
 const Settings = lazyLoad('Settings');
 const NotFound = lazyLoad('NotFound');
 
+// Import VerificationWall separately since it's not using lazyLoad
+const VerificationWall = lazy(() => import('./pages/VerificationWall').then(module => ({
+  default: module.default
+})));
+
 // New authentication pages
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword').then(module => ({
   default: module.default
@@ -50,6 +55,7 @@ const preloadRoute = (routeName) => {
     resetPassword: () => import('./pages/auth/ResetPassword'),
     settings: () => import('./pages/Settings'),
     securitySettings: () => import('./pages/settings/SecuritySettings'),
+    verificationWall: () => import('./pages/VerificationWall'),
   };
   
   if (routeMap[routeName]) {
@@ -223,6 +229,15 @@ const routesConfig = [
     protected: true,
     animation: 'default',
     priority: 'low'
+  },
+  {
+    path: '/verification-wall',
+    element: VerificationWall,
+    name: 'Verification Wall',
+    public: true,
+    animation: 'default',
+    priority: 'medium',
+    preload: true
   },
   {
     path: '*',
@@ -571,6 +586,7 @@ export const getNavigationItems = (isAuthenticated) => {
   const protectedItems = [
     { path: '/dashboard', name: 'Dashboard', icon: '📊' },
     { path: '/verify', name: 'Verify', icon: '✅' },
+    { path: '/verification-wall', name: 'Wall', icon: '🖼️' },
     { path: '/profile', name: 'Profile', icon: '👤' },
     { path: '/chat', name: 'Chat', icon: '💬' },
     { path: '/challenges', name: 'Challenges', icon: '🎯' },

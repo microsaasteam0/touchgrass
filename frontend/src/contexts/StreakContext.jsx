@@ -173,7 +173,7 @@
 //   );
 // };
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const StreakContext = createContext();
 
@@ -183,18 +183,81 @@ export const StreakProvider = ({ children }) => {
   const [streakData, setStreakData] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  const API_BASE_URL = 'http://localhost:5001/api';
+  // Disable API for now - use localStorage only
+  const USE_API = false;
+
+  const getAuthToken = () => {
+    const tokens = [
+      localStorage.getItem('touchgrass_token'),
+      localStorage.getItem('supabase.auth.token'),
+      localStorage.getItem('sb-auth-token')
+    ];
+    
+    const token = tokens.find(t => t !== null && t !== 'undefined');
+    
+    if (token) {
+      try {
+        const parsed = JSON.parse(token);
+        return parsed.access_token || token;
+      } catch {
+        return token;
+      }
+    }
+    
+    return null;
+  };
+
+  const getUserFromStorage = () => {
+    try {
+      const userData = localStorage.getItem('touchgrass_user');
+      if (userData) {
+        return JSON.parse(userData);
+      }
+    } catch (error) {
+      console.warn('Failed to parse user data:', error);
+    }
+    return null;
+  };
 
   const loadStreakData = async () => {
-    try {
-      const token = localStorage.getItem('touchgrass_token');
-
-      if (!token) {
-        console.log('No token found for streak data');
-        return null;
+    const user = getUserFromStorage();
+    const username = user?.username || 'default';
+    
+    // If API is disabled, use localStorage
+    if (!USE_API || !getAuthToken()) {
+      const streakKey = `touchgrass_streak_${username}`;
+      const storedData = localStorage.getItem(streakKey);
+      
+      if (storedData) {
+        try {
+          return JSON.parse(storedData);
+        } catch (e) {
+          console.warn('Failed to parse stored streak:', e);
+        }
       }
+      
+      // Create default streak data
+      const defaultStreak = {
+        currentStreak: 0,
+        longestStreak: 0,
+        totalDays: 0,
+        totalOutdoorTime: 0,
+        challengeWins: 0,
+        history: [],
+        startDate: new Date().toISOString(),
+        todayVerified: false,
+        shareCount: 0,
+        viralScore: 0,
+        lastVerification: null
+      };
+      
+      localStorage.setItem(streakKey, JSON.stringify(defaultStreak));
+      return defaultStreak;
+    }
 
-      const response = await fetch(`${API_BASE_URL}/streaks/current`, {
+    try {
+      const token = getAuthToken();
+      const response = await fetch('http://localhost:5001/api/streaks/current', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -202,13 +265,31 @@ export const StreakProvider = ({ children }) => {
       });
 
       if (response.ok) {
-        return await response.json();
+        const data = await response.json();
+        const streakData = data?.streak || data;
+        
+        // Store in localStorage for offline use
+        const streakKey = `touchgrass_streak_${username}`;
+        localStorage.setItem(streakKey, JSON.stringify(streakData));
+        
+        return streakData;
       }
-
-      console.error('Failed to load streak data:', response.status);
+      
+      // Fallback to localStorage
+      const streakKey = `touchgrass_streak_${username}`;
+      const storedData = localStorage.getItem(streakKey);
+      if (storedData) {
+        return JSON.parse(storedData);
+      }
+      
       return null;
     } catch (error) {
-      console.error('Streak error:', error.message);
+      console.warn('Streak API error, using local data:', error.message);
+      const streakKey = `touchgrass_streak_${username}`;
+      const storedData = localStorage.getItem(streakKey);
+      if (storedData) {
+        return JSON.parse(storedData);
+      }
       return null;
     }
   };
@@ -218,7 +299,7 @@ export const StreakProvider = ({ children }) => {
       setLoading(true);
       try {
         const data = await loadStreakData();
-        setStreakData(data?.streak || data);
+        setStreakData(data);
       } catch (error) {
         console.error('Error loading streak data:', error);
       } finally {

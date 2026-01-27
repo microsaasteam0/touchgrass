@@ -1077,39 +1077,64 @@ body {
 }
 
 /* Theme Classes for JavaScript */
-[data-theme="light"] {
+.theme-light {
   color-scheme: light;
   --color-primary: var(--color-light-primary);
   --color-background: var(--color-light-background);
   --color-text: var(--color-light-text);
 }
 
-[data-theme="dark"] {
+.theme-light .landing-page {
+  background: #FFFFFF;
+  color: #0F172A;
+}
+
+.theme-dark {
   color-scheme: dark;
   --color-primary: var(--color-dark-primary);
   --color-background: var(--color-dark-background);
   --color-text: var(--color-dark-text);
 }
 
-[data-theme="premium"] {
+.theme-dark .landing-page {
+  background: #0F172A;
+  color: #F1F5F9;
+}
+
+.theme-premium {
   color-scheme: dark;
   --color-primary: var(--color-premium-primary);
   --color-background: var(--color-premium-background);
   --color-text: var(--color-premium-text);
 }
 
-[data-theme="shame"] {
+.theme-premium .landing-page {
+  background: #0F172A;
+  color: #F1F5F9;
+}
+
+.theme-shame {
   color-scheme: dark;
   --color-primary: var(--color-shame-primary);
   --color-background: var(--color-shame-background);
   --color-text: var(--color-shame-text);
 }
 
-[data-theme="business"] {
+.theme-shame .landing-page {
+  background: #0F172A;
+  color: #F1F5F9;
+}
+
+.theme-business {
   color-scheme: dark;
   --color-primary: var(--color-business-primary);
   --color-background: var(--color-business-background);
   --color-text: var(--color-business-text);
+}
+
+.theme-business .landing-page {
+  background: #0F172A;
+  color: #F1F5F9;
 }
 
 /* ==========================================================================

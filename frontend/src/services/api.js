@@ -464,10 +464,10 @@ class PremiumAPIService {
   }
 
   // File upload with progress
-  upload(url, file, onProgress, config = {}) {
+  upload(url, file, onProgress, config = {}, fieldName = 'file') {
     const formData = new FormData();
-    formData.append('file', file);
-    
+    formData.append(fieldName, file);
+
     return this.request({
       method: 'post',
       url,

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Menu, X, Trophy, User, LogOut, 
+import {
+  Menu, X, Trophy, User, LogOut,
   Settings, Zap, Sparkles, Bell,
   Search, Shield, Globe, TrendingUp,
   Flame, Crown, ChevronDown, ExternalLink,
@@ -13,6 +13,8 @@ import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { authState, logout } from '../../state/auth';
 import { toast } from 'react-hot-toast';
 import { useInView } from 'react-intersection-observer';
+import ThemeToggle from '../ui/ThemeToggle';
+import ThemeToggle from '../ui/ThemeToggle';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -358,16 +360,19 @@ const Navbar = () => {
 
           {/* Right Side Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
             {/* Search Bar (Desktop) */}
             <motion.div
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: 'auto' }}
               style={{ position: 'relative', display: 'none' }} className="lg:block"
             >
-              <Search style={{ 
-                position: 'absolute', 
-                left: '16px', 
-                top: '50%', 
+              <Search style={{
+                position: 'absolute',
+                left: '16px',
+                top: '50%',
                 transform: 'translateY(-50%)',
                 width: '16px',
                 height: '16px',

@@ -1,11 +1,28 @@
+
+// // export default Verify;
 // import React, { useState, useEffect, useRef } from 'react';
 // import { useNavigate } from 'react-router-dom';
-// import Card from '../components/ui/Card';
-// import Button from '../components/ui/Button';
-// import Modal from '../components/ui/Model';
-// import Confetti from '../components/ui/Confetti';
-// import Toast from '../components/ui/Toast';
-// import { Upload, Camera, Video, X, Check, AlertCircle, FileUp, Image as ImageIcon, Mic } from 'lucide-react';
+// import { motion } from 'framer-motion';
+// import { toast } from 'react-hot-toast';
+// import { 
+//   Camera, 
+//   Video, 
+//   Upload, 
+//   X, 
+//   CheckCircle2,
+//   AlertCircle,
+//   Clock,
+//   Flame,
+//   Trophy,
+//   Users,
+//   Calendar,
+//   ArrowLeft,
+//   FileUp,
+//   Image as ImageIcon,
+//   Mic,
+//   Zap,
+//   Loader2
+// } from 'lucide-react';
 
 // const Verify = () => {
 //   const navigate = useNavigate();
@@ -16,17 +33,20 @@
 //   const [duration, setDuration] = useState(15);
 //   const [isSubmitting, setIsSubmitting] = useState(false);
 //   const [streakData, setStreakData] = useState({
-  
+//     current: 0,
+//     longest: 0,
+//     rank: 1000,
+//     nextCheckpoint: '23:59:59'
 //   });
 //   const [showCamera, setShowCamera] = useState(false);
 //   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
 //   const [showSuccess, setShowSuccess] = useState(false);
-//   const [toasts, setToasts] = useState([]);
 //   const [uploadProgress, setUploadProgress] = useState(0);
 //   const [isUploading, setIsUploading] = useState(false);
 //   const [mediaType, setMediaType] = useState('photo');
 //   const [recordingTime, setRecordingTime] = useState(0);
 //   const [isDragOver, setIsDragOver] = useState(false);
+//   const [userData, setUserData] = useState(null);
   
 //   const cameraRef = useRef(null);
 //   const videoRecorderRef = useRef(null);
@@ -34,21 +54,94 @@
 //   const recordedChunksRef = useRef([]);
 //   const fileInputRef = useRef(null);
 //   const videoFileInputRef = useRef(null);
-//   const animationRef = useRef(null);
 //   const recordingTimerRef = useRef(null);
 //   const dropZoneRef = useRef(null);
 
+//   const durations = [5, 15, 30, 60, 120];
+//   const roasts = [
+//     "Still a digital zombie, I see. Your chair must be fused to your skin by now.",
+//     "Another day indoors? Even houseplants get more sunlight than you.",
+//     "Your vitamin D levels are crying. Go outside.",
+//     "Your screen time is longer than your life expectancy at this rate.",
+//     "The grass is calling. Unfortunately, it's saying 'I don't know this person.'",
+//     "You've evolved from human to houseplant. At least they photosynthesize."
+//   ];
+
 //   useEffect(() => {
+//     loadUserData();
 //     loadStreakData();
-//     createVerificationAnimations();
 //     setupDragAndDrop();
+//     calculateTimeLeft();
+    
+//     const timer = setInterval(calculateTimeLeft, 1000);
+    
 //     return () => {
 //       cleanupMediaStreams();
 //       if (recordingTimerRef.current) {
 //         clearInterval(recordingTimerRef.current);
 //       }
+//       clearInterval(timer);
 //     };
 //   }, []);
+
+//   useEffect(() => {
+//     if (showSuccess) {
+//       const timer = setTimeout(() => {
+//         navigate('/dashboard');
+//       }, 2000);
+//       return () => clearTimeout(timer);
+//     }
+//   }, [showSuccess, navigate]);
+
+//   const loadUserData = () => {
+//     try {
+//       const storedUser = localStorage.getItem('touchgrass_user');
+//       if (storedUser) {
+//         const user = JSON.parse(storedUser);
+//         setUserData(user);
+//       } else {
+//         toast.error('Please login to verify');
+//         navigate('/dashboard');
+//       }
+//     } catch (error) {
+//       console.error('Error loading user data:', error);
+//     }
+//   };
+
+//   const loadStreakData = () => {
+//     try {
+//       if (!userData) return;
+      
+//       const streakKey = `touchgrass_streak_${userData.username}`;
+//       const storedStreak = localStorage.getItem(streakKey);
+      
+//       if (storedStreak) {
+//         const streak = JSON.parse(storedStreak);
+//         setStreakData({
+//           current: streak.currentStreak || 0,
+//           longest: streak.longestStreak || 0,
+//           rank: Math.floor(Math.random() * 1000) + 1,
+//           nextCheckpoint: '23:59:59'
+//         });
+//       }
+//     } catch (error) {
+//       console.error('Error loading streak data:', error);
+//     }
+//   };
+
+//   const calculateTimeLeft = () => {
+//     const now = new Date();
+//     const endOfDay = new Date(now);
+//     endOfDay.setHours(23, 59, 59, 999);
+//     const difference = endOfDay - now;
+    
+//     const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+//     const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+//     const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+    
+//     const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+//     setStreakData(prev => ({ ...prev, nextCheckpoint: timeString }));
+//   };
 
 //   const setupDragAndDrop = () => {
 //     const dropZone = dropZoneRef.current;
@@ -107,14 +200,12 @@
 //                   file.type.startsWith('video/') ? 'video' : null;
 
 //     if (!type) {
-//       addToast('Please drop an image or video file', 'error');
+//       toast.error('Please drop an image or video file');
 //       return;
 //     }
 
 //     setMediaType(type);
-    
-//     const event = { target: { files: [file] } };
-//     handleFileUpload(event, type);
+//     handleFileUpload({ target: { files: [file] } }, type);
 //   };
 
 //   const cleanupMediaStreams = () => {
@@ -129,59 +220,14 @@
 //     }
 //   };
 
-//   const loadStreakData = () => {
-//     setTimeout(() => {
-//       // Data already set in state
-//     }, 500);
-//   };
-
-//   const createVerificationAnimations = () => {
-//     const container = animationRef.current;
-//     if (!container) return;
-
-//     const elements = ['🌱', '☀️', '🚶', '🏃', '🧘', '🌳', '🌄', '🌅'];
-//     elements.forEach((element, index) => {
-//       const el = document.createElement('div');
-//       el.className = 'verification-particle';
-//       el.textContent = element;
-      
-//       const size = 24 + Math.random() * 32;
-//       const left = Math.random() * 100;
-//       const duration = 10 + Math.random() * 15;
-//       const delay = Math.random() * 5;
-      
-//       el.style.fontSize = `${size}px`;
-//       el.style.left = `${left}%`;
-//       el.style.animationDuration = `${duration}s`;
-//       el.style.animationDelay = `${delay}s`;
-//       el.style.opacity = 0.1 + Math.random() * 0.2;
-      
-//       container.appendChild(el);
-//     });
-//   };
-
 //   const handleFileUpload = (event, type = 'photo') => {
-//     const file = event.target.files?.[0] || event.dataTransfer?.files?.[0];
+//     const file = event.target.files?.[0];
 //     if (!file) return;
 
-//     if (type === 'photo') {
-//       if (!file.type.startsWith('image/')) {
-//         addToast('Please upload an image file (JPG, PNG, etc.)', 'error');
-//         return;
-//       }
-//       if (file.size > 10 * 1024 * 1024) {
-//         addToast('Image size must be less than 10MB', 'error');
-//         return;
-//       }
-//     } else if (type === 'video') {
-//       if (!file.type.startsWith('video/')) {
-//         addToast('Please upload a video file (MP4, MOV, etc.)', 'error');
-//         return;
-//       }
-//       if (file.size > 50 * 1024 * 1024) {
-//         addToast('Video size must be less than 50MB', 'error');
-//         return;
-//       }
+//     const maxSize = type === 'photo' ? 10 * 1024 * 1024 : 50 * 1024 * 1024;
+//     if (file.size > maxSize) {
+//       toast.error(`${type === 'photo' ? 'Image' : 'Video'} size must be less than ${type === 'photo' ? '10MB' : '50MB'}`);
+//       return;
 //     }
 
 //     setIsUploading(true);
@@ -198,11 +244,11 @@
 //             if (type === 'photo') {
 //               setPhoto(reader.result);
 //               setMediaType('photo');
-//               addToast('Photo uploaded successfully!', 'success');
+//               toast.success('Photo uploaded successfully!');
 //             } else {
 //               setVideo(reader.result);
 //               setMediaType('video');
-//               addToast('Video uploaded successfully!', 'success');
+//               toast.success('Video uploaded successfully!');
 //             }
 //           };
 //           reader.readAsDataURL(file);
@@ -251,14 +297,14 @@
 //                 const videoURL = URL.createObjectURL(blob);
 //                 setVideo(videoURL);
 //                 setMediaType('video');
-//                 addToast('Video recorded successfully!', 'success');
+//                 toast.success('Video recorded successfully!');
 //               };
 //             }
 //           }
 //         })
 //         .catch(err => {
 //           console.error('Camera error:', err);
-//           addToast('Camera access denied. Please check permissions.', 'error');
+//           toast.error('Camera access denied. Please check permissions.');
 //           setShowCamera(false);
 //           setShowVideoRecorder(false);
 //         });
@@ -282,7 +328,7 @@
 //     setShowCamera(false);
     
 //     cleanupMediaStreams();
-//     addToast('Photo captured!', 'success');
+//     toast.success('Photo captured!');
 //   };
 
 //   const startVideoRecording = () => {
@@ -302,7 +348,7 @@
 //       });
 //     }, 1000);
     
-//     addToast('Recording started...', 'info');
+//     toast.success('Recording started...');
 //   };
 
 //   const stopVideoRecording = () => {
@@ -317,52 +363,63 @@
 
 //   const submitVerification = async (method) => {
 //     if (method === 'photo' && !photo && !video) {
-//       addToast('Please upload a photo or video first', 'error');
+//       toast.error('Please upload a photo or video first');
 //       return;
 //     }
 
 //     if (method === 'shame' && shameMessage.length < 10) {
-//       addToast('Shame message must be at least 10 characters', 'error');
+//       toast.error('Shame message must be at least 10 characters');
 //       return;
 //     }
 
 //     setIsSubmitting(true);
     
 //     setTimeout(() => {
-//       setIsSubmitting(false);
-//       setShowSuccess(true);
-      
-//       if (method === 'photo') {
-//         addToast('🌱 Success! Your streak continues to grow', 'success');
-//       } else {
-//         addToast('😈 Shame accepted. Your streak continues...', 'warning');
+//       try {
+//         const user = JSON.parse(localStorage.getItem('touchgrass_user') || '{}');
+//         const streakKey = `touchgrass_streak_${user.username}`;
+//         const currentStreak = JSON.parse(localStorage.getItem(streakKey) || '{}');
+        
+//         const updatedStreak = {
+//           ...currentStreak,
+//           currentStreak: (currentStreak.currentStreak || 0) + 1,
+//           longestStreak: Math.max(currentStreak.longestStreak || 0, (currentStreak.currentStreak || 0) + 1),
+//           totalDays: (currentStreak.totalDays || 0) + 1,
+//           totalOutdoorTime: (currentStreak.totalOutdoorTime || 0) + (method === 'photo' ? duration : 0),
+//           todayVerified: true,
+//           lastVerification: new Date().toISOString()
+//         };
+        
+//         if (!updatedStreak.history) {
+//           updatedStreak.history = [];
+//         }
+        
+//         updatedStreak.history.push({
+//           date: new Date().toISOString(),
+//           verified: true,
+//           verificationMethod: method,
+//           duration: method === 'photo' ? duration : 0,
+//           notes: method === 'shame' ? shameMessage : '',
+//           timestamp: new Date().toISOString()
+//         });
+        
+//         localStorage.setItem(streakKey, JSON.stringify(updatedStreak));
+        
+//         setIsSubmitting(false);
+//         setShowSuccess(true);
+        
+//         if (method === 'photo') {
+//           toast.success('🌱 Success! Your streak continues to grow');
+//         } else {
+//           toast.success('😈 Shame accepted. Your streak continues...');
+//         }
+        
+//       } catch (error) {
+//         console.error('Error submitting verification:', error);
+//         toast.error('Failed to submit verification');
+//         setIsSubmitting(false);
 //       }
-      
-//       setStreakData(prev => ({
-//         ...prev,
-//         current: prev.current + 1,
-//         rank: prev.rank - Math.floor(Math.random() * 10)
-//       }));
-      
-//       setVerificationMethod(null);
-//       setPhoto(null);
-//       setVideo(null);
-//       setShameMessage('');
-//       setShowCamera(false);
-//       setShowVideoRecorder(false);
-//       setUploadProgress(0);
-//       setIsUploading(false);
-      
-//       setTimeout(() => setShowSuccess(false), 3000);
 //     }, 1500);
-//   };
-
-//   const addToast = (message, type = 'info') => {
-//     const id = Date.now().toString();
-//     setToasts(prev => [...prev, { id, message, type }]);
-//     setTimeout(() => {
-//       setToasts(prev => prev.filter(toast => toast.id !== id));
-//     }, 5000);
 //   };
 
 //   const removeMedia = () => {
@@ -374,73 +431,134 @@
 //     setMediaType('photo');
 //   };
 
-//   const roasts = [
-//     "Still a digital zombie, I see. Your chair must be fused to your skin by now.",
-//     "Another day indoors? Even houseplants get more sunlight than you.",
-//     "Your vitamin D levels are crying. Go outside.",
-//     "Your screen time is longer than your life expectancy at this rate.",
-//     "The grass is calling. Unfortunately, it's saying 'I don't know this person.'",
-//     "You've evolved from human to houseplant. At least they photosynthesize."
-//   ];
-
-//   const durations = [5, 15, 30, 60, 120];
-
-//   const pageStyles = `
-//     .verify-container {
+//   const styles = `
+//     .verify-page {
 //       min-height: 100vh;
-//       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-//       padding: 2rem;
+//       background: #050505;
+//       color: white;
+//       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
 //       position: relative;
-//       overflow: hidden;
+//       overflow-x: hidden;
 //     }
 
-//     .verify-background {
+//     .verify-bg-grid {
+//       position: fixed;
+//       top: 0;
+//       left: 0;
+//       width: 100%;
+//       height: 100%;
+//       background-image: 
+//         linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+//         linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+//       background-size: 50px 50px;
+//       pointer-events: none;
+//       z-index: 1;
+//     }
+
+//     .verify-floating-elements {
+//       position: fixed;
+//       width: 100%;
+//       height: 100%;
+//       pointer-events: none;
+//       z-index: 1;
+//     }
+
+//     .verify-float-1 {
 //       position: absolute;
-//       inset: 0;
-//       background: 
-//         radial-gradient(circle at 20% 30%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-//         radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
-//       animation: verifyBackgroundFloat 20s ease-in-out infinite;
+//       width: 400px;
+//       height: 400px;
+//       border-radius: 50%;
+//       background: linear-gradient(135deg, #22c55e, #3b82f6);
+//       filter: blur(40px);
+//       opacity: 0.1;
+//       top: 10%;
+//       left: 10%;
+//       animation: float 20s infinite linear;
 //     }
 
-//     .verify-content {
+//     .verify-float-2 {
+//       position: absolute;
+//       width: 300px;
+//       height: 300px;
+//       border-radius: 50%;
+//       background: linear-gradient(135deg, #8b5cf6, #ec4899);
+//       filter: blur(40px);
+//       opacity: 0.1;
+//       top: 60%;
+//       right: 15%;
+//       animation: float 20s infinite linear -5s;
+//     }
+
+//     .verify-float-3 {
+//       position: absolute;
+//       width: 250px;
+//       height: 250px;
+//       border-radius: 50%;
+//       background: linear-gradient(135deg, #fbbf24, #ef4444);
+//       filter: blur(40px);
+//       opacity: 0.1;
+//       bottom: 20%;
+//       left: 20%;
+//       animation: float 20s infinite linear -10s;
+//     }
+
+//     @keyframes float {
+//       0%, 100% { transform: translate(0, 0) rotate(0deg); }
+//       25% { transform: translate(50px, -50px) rotate(90deg); }
+//       50% { transform: translate(0, -100px) rotate(180deg); }
+//       75% { transform: translate(-50px, -50px) rotate(270deg); }
+//     }
+
+//     .glass {
+//       backdrop-filter: blur(10px);
+//       background: rgba(15, 23, 42, 0.8);
+//       border: 1px solid rgba(255, 255, 255, 0.1);
+//     }
+
+//     .text-gradient {
+//       background: linear-gradient(135deg, #00E5FF 0%, #7F00FF 100%);
+//       -webkit-background-clip: text;
+//       -webkit-text-fill-color: transparent;
+//       background-clip: text;
+//     }
+
+//     .verify-container {
 //       position: relative;
 //       z-index: 2;
 //       max-width: 1200px;
 //       margin: 0 auto;
+//       padding: 6rem 1.5rem 4rem;
 //     }
 
-//     .daily-question {
+//     .verify-header {
 //       text-align: center;
-//       margin-bottom: 3rem;
-//       animation: questionFloat 0.8s ease-out;
+//       margin-bottom: 4rem;
 //     }
 
-//     .question-title {
+//     .verify-title {
 //       font-size: 4rem;
 //       font-weight: 900;
-//       background: linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
-//       background-clip: text;
-//       -webkit-background-clip: text;
-//       -webkit-text-fill-color: transparent;
-//       margin: 0 0 1rem 0;
-//       letter-spacing: -0.02em;
-//       position: relative;
+//       letter-spacing: -0.025em;
+//       line-height: 1;
+//       margin-bottom: 1.5rem;
+//       text-transform: uppercase;
+//       font-style: italic;
 //     }
 
-//     .question-subtitle {
+//     .verify-subtitle {
 //       font-size: 1.25rem;
-//       color: rgba(255, 255, 255, 0.7);
-//       margin: 0 0 2rem 0;
-//       line-height: 1.6;
+//       color: #a1a1aa;
+//       max-width: 600px;
+//       margin: 0 auto;
+//       line-height: 1.75;
+//       font-weight: 300;
 //     }
 
 //     .verification-options {
 //       display: grid;
 //       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 //       gap: 2rem;
-//       margin-bottom: 3rem;
-//       animation: optionsFadeIn 0.8s ease-out 0.2s both;
+//       margin-bottom: 4rem;
 //     }
 
 //     .verification-option {
@@ -453,65 +571,113 @@
 //     }
 
 //     .option-content {
+//       padding: 3rem;
+//       border-radius: 3rem;
+//       border: 1px solid rgba(255, 255, 255, 0.05);
 //       text-align: center;
-//       padding: 3rem 2rem;
-//       border-radius: 20px;
 //       height: 100%;
-//       position: relative;
-//       overflow: hidden;
 //     }
 
 //     .option-yes {
-//       background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(21, 128, 61, 0.1) 100%);
-//       border: 2px solid rgba(34, 197, 94, 0.2);
+//       background: linear-gradient(135deg, rgba(0, 229, 255, 0.1), transparent, rgba(34, 197, 94, 0.1));
 //     }
 
 //     .option-no {
-//       background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
-//       border: 2px solid rgba(239, 68, 68, 0.2);
+//       background: linear-gradient(135deg, rgba(127, 0, 255, 0.1), transparent, rgba(239, 68, 68, 0.1));
 //     }
 
 //     .option-icon {
 //       font-size: 4rem;
 //       margin-bottom: 1.5rem;
 //       display: block;
-//       animation: optionIconFloat 3s ease-in-out infinite;
+//       animation: iconFloat 3s ease-in-out infinite;
 //     }
 
 //     .option-title {
 //       font-size: 2rem;
-//       font-weight: 700;
-//       color: white;
-//       margin: 0 0 1rem 0;
+//       font-weight: 900;
+//       text-transform: uppercase;
+//       letter-spacing: -0.025em;
+//       margin-bottom: 1rem;
 //     }
 
 //     .option-description {
 //       font-size: 1rem;
-//       color: rgba(255, 255, 255, 0.7);
-//       margin: 0;
+//       color: #71717a;
 //       line-height: 1.6;
+//       margin: 0;
 //     }
 
-//     .verification-form {
-//       animation: formFadeIn 0.6s ease-out;
+//     @keyframes iconFloat {
+//       0%, 100% { transform: translateY(0) scale(1); }
+//       50% { transform: translateY(-10px) scale(1.1); }
+//     }
+
+//     .verify-form {
+//       animation: fadeIn 0.6s ease-out;
+//     }
+
+//     @keyframes fadeIn {
+//       from { opacity: 0; transform: translateY(20px); }
+//       to { opacity: 1; transform: translateY(0); }
 //     }
 
 //     .form-header {
 //       text-align: center;
-//       margin-bottom: 2rem;
+//       margin-bottom: 3rem;
 //     }
 
 //     .form-title {
 //       font-size: 2rem;
-//       font-weight: 700;
-//       color: white;
-//       margin: 0 0 0.5rem 0;
+//       font-weight: 900;
+//       text-transform: uppercase;
+//       letter-spacing: -0.025em;
+//       margin-bottom: 0.5rem;
 //     }
 
 //     .form-subtitle {
 //       font-size: 1rem;
-//       color: rgba(255, 255, 255, 0.6);
+//       color: #71717a;
+//       max-width: 600px;
+//       margin: 0 auto;
+//       line-height: 1.6;
+//     }
+
+//     .instructions-panel {
+//       padding: 2.5rem;
+//       border-radius: 3rem;
+//       border: 1px solid rgba(255, 255, 255, 0.05);
+//       background: linear-gradient(135deg, rgba(0, 229, 255, 0.05), rgba(127, 0, 255, 0.05));
+//       margin-bottom: 2rem;
+//     }
+
+//     .instructions-title {
+//       font-size: 1.5rem;
+//       font-weight: 700;
+//       margin-bottom: 1.5rem;
+//       display: flex;
+//       align-items: center;
+//       gap: 0.5rem;
+//     }
+
+//     .instructions-list {
+//       list-style: none;
+//       padding: 0;
 //       margin: 0;
+//     }
+
+//     .instruction-item {
+//       display: flex;
+//       align-items: flex-start;
+//       gap: 1rem;
+//       padding: 0.75rem 0;
+//       font-size: 1rem;
+//       color: #a1a1aa;
+//     }
+
+//     .instruction-icon {
+//       flex-shrink: 0;
+//       color: #00E5FF;
 //     }
 
 //     .media-upload-container {
@@ -519,32 +685,30 @@
 //     }
 
 //     .upload-options {
-//       display: flex;
+//       display: grid;
+//       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 //       gap: 1rem;
-//       margin-bottom: 1.5rem;
-//       flex-wrap: wrap;
+//       margin-bottom: 2rem;
 //     }
 
 //     .upload-option {
-//       flex: 1;
-//       min-width: 200px;
 //       padding: 1.5rem;
-//       background: rgba(255, 255, 255, 0.05);
-//       border: 1px solid rgba(255, 255, 255, 0.1);
-//       border-radius: 12px;
+//       border-radius: 2rem;
+//       border: 1px solid rgba(255, 255, 255, 0.05);
+//       background: rgba(255, 255, 255, 0.01);
 //       text-align: center;
 //       cursor: pointer;
-//       transition: all 0.3s ease;
+//       transition: all 0.3s;
 //     }
 
 //     .upload-option:hover {
-//       background: rgba(255, 255, 255, 0.1);
+//       background: rgba(255, 255, 255, 0.03);
 //       transform: translateY(-2px);
 //     }
 
 //     .upload-option.active {
-//       background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(21, 128, 61, 0.2) 100%);
-//       border-color: rgba(34, 197, 94, 0.3);
+//       background: rgba(0, 229, 255, 0.1);
+//       border-color: rgba(0, 229, 255, 0.2);
 //     }
 
 //     .upload-option-icon {
@@ -555,17 +719,17 @@
 
 //     .upload-option-text {
 //       font-size: 0.875rem;
-//       color: rgba(255, 255, 255, 0.8);
-//       margin: 0;
+//       font-weight: 600;
+//       color: #a1a1aa;
 //     }
 
 //     .photo-upload-area {
-//       border: 2px dashed rgba(255, 255, 255, 0.2);
-//       border-radius: 20px;
+//       border: 2px dashed rgba(255, 255, 255, 0.1);
+//       border-radius: 2rem;
 //       padding: 3rem;
 //       text-align: center;
 //       cursor: pointer;
-//       transition: all 0.3s ease;
+//       transition: all 0.3s;
 //       margin-bottom: 1rem;
 //       position: relative;
 //       overflow: hidden;
@@ -577,24 +741,14 @@
 //     }
 
 //     .photo-upload-area:hover {
-//       border-color: rgba(34, 197, 94, 0.5);
-//       background: rgba(34, 197, 94, 0.05);
+//       border-color: rgba(0, 229, 255, 0.3);
+//       background: rgba(0, 229, 255, 0.02);
 //     }
 
 //     .photo-upload-area.drag-over {
-//       border-color: rgba(59, 130, 246, 0.7);
-//       background: rgba(59, 130, 246, 0.1);
-//       border-width: 3px;
+//       border-color: rgba(0, 229, 255, 0.5);
+//       background: rgba(0, 229, 255, 0.05);
 //       border-style: solid;
-//     }
-
-//     .photo-upload-area.drag-over::before {
-//       content: '🎯';
-//       position: absolute;
-//       top: 20px;
-//       right: 20px;
-//       font-size: 2rem;
-//       animation: dragPulse 1s infinite;
 //     }
 
 //     .photo-upload-area.has-media {
@@ -607,14 +761,14 @@
 //       width: 100%;
 //       height: 300px;
 //       object-fit: cover;
-//       border-radius: 18px;
+//       border-radius: 1.75rem;
 //     }
 
 //     .video-preview {
 //       width: 100%;
 //       height: 300px;
 //       object-fit: cover;
-//       border-radius: 18px;
+//       border-radius: 1.75rem;
 //     }
 
 //     .upload-instructions {
@@ -638,17 +792,17 @@
 
 //     .upload-subtext {
 //       font-size: 0.875rem;
-//       color: rgba(255, 255, 255, 0.6);
+//       color: #a1a1aa;
 //       margin: 0;
 //     }
 
 //     .drag-drop-instruction {
 //       font-size: 0.875rem;
-//       color: rgba(255, 255, 255, 0.5);
+//       color: #71717a;
 //       margin-top: 1rem;
 //       padding: 0.5rem 1rem;
 //       background: rgba(255, 255, 255, 0.05);
-//       border-radius: 8px;
+//       border-radius: 0.75rem;
 //       display: flex;
 //       align-items: center;
 //       gap: 0.5rem;
@@ -664,16 +818,16 @@
 //     }
 
 //     .media-action-button {
+//       width: 2.5rem;
+//       height: 2.5rem;
+//       border-radius: 50%;
 //       background: rgba(0, 0, 0, 0.7);
 //       border: none;
-//       width: 40px;
-//       height: 40px;
-//       border-radius: 50%;
 //       display: flex;
 //       align-items: center;
 //       justify-content: center;
 //       cursor: pointer;
-//       transition: all 0.3s ease;
+//       transition: all 0.3s;
 //     }
 
 //     .media-action-button:hover {
@@ -685,7 +839,7 @@
 //       position: relative;
 //       width: 100%;
 //       height: 400px;
-//       border-radius: 20px;
+//       border-radius: 2rem;
 //       overflow: hidden;
 //       margin-bottom: 2rem;
 //       background: black;
@@ -714,7 +868,7 @@
 //       background: rgba(239, 68, 68, 0.8);
 //       color: white;
 //       padding: 0.5rem 1rem;
-//       border-radius: 20px;
+//       border-radius: 1rem;
 //       font-size: 0.875rem;
 //       font-weight: 600;
 //       display: flex;
@@ -727,13 +881,18 @@
 //       height: 8px;
 //       background: white;
 //       border-radius: 50%;
-//       animation: recordingPulse 1s infinite;
+//       animation: pulse 1s infinite;
+//     }
+
+//     @keyframes pulse {
+//       0%, 100% { opacity: 1; }
+//       50% { opacity: 0.5; }
 //     }
 
 //     .duration-selector {
 //       display: grid;
 //       grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-//       gap: 0.75rem;
+//       gap: 1rem;
 //       margin-bottom: 2rem;
 //     }
 
@@ -741,11 +900,11 @@
 //       padding: 1rem;
 //       background: rgba(255, 255, 255, 0.05);
 //       border: 1px solid rgba(255, 255, 255, 0.1);
-//       border-radius: 12px;
-//       color: rgba(255, 255, 255, 0.7);
+//       border-radius: 1rem;
+//       color: #a1a1aa;
 //       text-align: center;
 //       cursor: pointer;
-//       transition: all 0.3s ease;
+//       transition: all 0.3s;
 //     }
 
 //     .duration-option:hover {
@@ -753,8 +912,8 @@
 //     }
 
 //     .duration-option.selected {
-//       background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(21, 128, 61, 0.2) 100%);
-//       border-color: rgba(34, 197, 94, 0.3);
+//       background: rgba(0, 229, 255, 0.2);
+//       border-color: rgba(0, 229, 255, 0.3);
 //       color: white;
 //     }
 
@@ -764,7 +923,7 @@
 //       padding: 1.5rem;
 //       background: rgba(255, 255, 255, 0.05);
 //       border: 1px solid rgba(255, 255, 255, 0.1);
-//       border-radius: 16px;
+//       border-radius: 1.5rem;
 //       color: white;
 //       font-size: 1rem;
 //       resize: vertical;
@@ -779,10 +938,10 @@
 //     }
 
 //     .roast-container {
-//       background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+//       background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(127, 0, 255, 0.1));
 //       border: 1px solid rgba(239, 68, 68, 0.2);
-//       border-radius: 16px;
-//       padding: 1.5rem;
+//       border-radius: 2rem;
+//       padding: 2rem;
 //       margin-bottom: 2rem;
 //       text-align: center;
 //     }
@@ -795,7 +954,7 @@
 
 //     .roast-text {
 //       font-size: 1.125rem;
-//       color: rgba(255, 255, 255, 0.9);
+//       color: #d4d4d8;
 //       margin: 0;
 //       font-style: italic;
 //     }
@@ -806,43 +965,81 @@
 //       margin-top: 2rem;
 //     }
 
+//     .verify-button {
+//       padding: 1rem 2rem;
+//       border-radius: 1rem;
+//       font-weight: 900;
+//       text-transform: uppercase;
+//       letter-spacing: 0.1em;
+//       font-size: 0.75rem;
+//       border: none;
+//       cursor: pointer;
+//       transition: all 0.2s;
+//       display: flex;
+//       align-items: center;
+//       justify-content: center;
+//       gap: 0.5rem;
+//       flex: 1;
+//     }
+
+//     .verify-button:hover:not(:disabled) {
+//       transform: scale(1.05);
+//     }
+
+//     .verify-button:active:not(:disabled) {
+//       transform: scale(0.95);
+//     }
+
+//     .button-primary {
+//       background: #00E5FF;
+//       color: black;
+//     }
+
+//     .button-secondary {
+//       background: rgba(255, 255, 255, 0.1);
+//       border: 1px solid rgba(255, 255, 255, 0.2);
+//       color: white;
+//     }
+
+//     .button-danger {
+//       background: linear-gradient(135deg, #ef4444, #dc2626);
+//       color: white;
+//     }
+
+//     .verify-button:disabled {
+//       opacity: 0.5;
+//       cursor: not-allowed;
+//     }
+
 //     .streak-stats {
 //       display: grid;
 //       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 //       gap: 1.5rem;
-//       margin-top: 3rem;
-//       animation: statsFadeIn 0.6s ease-out 0.4s both;
+//       margin-top: 4rem;
 //     }
 
 //     .stat-item {
+//       padding: 2rem;
+//       border-radius: 2rem;
+//       border: 1px solid rgba(255, 255, 255, 0.05);
 //       text-align: center;
-//       padding: 1.5rem;
-//       background: rgba(255, 255, 255, 0.05);
-//       border: 1px solid rgba(255, 255, 255, 0.1);
-//       border-radius: 16px;
 //     }
 
 //     .stat-value {
 //       font-size: 2.5rem;
-//       font-weight: 700;
+//       font-weight: 900;
 //       color: white;
 //       margin: 0;
 //       line-height: 1;
 //     }
 
 //     .stat-label {
-//       font-size: 0.875rem;
-//       color: rgba(255, 255, 255, 0.6);
-//       margin: 0.5rem 0 0 0;
+//       font-size: 0.625rem;
+//       font-weight: 900;
 //       text-transform: uppercase;
-//       letter-spacing: 0.05em;
-//     }
-
-//     .verification-particle {
-//       position: absolute;
-//       pointer-events: none;
-//       z-index: 1;
-//       animation: verificationFloat linear infinite;
+//       letter-spacing: 0.2em;
+//       color: #71717a;
+//       margin-top: 0.5rem;
 //     }
 
 //     .back-button {
@@ -852,16 +1049,17 @@
 //       padding: 0.75rem 1.5rem;
 //       background: rgba(255, 255, 255, 0.05);
 //       border: 1px solid rgba(255, 255, 255, 0.1);
-//       border-radius: 12px;
-//       color: rgba(255, 255, 255, 0.7);
+//       border-radius: 1rem;
+//       color: #a1a1aa;
 //       font-size: 0.875rem;
 //       cursor: pointer;
-//       transition: all 0.3s ease;
+//       transition: all 0.3s;
 //       margin-bottom: 2rem;
 //     }
 
 //     .back-button:hover {
 //       background: rgba(255, 255, 255, 0.1);
+//       color: white;
 //     }
 
 //     .upload-progress {
@@ -878,750 +1076,2068 @@
 
 //     .progress-fill {
 //       height: 100%;
-//       background: linear-gradient(90deg, #22c55e, #16a34a);
+//       background: linear-gradient(90deg, #00E5FF, #7F00FF);
 //       border-radius: 4px;
-//       transition: width 0.3s ease;
+//       transition: width 0.3s;
 //     }
 
 //     .progress-text {
 //       font-size: 0.875rem;
-//       color: rgba(255, 255, 255, 0.6);
+//       color: #71717a;
 //       margin-top: 0.5rem;
 //       text-align: center;
-//     }
-
-//     .instructions-panel {
-//       background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%);
-//       border: 1px solid rgba(59, 130, 246, 0.2);
-//       border-radius: 16px;
-//       padding: 1.5rem;
-//       margin-bottom: 2rem;
-//     }
-
-//     .instructions-title {
-//       font-size: 1.125rem;
-//       font-weight: 600;
-//       color: white;
-//       margin: 0 0 1rem 0;
-//       display: flex;
-//       align-items: center;
-//       gap: 0.5rem;
-//     }
-
-//     .instructions-list {
-//       list-style: none;
-//       padding: 0;
-//       margin: 0;
-//     }
-
-//     .instruction-item {
-//       display: flex;
-//       align-items: flex-start;
-//       gap: 0.75rem;
-//       padding: 0.5rem 0;
-//       font-size: 0.875rem;
-//       color: rgba(255, 255, 255, 0.8);
-//     }
-
-//     .instruction-icon {
-//       flex-shrink: 0;
-//       color: #22c55e;
 //     }
 
 //     .time-left {
 //       text-align: center;
 //       margin-top: 2rem;
-//       padding: 1rem;
-//       background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%);
+//       padding: 1.5rem;
+//       border-radius: 1.5rem;
+//       background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1));
 //       border: 1px solid rgba(245, 158, 11, 0.2);
-//       border-radius: 12px;
-//       animation: timePulse 2s ease-in-out infinite;
+//       animation: pulse 2s ease-in-out infinite;
 //     }
 
-//     @keyframes verifyBackgroundFloat {
-//       0%, 100% { transform: translate(0, 0); }
-//       25% { transform: translate(-10px, 10px); }
-//       50% { transform: translate(10px, -10px); }
-//       75% { transform: translate(-10px, -10px); }
+//     .time-left-text {
+//       margin: 0;
+//       color: #fbbf24;
+//       font-weight: 600;
+//       font-size: 1rem;
 //     }
 
-//     @keyframes questionFloat {
-//       0% {
-//         opacity: 0;
-//         transform: translateY(-30px);
+//     /* Mobile-first responsive design */
+//     @media (max-width: 320px) {
+//       .verify-page {
+//         padding: 0;
 //       }
-//       100% {
-//         opacity: 1;
-//         transform: translateY(0);
-//       }
-//     }
 
-//     @keyframes optionsFadeIn {
-//       from {
-//         opacity: 0;
-//         transform: translateY(30px);
-//       }
-//       to {
-//         opacity: 1;
-//         transform: translateY(0);
-//       }
-//     }
-
-//     @keyframes formFadeIn {
-//       from { opacity: 0; }
-//       to { opacity: 1; }
-//     }
-
-//     @keyframes optionIconFloat {
-//       0%, 100% { transform: translateY(0) scale(1); }
-//       50% { transform: translateY(-10px) scale(1.1); }
-//     }
-
-//     @keyframes verificationFloat {
-//       0% {
-//         transform: translateY(100vh) rotate(0deg);
-//         opacity: 0;
-//       }
-//       10% {
-//         opacity: 0.5;
-//       }
-//       90% {
-//         opacity: 0.5;
-//       }
-//       100% {
-//         transform: translateY(-100px) rotate(360deg);
-//         opacity: 0;
-//       }
-//     }
-
-//     @keyframes statsFadeIn {
-//       from {
-//         opacity: 0;
-//         transform: translateY(30px);
-//       }
-//       to {
-//         opacity: 1;
-//         transform: translateY(0);
-//       }
-//     }
-
-//     @keyframes dragPulse {
-//       0%, 100% { transform: scale(1); opacity: 1; }
-//       50% { transform: scale(1.2); opacity: 0.8; }
-//     }
-
-//     @keyframes recordingPulse {
-//       0%, 100% { opacity: 1; }
-//       50% { opacity: 0.5; }
-//     }
-
-//     @keyframes timePulse {
-//       0%, 100% { opacity: 1; }
-//       50% { opacity: 0.7; }
-//     }
-
-//     @media (max-width: 768px) {
 //       .verify-container {
-//         padding: 1rem;
+//         padding: 2rem 0.5rem 1rem;
 //       }
-      
-//       .question-title {
-//         font-size: 2.5rem;
+
+//       .verify-title {
+//         font-size: 1.75rem;
+//         line-height: 1.2;
 //       }
-      
+
+//       .verify-subtitle {
+//         font-size: 0.75rem;
+//         line-height: 1.3;
+//         margin-bottom: 1rem;
+//       }
+
 //       .verification-options {
 //         grid-template-columns: 1fr;
+//         gap: 1rem;
+//         margin-bottom: 2rem;
 //       }
-      
+
+//       .option-content {
+//         padding: 1.5rem;
+//       }
+
+//       .option-icon {
+//         font-size: 2.5rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .option-title {
+//         font-size: 1.25rem;
+//         margin-bottom: 0.5rem;
+//       }
+
+//       .option-description {
+//         font-size: 0.75rem;
+//         line-height: 1.4;
+//       }
+
+//       .streak-stats {
+//         grid-template-columns: 1fr;
+//         gap: 0.75rem;
+//         margin-top: 2rem;
+//       }
+
+//       .stat-item {
+//         padding: 1rem;
+//       }
+
+//       .stat-value {
+//         font-size: 1.5rem;
+//       }
+
+//       .stat-label {
+//         font-size: 0.5rem;
+//         margin-top: 0.25rem;
+//       }
+
+//       .verify-form {
+//         padding: 0;
+//       }
+
+//       .back-button {
+//         padding: 0.5rem 1rem;
+//         font-size: 0.75rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .form-header {
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .form-title {
+//         font-size: 1.25rem;
+//       }
+
+//       .form-subtitle {
+//         font-size: 0.75rem;
+//         max-width: none;
+//         margin: 0 auto 0.5rem;
+//       }
+
+//       .instructions-panel {
+//         padding: 1rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .instructions-title {
+//         font-size: 1rem;
+//         margin-bottom: 0.75rem;
+//       }
+
+//       .instruction-item {
+//         padding: 0.375rem 0;
+//         font-size: 0.75rem;
+//       }
+
+//       .media-upload-container {
+//         margin-bottom: 1rem;
+//       }
+
 //       .upload-options {
-//         flex-direction: column;
+//         grid-template-columns: 1fr;
+//         gap: 0.5rem;
+//         margin-bottom: 1rem;
 //       }
-      
+
 //       .upload-option {
-//         min-width: 100%;
+//         padding: 0.875rem;
+//         min-width: none;
 //       }
-      
+
+//       .upload-option-icon {
+//         font-size: 1.25rem;
+//         margin-bottom: 0.25rem;
+//       }
+
+//       .upload-option-text {
+//         font-size: 0.625rem;
+//       }
+
+//       .photo-upload-area {
+//         padding: 1.5rem;
+//         min-height: 200px;
+//       }
+
+//       .upload-instructions {
+//         gap: 0.75rem;
+//       }
+
+//       .upload-icon {
+//         font-size: 2rem;
+//       }
+
+//       .upload-text {
+//         font-size: 0.875rem;
+//       }
+
+//       .upload-subtext {
+//         font-size: 0.625rem;
+//       }
+
+//       .drag-drop-instruction {
+//         font-size: 0.625rem;
+//         padding: 0.375rem 0.75rem;
+//       }
+
+//       .camera-container {
+//         height: 250px;
+//         margin-bottom: 1rem;
+//       }
+
+//       .camera-controls {
+//         bottom: 1rem;
+//         gap: 0.5rem;
+//       }
+
+//       .recording-indicator {
+//         top: 0.5rem;
+//         left: 0.5rem;
+//         padding: 0.375rem 0.75rem;
+//         font-size: 0.75rem;
+//       }
+
+//       .duration-selector {
+//         grid-template-columns: repeat(3, 1fr);
+//         gap: 0.5rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .duration-option {
+//         padding: 0.75rem;
+//         font-size: 0.75rem;
+//       }
+
+//       .shame-input {
+//         padding: 1rem;
+//         font-size: 0.875rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .roast-container {
+//         padding: 1rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .roast-icon {
+//         font-size: 1.5rem;
+//         margin-bottom: 0.75rem;
+//       }
+
+//       .roast-text {
+//         font-size: 0.875rem;
+//       }
+
 //       .action-buttons {
 //         flex-direction: column;
+//         gap: 0.75rem;
+//         margin-top: 1.5rem;
 //       }
-      
-//       .camera-container {
-//         height: 300px;
+
+//       .verify-button {
+//         padding: 0.875rem 1.5rem;
+//         font-size: 0.875rem;
+//         min-height: 44px;
 //       }
-      
-//       .streak-stats {
-//         grid-template-columns: repeat(2, 1fr);
+
+//       .time-left {
+//         margin-top: 1rem;
+//         padding: 1rem;
+//       }
+
+//       .time-left-text {
+//         font-size: 0.875rem;
 //       }
 //     }
+
+//     @media (min-width: 321px) and (max-width: 480px) {
+//       .verify-container {
+//         padding: 2.5rem 0.75rem 1.5rem;
+//       }
+
+//       .verify-title {
+//         font-size: 2rem;
+//         line-height: 1.2;
+//       }
+
+//       .verify-subtitle {
+//         font-size: 0.8125rem;
+//         line-height: 1.4;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .verification-options {
+//         grid-template-columns: 1fr;
+//         gap: 1.25rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .option-content {
+//         padding: 1.75rem;
+//       }
+
+//       .option-icon {
+//         font-size: 2.75rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .option-title {
+//         font-size: 1.375rem;
+//         margin-bottom: 0.625rem;
+//       }
+
+//       .option-description {
+//         font-size: 0.8125rem;
+//         line-height: 1.5;
+//       }
+
+//       .streak-stats {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 0.875rem;
+//         margin-top: 2.5rem;
+//       }
+
+//       .stat-item {
+//         padding: 1.25rem;
+//       }
+
+//       .stat-value {
+//         font-size: 1.75rem;
+//       }
+
+//       .stat-label {
+//         font-size: 0.5625rem;
+//         margin-top: 0.375rem;
+//       }
+
+//       .verify-form {
+//         padding: 0;
+//       }
+
+//       .back-button {
+//         padding: 0.625rem 1.25rem;
+//         font-size: 0.8125rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .form-header {
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .form-title {
+//         font-size: 1.375rem;
+//       }
+
+//       .form-subtitle {
+//         font-size: 0.8125rem;
+//         margin: 0 auto 0.625rem;
+//       }
+
+//       .instructions-panel {
+//         padding: 1.25rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .instructions-title {
+//         font-size: 1.125rem;
+//         margin-bottom: 0.875rem;
+//       }
+
+//       .instruction-item {
+//         padding: 0.4375rem 0;
+//         font-size: 0.8125rem;
+//       }
+
+//       .media-upload-container {
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .upload-options {
+//         grid-template-columns: 1fr;
+//         gap: 0.625rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .upload-option {
+//         padding: 1rem;
+//       }
+
+//       .upload-option-icon {
+//         font-size: 1.375rem;
+//         margin-bottom: 0.375rem;
+//       }
+
+//       .upload-option-text {
+//         font-size: 0.6875rem;
+//       }
+
+//       .photo-upload-area {
+//         padding: 1.75rem;
+//         min-height: 225px;
+//       }
+
+//       .upload-instructions {
+//         gap: 0.875rem;
+//       }
+
+//       .upload-icon {
+//         font-size: 2.25rem;
+//       }
+
+//       .upload-text {
+//         font-size: 0.9375rem;
+//       }
+
+//       .upload-subtext {
+//         font-size: 0.6875rem;
+//       }
+
+//       .drag-drop-instruction {
+//         font-size: 0.6875rem;
+//         padding: 0.4375rem 0.875rem;
+//       }
+
+//       .camera-container {
+//         height: 275px;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .camera-controls {
+//         bottom: 1.25rem;
+//         gap: 0.625rem;
+//       }
+
+//       .recording-indicator {
+//         top: 0.625rem;
+//         left: 0.625rem;
+//         padding: 0.4375rem 0.875rem;
+//         font-size: 0.8125rem;
+//       }
+
+//       .duration-selector {
+//         grid-template-columns: repeat(3, 1fr);
+//         gap: 0.625rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .duration-option {
+//         padding: 0.875rem;
+//         font-size: 0.8125rem;
+//       }
+
+//       .shame-input {
+//         padding: 1.125rem;
+//         font-size: 0.9375rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .roast-container {
+//         padding: 1.25rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .roast-icon {
+//         font-size: 1.625rem;
+//         margin-bottom: 0.875rem;
+//       }
+
+//       .roast-text {
+//         font-size: 0.9375rem;
+//       }
+
+//       .action-buttons {
+//         flex-direction: column;
+//         gap: 0.875rem;
+//         margin-top: 1.75rem;
+//       }
+
+//       .verify-button {
+//         padding: 1rem 1.75rem;
+//         font-size: 0.9375rem;
+//         min-height: 44px;
+//       }
+
+//       .time-left {
+//         margin-top: 1.25rem;
+//         padding: 1.25rem;
+//       }
+
+//       .time-left-text {
+//         font-size: 0.9375rem;
+//       }
+//     }
+
+//     @media (min-width: 481px) and (max-width: 640px) {
+//       .verify-container {
+//         padding: 3rem 1rem 2rem;
+//       }
+
+//       .verify-title {
+//         font-size: 2.25rem;
+//       }
+
+//       .verify-subtitle {
+//         font-size: 0.875rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .verification-options {
+//         grid-template-columns: 1fr;
+//         gap: 1.5rem;
+//         margin-bottom: 3rem;
+//       }
+
+//       .option-content {
+//         padding: 2rem;
+//       }
+
+//       .option-icon {
+//         font-size: 3rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .option-title {
+//         font-size: 1.5rem;
+//         margin-bottom: 0.75rem;
+//       }
+
+//       .option-description {
+//         font-size: 0.875rem;
+//       }
+
+//       .streak-stats {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 1rem;
+//         margin-top: 3rem;
+//       }
+
+//       .stat-item {
+//         padding: 1.5rem;
+//       }
+
+//       .stat-value {
+//         font-size: 2rem;
+//       }
+
+//       .stat-label {
+//         font-size: 0.625rem;
+//         margin-top: 0.5rem;
+//       }
+
+//       .verify-form {
+//         padding: 0;
+//       }
+
+//       .back-button {
+//         padding: 0.75rem 1.5rem;
+//         font-size: 0.875rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .form-header {
+//         margin-bottom: 2rem;
+//       }
+
+//       .form-title {
+//         font-size: 1.5rem;
+//       }
+
+//       .form-subtitle {
+//         font-size: 0.875rem;
+//         margin: 0 auto 0.75rem;
+//       }
+
+//       .instructions-panel {
+//         padding: 1.5rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .instructions-title {
+//         font-size: 1.25rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .instruction-item {
+//         padding: 0.5rem 0;
+//         font-size: 0.875rem;
+//       }
+
+//       .media-upload-container {
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .upload-options {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 0.75rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .upload-option {
+//         padding: 1.125rem;
+//       }
+
+//       .upload-option-icon {
+//         font-size: 1.5rem;
+//         margin-bottom: 0.5rem;
+//       }
+
+//       .upload-option-text {
+//         font-size: 0.75rem;
+//       }
+
+//       .photo-upload-area {
+//         padding: 2rem;
+//         min-height: 250px;
+//       }
+
+//       .upload-instructions {
+//         gap: 1rem;
+//       }
+
+//       .upload-icon {
+//         font-size: 2.5rem;
+//       }
+
+//       .upload-text {
+//         font-size: 1rem;
+//       }
+
+//       .upload-subtext {
+//         font-size: 0.75rem;
+//       }
+
+//       .drag-drop-instruction {
+//         font-size: 0.75rem;
+//         padding: 0.5rem 1rem;
+//       }
+
+//       .camera-container {
+//         height: 300px;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .camera-controls {
+//         bottom: 1.5rem;
+//         gap: 0.75rem;
+//       }
+
+//       .recording-indicator {
+//         top: 0.75rem;
+//         left: 0.75rem;
+//         padding: 0.5rem 1rem;
+//         font-size: 0.875rem;
+//       }
+
+//       .duration-selector {
+//         grid-template-columns: repeat(3, 1fr);
+//         gap: 0.75rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .duration-option {
+//         padding: 1rem;
+//         font-size: 0.875rem;
+//       }
+
+//       .shame-input {
+//         padding: 1.25rem;
+//         font-size: 1rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .roast-container {
+//         padding: 1.5rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .roast-icon {
+//         font-size: 1.75rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .roast-text {
+//         font-size: 1rem;
+//       }
+
+//       .action-buttons {
+//         flex-direction: column;
+//         gap: 1rem;
+//         margin-top: 2rem;
+//       }
+
+//       .verify-button {
+//         padding: 1.125rem 2rem;
+//         font-size: 1rem;
+//         min-height: 44px;
+//       }
+
+//       .time-left {
+//         margin-top: 1.5rem;
+//         padding: 1.5rem;
+//       }
+
+//       .time-left-text {
+//         font-size: 1rem;
+//       }
+//     }
+
+//     @media (min-width: 641px) and (max-width: 768px) {
+//       .verify-container {
+//         padding: 3.5rem 1.25rem 2.5rem;
+//       }
+
+//       .verify-title {
+//         font-size: 2.5rem;
+//       }
+
+//       .verify-subtitle {
+//         font-size: 0.9375rem;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .verification-options {
+//         grid-template-columns: 1fr;
+//         gap: 1.75rem;
+//         margin-bottom: 3.5rem;
+//       }
+
+//       .option-content {
+//         padding: 2.25rem;
+//       }
+
+//       .option-icon {
+//         font-size: 3.25rem;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .option-title {
+//         font-size: 1.625rem;
+//         margin-bottom: 0.875rem;
+//       }
+
+//       .option-description {
+//         font-size: 0.9375rem;
+//       }
+
+//       .streak-stats {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 1.25rem;
+//         margin-top: 3.5rem;
+//       }
+
+//       .stat-item {
+//         padding: 1.75rem;
+//       }
+
+//       .stat-value {
+//         font-size: 2.25rem;
+//       }
+
+//       .stat-label {
+//         font-size: 0.6875rem;
+//         margin-top: 0.625rem;
+//       }
+
+//       .verify-form {
+//         padding: 0;
+//       }
+
+//       .back-button {
+//         padding: 0.875rem 1.75rem;
+//         font-size: 0.9375rem;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .form-header {
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .form-title {
+//         font-size: 1.625rem;
+//       }
+
+//       .form-subtitle {
+//         font-size: 0.9375rem;
+//         margin: 0 auto 0.875rem;
+//       }
+
+//       .instructions-panel {
+//         padding: 1.75rem;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .instructions-title {
+//         font-size: 1.375rem;
+//         margin-bottom: 1.125rem;
+//       }
+
+//       .instruction-item {
+//         padding: 0.5625rem 0;
+//         font-size: 0.9375rem;
+//       }
+
+//       .media-upload-container {
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .upload-options {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 0.875rem;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .upload-option {
+//         padding: 1.25rem;
+//       }
+
+//       .upload-option-icon {
+//         font-size: 1.625rem;
+//         margin-bottom: 0.625rem;
+//       }
+
+//       .upload-option-text {
+//         font-size: 0.8125rem;
+//       }
+
+//       .photo-upload-area {
+//         padding: 2.25rem;
+//         min-height: 275px;
+//       }
+
+//       .upload-instructions {
+//         gap: 1.125rem;
+//       }
+
+//       .upload-icon {
+//         font-size: 2.75rem;
+//       }
+
+//       .upload-text {
+//         font-size: 1.0625rem;
+//       }
+
+//       .upload-subtext {
+//         font-size: 0.8125rem;
+//       }
+
+//       .drag-drop-instruction {
+//         font-size: 0.8125rem;
+//         padding: 0.5625rem 1.125rem;
+//       }
+
+//       .camera-container {
+//         height: 325px;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .camera-controls {
+//         bottom: 1.75rem;
+//         gap: 0.875rem;
+//       }
+
+//       .recording-indicator {
+//         top: 0.875rem;
+//         left: 0.875rem;
+//         padding: 0.5625rem 1.125rem;
+//         font-size: 0.9375rem;
+//       }
+
+//       .duration-selector {
+//         grid-template-columns: repeat(3, 1fr);
+//         gap: 0.875rem;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .duration-option {
+//         padding: 1.125rem;
+//         font-size: 0.9375rem;
+//       }
+
+//       .shame-input {
+//         padding: 1.375rem;
+//         font-size: 1.0625rem;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .roast-container {
+//         padding: 1.75rem;
+//         margin-bottom: 1.75rem;
+//       }
+
+//       .roast-icon {
+//         font-size: 1.875rem;
+//         margin-bottom: 1.125rem;
+//       }
+
+//       .roast-text {
+//         font-size: 1.0625rem;
+//       }
+
+//       .action-buttons {
+//         flex-direction: column;
+//         gap: 1.125rem;
+//         margin-top: 2.25rem;
+//       }
+
+//       .verify-button {
+//         padding: 1.25rem 2.25rem;
+//         font-size: 1.0625rem;
+//         min-height: 44px;
+//       }
+
+//       .time-left {
+//         margin-top: 1.75rem;
+//         padding: 1.75rem;
+//       }
+
+//       .time-left-text {
+//         font-size: 1.0625rem;
+//       }
+//     }
+
+//     @media (min-width: 769px) and (max-width: 1024px) {
+//       .verify-container {
+//         padding: 4rem 1.5rem 3rem;
+//       }
+
+//       .verify-title {
+//         font-size: 2.75rem;
+//       }
+
+//       .verify-subtitle {
+//         font-size: 1rem;
+//         margin-bottom: 2rem;
+//       }
+
+//       .verification-options {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 2rem;
+//         margin-bottom: 4rem;
+//       }
+
+//       .option-content {
+//         padding: 2.5rem;
+//       }
+
+//       .option-icon {
+//         font-size: 3.5rem;
+//         margin-bottom: 2rem;
+//       }
+
+//       .option-title {
+//         font-size: 1.75rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .option-description {
+//         font-size: 1rem;
+//       }
+
+//       .streak-stats {
+//         grid-template-columns: repeat(4, 1fr);
+//         gap: 1.5rem;
+//         margin-top: 4rem;
+//       }
+
+//       .stat-item {
+//         padding: 2rem;
+//       }
+
+//       .stat-value {
+//         font-size: 2.5rem;
+//       }
+
+//       .stat-label {
+//         font-size: 0.75rem;
+//         margin-top: 0.75rem;
+//       }
+
+//       .verify-form {
+//         padding: 0;
+//       }
+
+//       .back-button {
+//         padding: 1rem 2rem;
+//         font-size: 1rem;
+//         margin-bottom: 2rem;
+//       }
+
+//       .form-header {
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .form-title {
+//         font-size: 1.75rem;
+//       }
+
+//       .form-subtitle {
+//         font-size: 1rem;
+//         margin: 0 auto 1rem;
+//       }
+
+//       .instructions-panel {
+//         padding: 2rem;
+//         margin-bottom: 2rem;
+//       }
+
+//       .instructions-title {
+//         font-size: 1.5rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .instruction-item {
+//         padding: 0.625rem 0;
+//         font-size: 1rem;
+//       }
+
+//       .media-upload-container {
+//         margin-bottom: 2rem;
+//       }
+
+//       .upload-options {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 1rem;
+//         margin-bottom: 2rem;
+//       }
+
+//       .upload-option {
+//         padding: 1.5rem;
+//       }
+
+//       .upload-option-icon {
+//         font-size: 1.75rem;
+//         margin-bottom: 0.75rem;
+//       }
+
+//       .upload-option-text {
+//         font-size: 0.875rem;
+//       }
+
+//       .photo-upload-area {
+//         padding: 2.5rem;
+//         min-height: 300px;
+//       }
+
+//       .upload-instructions {
+//         gap: 1.25rem;
+//       }
+
+//       .upload-icon {
+//         font-size: 3rem;
+//       }
+
+//       .upload-text {
+//         font-size: 1.125rem;
+//       }
+
+//       .upload-subtext {
+//         font-size: 0.875rem;
+//       }
+
+//       .drag-drop-instruction {
+//         font-size: 0.875rem;
+//         padding: 0.625rem 1.25rem;
+//       }
+
+//       .camera-container {
+//         height: 350px;
+//         margin-bottom: 2rem;
+//       }
+
+//       .camera-controls {
+//         bottom: 2rem;
+//         gap: 1rem;
+//       }
+
+//       .recording-indicator {
+//         top: 1rem;
+//         left: 1rem;
+//         padding: 0.625rem 1.25rem;
+//         font-size: 1rem;
+//       }
+
+//       .duration-selector {
+//         grid-template-columns: repeat(3, 1fr);
+//         gap: 1rem;
+//         margin-bottom: 2rem;
+//       }
+
+//       .duration-option {
+//         padding: 1.25rem;
+//         font-size: 1rem;
+//       }
+
+//       .shame-input {
+//         padding: 1.5rem;
+//         font-size: 1.125rem;
+//         margin-bottom: 2rem;
+//       }
+
+//       .roast-container {
+//         padding: 2rem;
+//         margin-bottom: 2rem;
+//       }
+
+//       .roast-icon {
+//         font-size: 2rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .roast-text {
+//         font-size: 1.125rem;
+//       }
+
+//       .action-buttons {
+//         flex-direction: row;
+//         gap: 1rem;
+//         margin-top: 2.5rem;
+//       }
+
+//       .verify-button {
+//         padding: 1.5rem 2.5rem;
+//         font-size: 1.125rem;
+//         min-height: 44px;
+//       }
+
+//       .time-left {
+//         margin-top: 2rem;
+//         padding: 2rem;
+//       }
+
+//       .time-left-text {
+//         font-size: 1.125rem;
+//       }
+//     }
+
+//     @media (min-width: 1025px) and (max-width: 1280px) {
+//       .verify-container {
+//         padding: 5rem 2rem 4rem;
+//       }
+
+//       .verify-title {
+//         font-size: 3rem;
+//       }
+
+//       .verify-subtitle {
+//         font-size: 1.0625rem;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .verification-options {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 2.25rem;
+//         margin-bottom: 4.5rem;
+//       }
+
+//       .option-content {
+//         padding: 2.75rem;
+//       }
+
+//       .option-icon {
+//         font-size: 3.75rem;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .option-title {
+//         font-size: 1.875rem;
+//         margin-bottom: 1.125rem;
+//       }
+
+//       .option-description {
+//         font-size: 1.0625rem;
+//       }
+
+//       .streak-stats {
+//         grid-template-columns: repeat(4, 1fr);
+//         gap: 1.75rem;
+//         margin-top: 4.5rem;
+//       }
+
+//       .stat-item {
+//         padding: 2.25rem;
+//       }
+
+//       .stat-value {
+//         font-size: 2.75rem;
+//       }
+
+//       .stat-label {
+//         font-size: 0.8125rem;
+//         margin-top: 0.875rem;
+//       }
+
+//       .verify-form {
+//         padding: 0;
+//       }
+
+//       .back-button {
+//         padding: 1.125rem 2.25rem;
+//         font-size: 1.0625rem;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .form-header {
+//         margin-bottom: 2.75rem;
+//       }
+
+//       .form-title {
+//         font-size: 1.875rem;
+//       }
+
+//       .form-subtitle {
+//         font-size: 1.0625rem;
+//         margin: 0 auto 1.125rem;
+//       }
+
+//       .instructions-panel {
+//         padding: 2.25rem;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .instructions-title {
+//         font-size: 1.625rem;
+//         margin-bottom: 1.375rem;
+//       }
+
+//       .instruction-item {
+//         padding: 0.6875rem 0;
+//         font-size: 1.0625rem;
+//       }
+
+//       .media-upload-container {
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .upload-options {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 1.125rem;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .upload-option {
+//         padding: 1.625rem;
+//       }
+
+//       .upload-option-icon {
+//         font-size: 1.875rem;
+//         margin-bottom: 0.875rem;
+//       }
+
+//       .upload-option-text {
+//         font-size: 0.9375rem;
+//       }
+
+//       .photo-upload-area {
+//         padding: 2.75rem;
+//         min-height: 325px;
+//       }
+
+//       .upload-instructions {
+//         gap: 1.375rem;
+//       }
+
+//       .upload-icon {
+//         font-size: 3.25rem;
+//       }
+
+//       .upload-text {
+//         font-size: 1.1875rem;
+//       }
+
+//       .upload-subtext {
+//         font-size: 0.9375rem;
+//       }
+
+//       .drag-drop-instruction {
+//         font-size: 0.9375rem;
+//         padding: 0.6875rem 1.375rem;
+//       }
+
+//       .camera-container {
+//         height: 375px;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .camera-controls {
+//         bottom: 2.25rem;
+//         gap: 1.125rem;
+//       }
+
+//       .recording-indicator {
+//         top: 1.125rem;
+//         left: 1.125rem;
+//         padding: 0.6875rem 1.375rem;
+//         font-size: 1.0625rem;
+//       }
+
+//       .duration-selector {
+//         grid-template-columns: repeat(3, 1fr);
+//         gap: 1.125rem;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .duration-option {
+//         padding: 1.375rem;
+//         font-size: 1.0625rem;
+//       }
+
+//       .shame-input {
+//         padding: 1.625rem;
+//         font-size: 1.1875rem;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .roast-container {
+//         padding: 2.25rem;
+//         margin-bottom: 2.25rem;
+//       }
+
+//       .roast-icon {
+//         font-size: 2.125rem;
+//         margin-bottom: 1.375rem;
+//       }
+
+//       .roast-text {
+//         font-size: 1.1875rem;
+//       }
+
+//       .action-buttons {
+//         flex-direction: row;
+//         gap: 1.125rem;
+//         margin-top: 2.75rem;
+//       }
+
+//       .verify-button {
+//         padding: 1.625rem 2.75rem;
+//         font-size: 1.1875rem;
+//         min-height: 44px;
+//       }
+
+//       .time-left {
+//         margin-top: 2.25rem;
+//         padding: 2.25rem;
+//       }
+
+//       .time-left-text {
+//         font-size: 1.1875rem;
+//       }
+//     }
+
+//     @media (min-width: 1281px) {
+//       .verify-container {
+//         max-width: 1600px;
+//         margin: 0 auto;
+//         padding: 6rem 3rem 5rem;
+//       }
+
+//       .verify-title {
+//         font-size: 3.5rem;
+//       }
+
+//       .verify-subtitle {
+//         font-size: 1.125rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .verification-options {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 2.5rem;
+//         margin-bottom: 5rem;
+//       }
+
+//       .option-content {
+//         padding: 3rem;
+//       }
+
+//       .option-icon {
+//         font-size: 4rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .option-title {
+//         font-size: 2rem;
+//         margin-bottom: 1.25rem;
+//       }
+
+//       .option-description {
+//         font-size: 1.125rem;
+//       }
+
+//       .streak-stats {
+//         grid-template-columns: repeat(4, 1fr);
+//         gap: 2rem;
+//         margin-top: 5rem;
+//       }
+
+//       .stat-item {
+//         padding: 2.5rem;
+//       }
+
+//       .stat-value {
+//         font-size: 3rem;
+//       }
+
+//       .stat-label {
+//         font-size: 0.875rem;
+//         margin-top: 1rem;
+//       }
+
+//       .verify-form {
+//         padding: 0;
+//       }
+
+//       .back-button {
+//         padding: 1.25rem 2.5rem;
+//         font-size: 1.125rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .form-header {
+//         margin-bottom: 3rem;
+//       }
+
+//       .form-title {
+//         font-size: 2rem;
+//       }
+
+//       .form-subtitle {
+//         font-size: 1.125rem;
+//         margin: 0 auto 1.25rem;
+//       }
+
+//       .instructions-panel {
+//         padding: 2.5rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .instructions-title {
+//         font-size: 1.75rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .instruction-item {
+//         padding: 0.75rem 0;
+//         font-size: 1.125rem;
+//       }
+
+//       .media-upload-container {
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .upload-options {
+//         grid-template-columns: repeat(2, 1fr);
+//         gap: 1.25rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .upload-option {
+//         padding: 1.75rem;
+//       }
+
+//       .upload-option-icon {
+//         font-size: 2rem;
+//         margin-bottom: 1rem;
+//       }
+
+//       .upload-option-text {
+//         font-size: 1rem;
+//       }
+
+//       .photo-upload-area {
+//         padding: 3rem;
+//         min-height: 350px;
+//       }
+
+//       .upload-instructions {
+//         gap: 1.5rem;
+//       }
+
+//       .upload-icon {
+//         font-size: 3.5rem;
+//       }
+
+//       .upload-text {
+//         font-size: 1.25rem;
+//       }
+
+//       .upload-subtext {
+//         font-size: 1rem;
+//       }
+
+//       .drag-drop-instruction {
+//         font-size: 1rem;
+//         padding: 0.75rem 1.5rem;
+//       }
+
+//       .camera-container {
+//         height: 400px;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .camera-controls {
+//         bottom: 2.5rem;
+//         gap: 1.25rem;
+//       }
+
+//       .recording-indicator {
+//         top: 1.25rem;
+//         left: 1.25rem;
+//         padding: 0.75rem 1.5rem;
+//         font-size: 1.125rem;
+//       }
+
+//       .duration-selector {
+//         grid-template-columns: repeat(3, 1fr);
+//         gap: 1.25rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .duration-option {
+//         padding: 1.5rem;
+//         font-size: 1.125rem;
+//       }
+
+//       .shame-input {
+//         padding: 1.75rem;
+//         font-size: 1.25rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .roast-container {
+//         padding: 2.5rem;
+//         margin-bottom: 2.5rem;
+//       }
+
+//       .roast-icon {
+//         font-size: 2.25rem;
+//         margin-bottom: 1.5rem;
+//       }
+
+//       .roast-text {
+//         font-size: 1.25rem;
+//       }
+
+//       .action-buttons {
+//         flex-direction: row;
+//         gap: 1.25rem;
+//         margin-top: 3rem;
+//       }
+
+//       .verify-button {
+//         padding: 1.75rem 3rem;
+//         font-size: 1.25rem;
+//         min-height: 44px;
+//       }
+
+//       .time-left {
+//         margin-top: 2.5rem;
+//         padding: 2.5rem;
+//       }
+
+//       .time-left-text {
+//         font-size: 1.25rem;
+//       }
+//     }
+
+//     /* Touch-friendly interactions */
+//     @media (max-width: 768px) {
+//       .verification-option {
+//         min-height: 44px;
+//       }
+
+//       .upload-option {
+//         min-height: 44px;
+//       }
+
+//       .duration-option {
+//         min-height: 44px;
+//       }
+
+//       .verify-button {
+//         min-height: 44px;
+//         touch-action: manipulation;
+//       }
+
+//       .back-button {
 //   `;
 
 //   return (
-//     <>
-//       <style>{pageStyles}</style>
-//       <div className="verify-container" ref={animationRef}>
-//         {showSuccess && <Confetti active={true} duration={3000} />}
-//         <div className="verify-background" />
-        
-//         <div className="verify-content">
-//           {!verificationMethod ? (
-//             <>
-//               <div className="daily-question">
-//                 <h1 className="question-title">Have You Touched Grass Today?</h1>
-//                 <p className="question-subtitle">
-//                   Your {streakData.current}-day streak is on the line. 
-//                   Prove your discipline or face the consequences.
-//                 </p>
-//               </div>
-              
-//               <div className="verification-options">
-//                 <div 
-//                   className="verification-option" 
-//                   onClick={() => setVerificationMethod('photo')}
-//                 >
-//                   <div className="option-content option-yes">
-//                     <span className="option-icon">🌱</span>
-//                     <h2 className="option-title">Yes</h2>
-//                     <p className="option-description">
-//                       Upload photo/video proof & continue your streak. Show us you're living in the real world.
-//                     </p>
-//                   </div>
-//                 </div>
-                
-//                 <div 
-//                   className="verification-option" 
-//                   onClick={() => setVerificationMethod('shame')}
-//                 >
-//                   <div className="option-content option-no">
-//                     <span className="option-icon">❌</span>
-//                     <h2 className="option-title">No</h2>
-//                     <p className="option-description">
-//                       Accept public shame & continue streak with a mark. Your ego will hate this.
-//                     </p>
-//                   </div>
-//                 </div>
-//               </div>
-              
-//               <div className="streak-stats">
-//                 <div className="stat-item">
-//                   <h3 className="stat-value"></h3>
-//                   <p className="stat-label">Current Streak</p>
-//                 </div>
-                
-//                 <div className="stat-item">
-//                   <h3 className="stat-value"></h3>
-//                   <p className="stat-label">Longest Streak</p>
-//                 </div>
-                
-//                 <div className="stat-item">
-//                   <h3 className="stat-value"></h3>
-//                   <p className="stat-label">Global Rank</p>
-//                 </div>
-                
-//                 <div className="stat-item">
-//                   <h3 className="stat-value"></h3>
-//                   <p className="stat-label">Time Left Today</p>
-//                 </div>
-//               </div>
-//             </>
-//           ) : (
-//             <div className="verification-form">
-//               <button 
-//                 className="back-button"
-//                 onClick={() => {
-//                   setVerificationMethod(null);
-//                   setPhoto(null);
-//                   setVideo(null);
-//                   setShowCamera(false);
-//                   setShowVideoRecorder(false);
-//                   setIsDragOver(false);
-//                   cleanupMediaStreams();
-//                   if (recordingTimerRef.current) {
-//                     clearInterval(recordingTimerRef.current);
-//                   }
-//                 }}
-//               >
-//                 ← Back to choices
-//               </button>
-              
-//               {verificationMethod === 'photo' ? (
-//                 <>
-//                   <div className="form-header">
-//                     <h2 className="form-title">Prove Your Outdoor Adventure</h2>
-//                     <p className="form-subtitle">
-//                       Upload a photo or video showing grass, nature, or outdoor activity
-//                     </p>
-//                   </div>
-                  
-//                   <div className="instructions-panel">
-//                     <h3 className="instructions-title">📸 What counts as proof?</h3>
-//                     <ul className="instructions-list">
-//                       <li className="instruction-item">
-//                         <span className="instruction-icon">✅</span>
-//                         Photos/videos showing grass, trees, or nature
-//                       </li>
-//                       <li className="instruction-item">
-//                         <span className="instruction-icon">✅</span>
-//                         Outdoor exercise (running, hiking, sports)
-//                       </li>
-//                       <li className="instruction-item">
-//                         <span className="instruction-icon">✅</span>
-//                         Sunlight & sky visible in media
-//                       </li>
-//                       <li className="instruction-item">
-//                         <span className="instruction-icon">❌</span>
-//                         No indoor plants or old media
-//                       </li>
-//                     </ul>
-//                   </div>
-                  
-//                   <div className="media-upload-container">
-//                     <div className="upload-options">
-//                       <div 
-//                         className={`upload-option ${mediaType === 'photo' ? 'active' : ''}`}
-//                         onClick={() => setMediaType('photo')}
-//                       >
-//                         <span className="upload-option-icon">📸</span>
-//                         <p className="upload-option-text">Upload Photo</p>
-//                       </div>
-                      
-//                       <div 
-//                         className={`upload-option ${mediaType === 'video' ? 'active' : ''}`}
-//                         onClick={() => setMediaType('video')}
-//                       >
-//                         <span className="upload-option-icon">🎥</span>
-//                         <p className="upload-option-text">Upload Video</p>
-//                       </div>
-//                     </div>
-                    
-//                     {showCamera ? (
-//                       <div className="camera-container">
-//                         <video
-//                           ref={cameraRef}
-//                           className="camera-video"
-//                           autoPlay
-//                           playsInline
-//                         />
-//                         <div className="camera-controls">
-//                           <button
-//                             onClick={capturePhoto}
-//                             style={{
-//                               padding: '1rem 2rem',
-//                               background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-//                               border: 'none',
-//                               borderRadius: '12px',
-//                               color: 'white',
-//                               fontWeight: 'bold',
-//                               cursor: 'pointer',
-//                               fontSize: '1rem'
-//                             }}
-//                           >
-//                             📸 Capture Photo
-//                           </button>
-//                           <button
-//                             onClick={() => {
-//                               setShowCamera(false);
-//                               cleanupMediaStreams();
-//                             }}
-//                             style={{
-//                               padding: '1rem 2rem',
-//                               background: 'rgba(255, 255, 255, 0.1)',
-//                               border: '1px solid rgba(255, 255, 255, 0.2)',
-//                               borderRadius: '12px',
-//                               color: 'white',
-//                               cursor: 'pointer',
-//                               fontSize: '1rem'
-//                             }}
-//                           >
-//                             Cancel
-//                           </button>
-//                         </div>
-//                       </div>
-//                     ) : showVideoRecorder ? (
-//                       <div className="camera-container">
-//                         <video
-//                           ref={videoRecorderRef}
-//                           className="camera-video"
-//                           autoPlay
-//                           playsInline
-//                         />
-//                         {recordingTime > 0 && (
-//                           <div className="recording-indicator">
-//                             <div className="recording-dot" />
-//                             Recording: {recordingTime}s
-//                           </div>
-//                         )}
-//                         <div className="camera-controls">
-//                           {mediaRecorderRef.current?.state === 'recording' ? (
-//                             <button
-//                               onClick={stopVideoRecording}
-//                               style={{
-//                                 padding: '1rem 2rem',
-//                                 background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-//                                 border: 'none',
-//                                 borderRadius: '12px',
-//                                 color: 'white',
-//                                 fontWeight: 'bold',
-//                                 cursor: 'pointer',
-//                                 fontSize: '1rem'
-//                               }}
-//                             >
-//                               ⏹️ Stop Recording
-//                             </button>
-//                           ) : (
-//                             <button
-//                               onClick={startVideoRecording}
-//                               style={{
-//                                 padding: '1rem 2rem',
-//                                 background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-//                                 border: 'none',
-//                                 borderRadius: '12px',
-//                                 color: 'white',
-//                                 fontWeight: 'bold',
-//                                 cursor: 'pointer',
-//                                 fontSize: '1rem'
-//                               }}
-//                             >
-//                               🎥 Start Recording
-//                             </button>
-//                           )}
-//                           <button
-//                             onClick={() => {
-//                               setShowVideoRecorder(false);
-//                               stopVideoRecording();
-//                             }}
-//                             style={{
-//                               padding: '1rem 2rem',
-//                               background: 'rgba(255, 255, 255, 0.1)',
-//                               border: '1px solid rgba(255, 255, 255, 0.2)',
-//                               borderRadius: '12px',
-//                               color: 'white',
-//                               cursor: 'pointer',
-//                               fontSize: '1rem'
-//                             }}
-//                           >
-//                             Cancel
-//                           </button>
-//                         </div>
-//                       </div>
-//                     ) : (
-//                       <div 
-//                         ref={dropZoneRef}
-//                         className={`photo-upload-area ${photo || video ? 'has-media' : ''} ${isDragOver ? 'drag-over' : ''}`}
-//                         onClick={() => {
-//                           if (mediaType === 'photo' && !photo) {
-//                             fileInputRef.current?.click();
-//                           } else if (mediaType === 'video' && !video) {
-//                             videoFileInputRef.current?.click();
-//                           }
-//                         }}
-//                       >
-//                         {(photo || video) ? (
-//                           <>
-//                             {mediaType === 'photo' && photo ? (
-//                               <>
-//                                 <img src={photo} alt="Verification" className="media-preview" />
-//                                 <div className="media-actions">
-//                                   <button 
-//                                     className="media-action-button"
-//                                     onClick={(e) => {
-//                                       e.stopPropagation();
-//                                       removeMedia();
-//                                     }}
-//                                   >
-//                                     <X size={20} color="white" />
-//                                   </button>
-//                                 </div>
-//                               </>
-//                             ) : video ? (
-//                               <>
-//                                 <video 
-//                                   src={video} 
-//                                   className="video-preview" 
-//                                   controls 
-//                                   onClick={(e) => e.stopPropagation()}
-//                                 />
-//                                 <div className="media-actions">
-//                                   <button 
-//                                     className="media-action-button"
-//                                     onClick={(e) => {
-//                                       e.stopPropagation();
-//                                       removeMedia();
-//                                     }}
-//                                   >
-//                                     <X size={20} color="white" />
-//                                   </button>
-//                                 </div>
-//                               </>
-//                             ) : null}
-//                           </>
-//                         ) : (
-//                           <div className="upload-instructions">
-//                             <span className="upload-icon">
-//                               {isDragOver ? '🎯' : mediaType === 'photo' ? '📸' : '🎥'}
-//                             </span>
-//                             <p className="upload-text">
-//                               {isDragOver 
-//                                 ? 'Drop your file here!' 
-//                                 : mediaType === 'photo' 
-//                                   ? 'Click to upload photo' 
-//                                   : 'Click to upload video'}
-//                             </p>
-//                             <p className="upload-subtext">
-//                               {mediaType === 'photo'
-//                                 ? 'or drag and drop your photo here'
-//                                 : 'or drag and drop your video here'}
-//                             </p>
-//                             <div className="drag-drop-instruction">
-//                               <FileUp size={14} />
-//                               Supports {mediaType === 'photo' ? 'JPG, PNG, GIF' : 'MP4, MOV, AVI'} • Max {mediaType === 'photo' ? '10MB' : '50MB'}
-//                             </div>
-//                           </div>
-//                         )}
-//                       </div>
-//                     )}
-                    
-//                     {isUploading && (
-//                       <div className="upload-progress">
-//                         <div className="progress-bar">
-//                           <div 
-//                             className="progress-fill" 
-//                             style={{ width: `${uploadProgress}%` }}
-//                           />
-//                         </div>
-//                         <p className="progress-text">
-//                           Uploading... {uploadProgress}%
-//                         </p>
-//                       </div>
-//                     )}
-                    
-//                     <input
-//                       ref={fileInputRef}
-//                       type="file"
-//                       accept="image/*"
-//                       onChange={(e) => handleFileUpload(e, 'photo')}
-//                       style={{ display: 'none' }}
-//                     />
-                    
-//                     <input
-//                       ref={videoFileInputRef}
-//                       type="file"
-//                       accept="video/*"
-//                       onChange={(e) => handleFileUpload(e, 'video')}
-//                       style={{ display: 'none' }}
-//                     />
-                    
-//                     {!showCamera && !showVideoRecorder && (
-//                       <div style={{ 
-//                         display: 'flex', 
-//                         gap: '1rem', 
-//                         marginTop: '1rem',
-//                         justifyContent: 'center'
-//                       }}>
-//                         <button
-//                           onClick={() => startCamera('photo')}
-//                           style={{
-//                             padding: '0.75rem 1.5rem',
-//                             background: 'rgba(255, 255, 255, 0.05)',
-//                             border: '1px solid rgba(255, 255, 255, 0.1)',
-//                             borderRadius: '8px',
-//                             color: 'white',
-//                             cursor: 'pointer',
-//                             display: 'flex',
-//                             alignItems: 'center',
-//                             gap: '0.5rem',
-//                             fontSize: '0.875rem'
-//                           }}
-//                         >
-//                           <Camera size={16} /> Take Photo
-//                         </button>
-                        
-//                         <button
-//                           onClick={() => startCamera('video')}
-//                           style={{
-//                             padding: '0.75rem 1.5rem',
-//                             background: 'rgba(255, 255, 255, 0.05)',
-//                             border: '1px solid rgba(255, 255, 255, 0.1)',
-//                             borderRadius: '8px',
-//                             color: 'white',
-//                             cursor: 'pointer',
-//                             display: 'flex',
-//                             alignItems: 'center',
-//                             gap: '0.5rem',
-//                             fontSize: '0.875rem'
-//                           }}
-//                         >
-//                           <Video size={16} /> Record Video
-//                         </button>
-//                       </div>
-//                     )}
-//                   </div>
-                  
-//                   <div style={{ marginBottom: '2rem' }}>
-//                     <h3 style={{ color: 'white', marginBottom: '1rem' }}>⏱️ How many minutes were you outside?</h3>
-//                     <div className="duration-selector">
-//                       {durations.map((mins) => (
-//                         <button
-//                           key={mins}
-//                           className={`duration-option ${duration === mins ? 'selected' : ''}`}
-//                           onClick={() => setDuration(mins)}
-//                         >
-//                           {mins} min
-//                         </button>
-//                       ))}
-//                     </div>
-//                   </div>
-                  
-//                   <div className="action-buttons">
-//                     <button
-//                       onClick={() => submitVerification('photo')}
-//                       disabled={(!photo && !video) || isSubmitting}
-//                       style={{
-//                         padding: '1rem 2rem',
-//                         background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-//                         border: 'none',
-//                         borderRadius: '12px',
-//                         color: 'white',
-//                         fontWeight: 'bold',
-//                         cursor: (!photo && !video) || isSubmitting ? 'not-allowed' : 'pointer',
-//                         fontSize: '1rem',
-//                         opacity: (!photo && !video) || isSubmitting ? 0.5 : 1,
-//                         width: '100%'
-//                       }}
-//                     >
-//                       {isSubmitting ? 'Submitting...' : '🌱 Submit Verification'}
-//                     </button>
-//                   </div>
-//                 </>
-//               ) : (
-//                 <>
-//                   <div className="form-header">
-//                     <h2 className="form-title">Accept Your Digital Shame</h2>
-//                     <p className="form-subtitle">
-//                       You chose to stay indoors. Write a public confession that will be displayed on your profile.
-//                     </p>
-//                   </div>
-                  
-//                   <div className="roast-container">
-//                     <span className="roast-icon">🤖</span>
-//                     <p className="roast-text">
-//                       {roasts[Math.floor(Math.random() * roasts.length)]}
-//                     </p>
-//                   </div>
-                  
-//                   <textarea
-//                     className="shame-input"
-//                     placeholder="I failed to touch grass today because..."
-//                     value={shameMessage}
-//                     onChange={(e) => setShameMessage(e.target.value)}
-//                     maxLength={200}
-//                   />
-                  
-//                   <div style={{ 
-//                     textAlign: 'right', 
-//                     marginBottom: '1.5rem',
-//                     color: 'rgba(255, 255, 255, 0.6)',
-//                     fontSize: '0.875rem'
-//                   }}>
-//                     {shameMessage.length}/200 characters
-//                   </div>
-                  
-//                   <div className="instructions-panel">
-//                     <h3 className="instructions-title">⚠️ Consequences of Shame</h3>
-//                     <ul className="instructions-list">
-//                       <li className="instruction-item">
-//                         <span className="instruction-icon">📉</span>
-//                         Your streak continues but marked with shame
-//                       </li>
-//                       <li className="instruction-item">
-//                         <span className="instruction-icon">👁️</span>
-//                         "Shame Day" badge on your profile for 24h
-//                       </li>
-//                       <li className="instruction-item">
-//                         <span className="instruction-icon">📊</span>
-//                         Ranked below users with verified days
-//                       </li>
-//                     </ul>
-//                   </div>
-                  
-//                   <div className="action-buttons">
-//                     <button
-//                       onClick={() => submitVerification('shame')}
-//                       disabled={shameMessage.length < 10 || isSubmitting}
-//                       style={{
-//                         padding: '1rem 2rem',
-//                         background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-//                         border: 'none',
-//                         borderRadius: '12px',
-//                         color: 'white',
-//                         fontWeight: 'bold',
-//                         cursor: (shameMessage.length < 10 || isSubmitting) ? 'not-allowed' : 'pointer',
-//                         fontSize: '1rem',
-//                         opacity: (shameMessage.length < 10 || isSubmitting) ? 0.5 : 1,
-//                         width: '100%'
-//                       }}
-//                     >
-//                       {isSubmitting ? 'Submitting...' : '😈 Accept Public Shame'}
-//                     </button>
-                    
-//                     <button
-//                       onClick={() => setVerificationMethod('photo')}
-//                       style={{
-//                         padding: '1rem 2rem',
-//                         background: 'rgba(255, 255, 255, 0.05)',
-//                         border: '1px solid rgba(255, 255, 255, 0.1)',
-//                         borderRadius: '12px',
-//                         color: 'white',
-//                         fontWeight: 'bold',
-//                         cursor: 'pointer',
-//                         fontSize: '1rem',
-//                         width: '100%'
-//                       }}
-//                     >
-//                       🌱 Redeem with Photo/Video Instead
-//                     </button>
-//                   </div>
-//                 </>
-//               )}
-              
-//               <div className="time-left">
-//                 <p style={{ margin: 0, color: '#f59e0b', fontWeight: '600' }}>
-//                   ⏰ Time until streak breaks: {streakData.nextCheckpoint}
-//                 </p>
-//               </div>
-//             </div>
-//           )}
-//         </div>
+//     <div className="verify-page">
+//       <style>{styles}</style>
+      
+//       <div className="verify-bg-grid"></div>
+//       <div className="verify-floating-elements">
+//         <div className="verify-float-1"></div>
+//         <div className="verify-float-2"></div>
+//         <div className="verify-float-3"></div>
 //       </div>
 
-//       <div style={{
-//         position: 'fixed',
-//         top: '20px',
-//         right: '20px',
-//         zIndex: 9999,
-//         display: 'flex',
-//         flexDirection: 'column',
-//         gap: '10px'
-//       }}>
-//         {toasts.map((toast) => (
-//           <div
-//             key={toast.id}
-//             style={{
-//               padding: '1rem 1.5rem',
-//               background: toast.type === 'error' ? '#7f1d1d' : 
-//                          toast.type === 'success' ? '#14532d' : 
-//                          toast.type === 'warning' ? '#713f12' : '#1e293b',
-//               border: '1px solid rgba(255, 255, 255, 0.1)',
-//               borderRadius: '8px',
-//               color: 'white',
-//               maxWidth: '300px',
-//               animation: 'fadeIn 0.3s ease'
-//             }}
-//           >
-//             {toast.message}
+//       <div className="verify-container">
+//         {!verificationMethod ? (
+//           <>
+//             <div className="verify-header">
+//               <h1 className="verify-title text-gradient">
+//                 Have You Touched Grass Today?
+//               </h1>
+//               <p className="verify-subtitle">
+//                 Your {streakData.current}-day streak is on the line. 
+//                 Prove your discipline or face the consequences.
+//               </p>
+//             </div>
+            
+//             <div className="verification-options">
+//               <motion.div 
+//                 className="verification-option"
+//                 whileHover={{ scale: 1.02 }}
+//                 whileTap={{ scale: 0.98 }}
+//                 onClick={() => setVerificationMethod('photo')}
+//               >
+//                 <div className="option-content glass option-yes">
+//                   <span className="option-icon">🌱</span>
+//                   <h2 className="option-title">Yes</h2>
+//                   <p className="option-description">
+//                     Upload photo/video proof & continue your streak. Show us you're living in the real world.
+//                   </p>
+//                 </div>
+//               </motion.div>
+              
+//               <motion.div 
+//                 className="verification-option"
+//                 whileHover={{ scale: 1.02 }}
+//                 whileTap={{ scale: 0.98 }}
+//                 onClick={() => setVerificationMethod('shame')}
+//               >
+//                 <div className="option-content glass option-no">
+//                   <span className="option-icon">❌</span>
+//                   <h2 className="option-title">No</h2>
+//                   <p className="option-description">
+//                     Accept public shame & continue streak with a mark. Your ego will hate this.
+//                   </p>
+//                 </div>
+//               </motion.div>
+//             </div>
+            
+//             <div className="streak-stats">
+//               <div className="stat-item glass">
+//                 <h3 className="stat-value">{streakData.current}</h3>
+//                 <p className="stat-label">Current Streak</p>
+//               </div>
+              
+//               <div className="stat-item glass">
+//                 <h3 className="stat-value">{streakData.longest}</h3>
+//                 <p className="stat-label">Longest Streak</p>
+//               </div>
+              
+//               <div className="stat-item glass">
+//                 <h3 className="stat-value">#{streakData.rank}</h3>
+//                 <p className="stat-label">Global Rank</p>
+//               </div>
+              
+//               <div className="stat-item glass">
+//                 <h3 className="stat-value">{streakData.nextCheckpoint}</h3>
+//                 <p className="stat-label">Time Left Today</p>
+//               </div>
+//             </div>
+//           </>
+//         ) : (
+//           <div className="verify-form">
+//             <button 
+//               className="back-button glass"
+//               onClick={() => {
+//                 setVerificationMethod(null);
+//                 setPhoto(null);
+//                 setVideo(null);
+//                 setShowCamera(false);
+//                 setShowVideoRecorder(false);
+//                 setIsDragOver(false);
+//                 cleanupMediaStreams();
+//                 if (recordingTimerRef.current) {
+//                   clearInterval(recordingTimerRef.current);
+//                 }
+//               }}
+//             >
+//               <ArrowLeft size={16} />
+//               Back to choices
+//             </button>
+            
+//             {verificationMethod === 'photo' ? (
+//               <>
+//                 <div className="form-header">
+//                   <h2 className="form-title text-gradient">Prove Your Outdoor Adventure</h2>
+//                   <p className="form-subtitle">
+//                     Upload a photo or video showing grass, nature, or outdoor activity
+//                   </p>
+//                 </div>
+                
+//                 <div className="instructions-panel glass">
+//                   <h3 className="instructions-title">
+//                     <CheckCircle2 size={24} />
+//                     What counts as proof?
+//                   </h3>
+//                   <ul className="instructions-list">
+//                     <li className="instruction-item">
+//                       <span className="instruction-icon">✅</span>
+//                       Photos/videos showing grass, trees, or nature
+//                     </li>
+//                     <li className="instruction-item">
+//                       <span className="instruction-icon">✅</span>
+//                       Outdoor exercise (running, hiking, sports)
+//                     </li>
+//                     <li className="instruction-item">
+//                       <span className="instruction-icon">✅</span>
+//                       Sunlight & sky visible in media
+//                     </li>
+//                     <li className="instruction-item">
+//                       <span className="instruction-icon">❌</span>
+//                       No indoor plants or old media
+//                     </li>
+//                   </ul>
+//                 </div>
+                
+//                 <div className="media-upload-container">
+//                   <div className="upload-options">
+//                     <div 
+//                       className={`upload-option glass ${mediaType === 'photo' ? 'active' : ''}`}
+//                       onClick={() => setMediaType('photo')}
+//                     >
+//                       <span className="upload-option-icon">📸</span>
+//                       <p className="upload-option-text">Upload Photo</p>
+//                     </div>
+                    
+//                     <div 
+//                       className={`upload-option glass ${mediaType === 'video' ? 'active' : ''}`}
+//                       onClick={() => setMediaType('video')}
+//                     >
+//                       <span className="upload-option-icon">🎥</span>
+//                       <p className="upload-option-text">Upload Video</p>
+//                     </div>
+//                   </div>
+                  
+//                   {showCamera ? (
+//                     <div className="camera-container glass">
+//                       <video
+//                         ref={cameraRef}
+//                         className="camera-video"
+//                         autoPlay
+//                         playsInline
+//                       />
+//                       <div className="camera-controls">
+//                         <button
+//                           onClick={capturePhoto}
+//                           className="verify-button button-primary"
+//                         >
+//                           <Camera size={20} />
+//                           Capture Photo
+//                         </button>
+//                         <button
+//                           onClick={() => {
+//                             setShowCamera(false);
+//                             cleanupMediaStreams();
+//                           }}
+//                           className="verify-button button-secondary"
+//                         >
+//                           Cancel
+//                         </button>
+//                       </div>
+//                     </div>
+//                   ) : showVideoRecorder ? (
+//                     <div className="camera-container glass">
+//                       <video
+//                         ref={videoRecorderRef}
+//                         className="camera-video"
+//                         autoPlay
+//                         playsInline
+//                       />
+//                       {recordingTime > 0 && (
+//                         <div className="recording-indicator">
+//                           <div className="recording-dot" />
+//                           Recording: {recordingTime}s
+//                         </div>
+//                       )}
+//                       <div className="camera-controls">
+//                         {mediaRecorderRef.current?.state === 'recording' ? (
+//                           <button
+//                             onClick={stopVideoRecording}
+//                             className="verify-button button-danger"
+//                           >
+//                             ⏹️ Stop Recording
+//                           </button>
+//                         ) : (
+//                           <button
+//                             onClick={startVideoRecording}
+//                             className="verify-button button-primary"
+//                           >
+//                             <Video size={20} />
+//                             Start Recording
+//                           </button>
+//                         )}
+//                         <button
+//                           onClick={() => {
+//                             setShowVideoRecorder(false);
+//                             stopVideoRecording();
+//                           }}
+//                           className="verify-button button-secondary"
+//                         >
+//                           Cancel
+//                         </button>
+//                       </div>
+//                     </div>
+//                   ) : (
+//                     <div 
+//                       ref={dropZoneRef}
+//                       className={`photo-upload-area glass ${photo || video ? 'has-media' : ''} ${isDragOver ? 'drag-over' : ''}`}
+//                       onClick={() => {
+//                         if (mediaType === 'photo' && !photo) {
+//                           fileInputRef.current?.click();
+//                         } else if (mediaType === 'video' && !video) {
+//                           videoFileInputRef.current?.click();
+//                         }
+//                       }}
+//                     >
+//                       {(photo || video) ? (
+//                         <>
+//                           {mediaType === 'photo' && photo ? (
+//                             <>
+//                               <img src={photo} alt="Verification" className="media-preview" />
+//                               <div className="media-actions">
+//                                 <button 
+//                                   className="media-action-button"
+//                                   onClick={(e) => {
+//                                     e.stopPropagation();
+//                                     removeMedia();
+//                                   }}
+//                                 >
+//                                   <X size={20} color="white" />
+//                                 </button>
+//                               </div>
+//                             </>
+//                           ) : video ? (
+//                             <>
+//                               <video 
+//                                 src={video} 
+//                                 className="video-preview" 
+//                                 controls 
+//                                 onClick={(e) => e.stopPropagation()}
+//                               />
+//                               <div className="media-actions">
+//                                 <button 
+//                                   className="media-action-button"
+//                                   onClick={(e) => {
+//                                     e.stopPropagation();
+//                                     removeMedia();
+//                                   }}
+//                                 >
+//                                   <X size={20} color="white" />
+//                                 </button>
+//                               </div>
+//                             </>
+//                           ) : null}
+//                         </>
+//                       ) : (
+//                         <div className="upload-instructions">
+//                           <span className="upload-icon">
+//                             {isDragOver ? '🎯' : mediaType === 'photo' ? '📸' : '🎥'}
+//                           </span>
+//                           <p className="upload-text">
+//                             {isDragOver 
+//                               ? 'Drop your file here!' 
+//                               : mediaType === 'photo' 
+//                                 ? 'Click to upload photo' 
+//                                 : 'Click to upload video'}
+//                           </p>
+//                           <p className="upload-subtext">
+//                             {mediaType === 'photo'
+//                               ? 'or drag and drop your photo here'
+//                               : 'or drag and drop your video here'}
+//                           </p>
+//                           <div className="drag-drop-instruction">
+//                             <FileUp size={14} />
+//                             Supports {mediaType === 'photo' ? 'JPG, PNG, GIF' : 'MP4, MOV, AVI'} • Max {mediaType === 'photo' ? '10MB' : '50MB'}
+//                           </div>
+//                         </div>
+//                       )}
+//                     </div>
+//                   )}
+                  
+//                   {isUploading && (
+//                     <div className="upload-progress">
+//                       <div className="progress-bar">
+//                         <div 
+//                           className="progress-fill" 
+//                           style={{ width: `${uploadProgress}%` }}
+//                         />
+//                       </div>
+//                       <p className="progress-text">
+//                         Uploading... {uploadProgress}%
+//                       </p>
+//                     </div>
+//                   )}
+                  
+//                   <input
+//                     ref={fileInputRef}
+//                     type="file"
+//                     accept="image/*"
+//                     onChange={(e) => handleFileUpload(e, 'photo')}
+//                     style={{ display: 'none' }}
+//                   />
+                  
+//                   <input
+//                     ref={videoFileInputRef}
+//                     type="file"
+//                     accept="video/*"
+//                     onChange={(e) => handleFileUpload(e, 'video')}
+//                     style={{ display: 'none' }}
+//                   />
+                  
+//                   {!showCamera && !showVideoRecorder && (
+//                     <div style={{ 
+//                       display: 'flex', 
+//                       gap: '1rem', 
+//                       marginTop: '1rem',
+//                       justifyContent: 'center',
+//                       flexWrap: 'wrap'
+//                     }}>
+//                       <button
+//                         onClick={() => startCamera('photo')}
+//                         className="verify-button button-secondary"
+//                         style={{ flex: 'none' }}
+//                       >
+//                         <Camera size={16} /> Take Photo
+//                       </button>
+                      
+//                       <button
+//                         onClick={() => startCamera('video')}
+//                         className="verify-button button-secondary"
+//                         style={{ flex: 'none' }}
+//                       >
+//                         <Video size={16} /> Record Video
+//                       </button>
+//                     </div>
+//                   )}
+//                 </div>
+                
+//                 <div style={{ marginBottom: '2rem' }}>
+//                   <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.25rem' }}>
+//                     ⏱️ How many minutes were you outside?
+//                   </h3>
+//                   <div className="duration-selector">
+//                     {durations.map((mins) => (
+//                       <button
+//                         key={mins}
+//                         className={`duration-option glass ${duration === mins ? 'selected' : ''}`}
+//                         onClick={() => setDuration(mins)}
+//                       >
+//                         {mins} min
+//                       </button>
+//                     ))}
+//                   </div>
+//                 </div>
+                
+//                 <div className="action-buttons">
+//                   <button
+//                     onClick={() => submitVerification('photo')}
+//                     disabled={(!photo && !video) || isSubmitting}
+//                     className="verify-button button-primary"
+//                   >
+//                     {isSubmitting ? (
+//                       <>
+//                         <Loader2 size={20} className="animate-spin" />
+//                         Submitting...
+//                       </>
+//                     ) : (
+//                       '🌱 Submit Verification'
+//                     )}
+//                   </button>
+//                 </div>
+//               </>
+//             ) : (
+//               <>
+//                 <div className="form-header">
+//                   <h2 className="form-title text-gradient">Accept Your Digital Shame</h2>
+//                   <p className="form-subtitle">
+//                     You chose to stay indoors. Write a public confession that will be displayed on your profile.
+//                   </p>
+//                 </div>
+                
+//                 <div className="roast-container glass">
+//                   <span className="roast-icon">🤖</span>
+//                   <p className="roast-text">
+//                     {roasts[Math.floor(Math.random() * roasts.length)]}
+//                   </p>
+//                 </div>
+                
+//                 <textarea
+//                   className="shame-input glass"
+//                   placeholder="I failed to touch grass today because..."
+//                   value={shameMessage}
+//                   onChange={(e) => setShameMessage(e.target.value)}
+//                   maxLength={200}
+//                 />
+                
+//                 <div style={{ 
+//                   textAlign: 'right', 
+//                   marginBottom: '1.5rem',
+//                   color: '#71717a',
+//                   fontSize: '0.875rem'
+//                 }}>
+//                   {shameMessage.length}/200 characters
+//                 </div>
+                
+//                 <div className="instructions-panel glass">
+//                   <h3 className="instructions-title">
+//                     <AlertCircle size={24} />
+//                     Consequences of Shame
+//                   </h3>
+//                   <ul className="instructions-list">
+//                     <li className="instruction-item">
+//                       <span className="instruction-icon">📉</span>
+//                       Your streak continues but marked with shame
+//                     </li>
+//                     <li className="instruction-item">
+//                       <span className="instruction-icon">👁️</span>
+//                       "Shame Day" badge on your profile for 24h
+//                     </li>
+//                     <li className="instruction-item">
+//                       <span className="instruction-icon">📊</span>
+//                       Ranked below users with verified days
+//                     </li>
+//                   </ul>
+//                 </div>
+                
+//                 <div className="action-buttons">
+//                   <button
+//                     onClick={() => submitVerification('shame')}
+//                     disabled={shameMessage.length < 10 || isSubmitting}
+//                     className="verify-button button-danger"
+//                   >
+//                     {isSubmitting ? (
+//                       <>
+//                         <Loader2 size={20} className="animate-spin" />
+//                         Submitting...
+//                       </>
+//                     ) : (
+//                       '😈 Accept Public Shame'
+//                     )}
+//                   </button>
+                  
+//                   <button
+//                     onClick={() => setVerificationMethod('photo')}
+//                     className="verify-button button-secondary"
+//                   >
+//                     🌱 Redeem with Photo/Video Instead
+//                   </button>
+//                 </div>
+//               </>
+//             )}
+            
+//             <div className="time-left glass">
+//               <p className="time-left-text">
+//                 ⏰ Time until streak breaks: {streakData.nextCheckpoint}
+//               </p>
+//             </div>
 //           </div>
-//         ))}
+//         )}
 //       </div>
-//     </>
+      
+//       {showSuccess && (
+//         <motion.div 
+//           initial={{ opacity: 0 }}
+//           animate={{ opacity: 1 }}
+//           className="fixed inset-0 flex items-center justify-center z-50"
+//           style={{ background: 'rgba(0, 0, 0, 0.8)' }}
+//         >
+//           <motion.div
+//             initial={{ scale: 0.5 }}
+//             animate={{ scale: 1 }}
+//             className="p-8 rounded-3xl glass text-center"
+//             style={{ maxWidth: '400px' }}
+//           >
+//             <div className="text-6xl mb-4">🎉</div>
+//             <h3 className="text-2xl font-bold mb-2">Verification Complete!</h3>
+//             <p className="text-gray-400">Redirecting to dashboard...</p>
+//           </motion.div>
+//         </motion.div>
+//       )}
+//     </div>
 //   );
 // };
 
@@ -1647,7 +3163,17 @@ import {
   Image as ImageIcon,
   Mic,
   Zap,
-  Loader2
+  Loader2,
+  MapPin,
+  Activity,
+  Timer,
+  MessageCircle,
+  Hash,
+  Sparkles,
+  Heart,
+  MessageSquare,
+  Share2,
+  Bookmark
 } from 'lucide-react';
 
 const Verify = () => {
@@ -1657,6 +3183,9 @@ const Verify = () => {
   const [video, setVideo] = useState(null);
   const [shameMessage, setShameMessage] = useState('');
   const [duration, setDuration] = useState(15);
+  const [activityType, setActivityType] = useState('walk');
+  const [caption, setCaption] = useState('');
+  const [location, setLocation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [streakData, setStreakData] = useState({
     current: 0,
@@ -1673,6 +3202,8 @@ const Verify = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [showActivitySelector, setShowActivitySelector] = useState(false);
+  const [isPostedToWall, setIsPostedToWall] = useState(false);
   
   const cameraRef = useRef(null);
   const videoRecorderRef = useRef(null);
@@ -1693,6 +3224,26 @@ const Verify = () => {
     "You've evolved from human to houseplant. At least they photosynthesize."
   ];
 
+  // Activity types with Instagram-style emojis
+  const activityTypes = [
+    { value: 'walk', label: 'Walk', emoji: '🚶', color: '#3b82f6', description: 'Casual walking outdoors' },
+    { value: 'run', label: 'Run', emoji: '🏃', color: '#ef4444', description: 'Running or jogging' },
+    { value: 'hike', label: 'Hike', emoji: '🥾', color: '#22c55e', description: 'Hiking in nature' },
+    { value: 'sports', label: 'Sports', emoji: '⚽', color: '#f59e0b', description: 'Sports activities' },
+    { value: 'gardening', label: 'Gardening', emoji: '🌱', color: '#10b981', description: 'Gardening work' },
+    { value: 'picnic', label: 'Picnic', emoji: '🧺', color: '#f97316', description: 'Outdoor picnic' },
+    { value: 'meditation', label: 'Meditation', emoji: '🧘', color: '#8b5cf6', description: 'Outdoor meditation' },
+    { value: 'reading', label: 'Reading', emoji: '📚', color: '#6366f1', description: 'Reading outside' },
+    { value: 'cycling', label: 'Cycling', emoji: '🚴', color: '#ec4899', description: 'Bicycle riding' },
+    { value: 'swimming', label: 'Swimming', emoji: '🏊', color: '#06b6d4', description: 'Swimming outdoors' },
+    { value: 'yoga', label: 'Yoga', emoji: '🧘‍♀️', color: '#8b5cf6', description: 'Outdoor yoga' },
+    { value: 'fishing', label: 'Fishing', emoji: '🎣', color: '#3b82f6', description: 'Fishing activity' },
+    { value: 'camping', label: 'Camping', emoji: '🏕️', color: '#ea580c', description: 'Camping outdoors' },
+    { value: 'photography', label: 'Photography', emoji: '📷', color: '#8b5cf6', description: 'Nature photography' },
+    { value: 'other', label: 'Other', emoji: '✨', color: '#64748b', description: 'Other outdoor activity' }
+  ];
+
+  // Load user data
   useEffect(() => {
     loadUserData();
     loadStreakData();
@@ -1710,35 +3261,27 @@ const Verify = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (showSuccess) {
-      const timer = setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSuccess, navigate]);
-
   const loadUserData = () => {
     try {
       const storedUser = localStorage.getItem('touchgrass_user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         setUserData(user);
-      } else {
-        toast.error('Please login to verify');
-        navigate('/dashboard');
+        return user;
       }
+      return null;
     } catch (error) {
       console.error('Error loading user data:', error);
+      return null;
     }
   };
 
   const loadStreakData = () => {
     try {
-      if (!userData) return;
+      const user = loadUserData();
+      if (!user) return;
       
-      const streakKey = `touchgrass_streak_${userData.username}`;
+      const streakKey = `touchgrass_streak_${user.username}`;
       const storedStreak = localStorage.getItem(streakKey);
       
       if (storedStreak) {
@@ -1769,6 +3312,7 @@ const Verify = () => {
     setStreakData(prev => ({ ...prev, nextCheckpoint: timeString }));
   };
 
+  // Setup drag and drop
   const setupDragAndDrop = () => {
     const dropZone = dropZoneRef.current;
     if (!dropZone) return;
@@ -1987,6 +3531,90 @@ const Verify = () => {
     cleanupMediaStreams();
   };
 
+  // CRITICAL FUNCTION: AUTO-POST TO VERIFICATION WALL
+  const autoPostToVerificationWall = (verificationData) => {
+    try {
+      // Get user data
+      const user = JSON.parse(localStorage.getItem('touchgrass_user') || '{}');
+      if (!user || !user.username) {
+        console.error('No user found for verification wall post');
+        return null;
+      }
+
+      // Get current streak data
+      const streakKey = `touchgrass_streak_${user.username}`;
+      const streak = JSON.parse(localStorage.getItem(streakKey) || '{}');
+      
+      // Get activity info
+      const selectedActivity = activityTypes.find(a => a.value === verificationData.activityType) || activityTypes[activityTypes.length - 1];
+      
+      // Generate unique post ID
+      const postId = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create Instagram-style post object
+      const newPost = {
+        id: postId,
+        userId: user.username,
+        displayName: user.displayName || user.username,
+        avatar: user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+        photoUrl: verificationData.photo || verificationData.video || '',
+        activityType: verificationData.activityType || 'other',
+        activityEmoji: selectedActivity.emoji,
+        activityLabel: selectedActivity.label,
+        activityColor: selectedActivity.color,
+        duration: verificationData.duration || 15,
+        caption: verificationData.caption || `${selectedActivity.emoji} Day ${streak.currentStreak || 1} streak! ${selectedActivity.description}`,
+        location: verificationData.location || 'Outdoors',
+        likes: 0,
+        likeCount: 0,
+        comments: [],
+        commentCount: 0,
+        reports: 0,
+        reportCount: 0,
+        verified: true,
+        createdAt: new Date().toISOString(),
+        likedBy: [],
+        streak: streak.currentStreak || 0,
+        // Instagram-like engagement features
+        isLiked: false,
+        isBookmarked: false,
+        hasComments: false,
+        shareCount: 0,
+        viewCount: Math.floor(Math.random() * 1000) + 100,
+        // For instant Instagram-like UI
+        showComments: false,
+        showLikes: false,
+        isVerified: true,
+        verificationBadge: true
+      };
+      
+      // Get existing posts from localStorage
+      const existingPosts = JSON.parse(localStorage.getItem('touchgrass_verification_posts') || '[]');
+      
+      // Add new post to the beginning (most recent first)
+      const updatedPosts = [newPost, ...existingPosts];
+      
+      // Save updated posts to localStorage
+      localStorage.setItem('touchgrass_verification_posts', JSON.stringify(updatedPosts));
+      
+      console.log('✅ Auto-posted to verification wall:', newPost);
+      
+      // Dispatch event for real-time updates
+      window.dispatchEvent(new CustomEvent('verification-wall-updated', {
+        detail: { posts: updatedPosts }
+      }));
+      
+      // Store the posted ID for immediate access
+      localStorage.setItem('last_posted_id', postId);
+      
+      return newPost;
+    } catch (error) {
+      console.error('❌ Error auto-posting to verification wall:', error);
+      return null;
+    }
+  };
+
+  // MAIN VERIFICATION SUBMISSION
   const submitVerification = async (method) => {
     if (method === 'photo' && !photo && !video) {
       toast.error('Please upload a photo or video first');
@@ -2003,9 +3631,16 @@ const Verify = () => {
     setTimeout(() => {
       try {
         const user = JSON.parse(localStorage.getItem('touchgrass_user') || '{}');
+        if (!user.username) {
+          toast.error('Please login first');
+          setIsSubmitting(false);
+          return;
+        }
+        
         const streakKey = `touchgrass_streak_${user.username}`;
         const currentStreak = JSON.parse(localStorage.getItem(streakKey) || '{}');
         
+        // Update streak data
         const updatedStreak = {
           ...currentStreak,
           currentStreak: (currentStreak.currentStreak || 0) + 1,
@@ -2031,13 +3666,44 @@ const Verify = () => {
         
         localStorage.setItem(streakKey, JSON.stringify(updatedStreak));
         
+        // AUTO-POST TO VERIFICATION WALL FOR PHOTO VERIFICATIONS
+        if (method === 'photo' && (photo || video)) {
+          const postData = {
+            photo: photo,
+            video: video,
+            activityType: activityType,
+            duration: duration,
+            caption: caption || `${activityTypes.find(a => a.value === activityType)?.emoji} Day ${updatedStreak.currentStreak} streak!`,
+            location: location || 'Outdoors'
+          };
+          
+          const posted = autoPostToVerificationWall(postData);
+          
+          if (posted) {
+            setIsPostedToWall(true);
+            toast.success('📸 Posted to Verification Wall!', {
+              icon: '✅',
+              duration: 3000,
+              style: {
+                background: '#10b981',
+                color: 'white',
+                fontWeight: 'bold'
+              }
+            });
+          }
+        }
+        
         setIsSubmitting(false);
         setShowSuccess(true);
         
         if (method === 'photo') {
-          toast.success('🌱 Success! Your streak continues to grow');
+          toast.success(`🌱 Success! Day ${updatedStreak.currentStreak} verified`, {
+            duration: 2000
+          });
         } else {
-          toast.success('😈 Shame accepted. Your streak continues...');
+          toast.success('😈 Shame accepted. Your streak continues...', {
+            duration: 2000
+          });
         }
         
       } catch (error) {
@@ -2056,6 +3722,29 @@ const Verify = () => {
     }
     setMediaType('photo');
   };
+
+  const getActivityInfo = (type) => {
+    return activityTypes.find(a => a.value === type) || activityTypes[activityTypes.length - 1];
+  };
+
+  // Return to dashboard or verification wall
+  const handleSuccessNavigation = () => {
+    if (verificationMethod === 'photo' && isPostedToWall) {
+      navigate('/verification-wall'); // Go directly to see the post
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  // Effect for success navigation
+  useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => {
+        handleSuccessNavigation();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess, verificationMethod, isPostedToWall, navigate]);
 
   const styles = `
     .verify-page {
@@ -2543,6 +4232,143 @@ const Verify = () => {
       color: white;
     }
 
+    .activity-selector {
+      margin-bottom: 2rem;
+    }
+
+    .activity-preview {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .activity-preview:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .activity-emoji {
+      font-size: 1.5rem;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .activity-info {
+      flex: 1;
+    }
+
+    .activity-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .activity-description {
+      font-size: 0.875rem;
+      color: #a1a1aa;
+    }
+
+    .activity-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .activity-modal-content {
+      width: 100%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.95);
+      position: relative;
+      padding: 2rem;
+    }
+
+    .activity-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .activity-option {
+      padding: 1.5rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .activity-option:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .activity-option.selected {
+      border-color: rgba(0, 229, 255, 0.3);
+      background: rgba(0, 229, 255, 0.2);
+    }
+
+    .activity-option-emoji {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .activity-option-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .activity-option-desc {
+      font-size: 0.75rem;
+      color: #a1a1aa;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      font-family: inherit;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #00E5FF;
+      background: rgba(0, 229, 255, 0.05);
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+      color: #a1a1aa;
+      font-weight: 500;
+    }
+
     .shame-input {
       width: 100%;
       min-height: 150px;
@@ -2731,33 +4557,122 @@ const Verify = () => {
       font-size: 1rem;
     }
 
+    /* Instagram-style verification wall post preview */
+    .wall-post-preview {
+      margin: 2rem 0;
+      border-radius: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .wall-preview-header {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      gap: 0.75rem;
+    }
+
+    .wall-preview-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .wall-preview-user {
+      flex: 1;
+    }
+
+    .wall-preview-name {
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .wall-preview-time {
+      font-size: 0.75rem;
+      color: #71717a;
+    }
+
+    .wall-preview-media {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+    }
+
+    .wall-preview-caption {
+      padding: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    .wall-preview-stats {
+      padding: 0 1rem 1rem;
+      font-size: 0.75rem;
+      color: #71717a;
+      display: flex;
+      gap: 1rem;
+    }
+
+    /* Responsive styles */
     @media (max-width: 768px) {
       .verify-container {
         padding: 4rem 1rem 2rem;
       }
-      
+
       .verify-title {
         font-size: 2.5rem;
       }
-      
+
+      .verify-subtitle {
+        font-size: 1rem;
+      }
+
       .verification-options {
         grid-template-columns: 1fr;
+        gap: 1.5rem;
       }
-      
-      .upload-options {
-        grid-template-columns: 1fr;
+
+      .option-content {
+        padding: 2rem;
       }
-      
+
+      .option-icon {
+        font-size: 3rem;
+      }
+
+      .option-title {
+        font-size: 1.5rem;
+      }
+
+      .activity-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+
       .action-buttons {
         flex-direction: column;
       }
-      
-      .camera-container {
-        height: 300px;
+    }
+
+    @media (max-width: 480px) {
+      .verify-title {
+        font-size: 2rem;
       }
-      
-      .streak-stats {
+
+      .verify-subtitle {
+        font-size: 0.875rem;
+      }
+
+      .option-content {
+        padding: 1.5rem;
+      }
+
+      .activity-grid {
         grid-template-columns: repeat(2, 1fr);
+      }
+
+      .form-title {
+        font-size: 1.5rem;
       }
     }
   `;
@@ -2766,6 +4681,7 @@ const Verify = () => {
     <div className="verify-page">
       <style>{styles}</style>
       
+      {/* Background Effects */}
       <div className="verify-bg-grid"></div>
       <div className="verify-floating-elements">
         <div className="verify-float-1"></div>
@@ -2776,6 +4692,7 @@ const Verify = () => {
       <div className="verify-container">
         {!verificationMethod ? (
           <>
+            {/* Initial Verification Choice */}
             <div className="verify-header">
               <h1 className="verify-title text-gradient">
                 Have You Touched Grass Today?
@@ -2799,6 +4716,9 @@ const Verify = () => {
                   <p className="option-description">
                     Upload photo/video proof & continue your streak. Show us you're living in the real world.
                   </p>
+                  <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#22c55e' }}>
+                    📸 Automatically posts to Verification Wall
+                  </p>
                 </div>
               </motion.div>
               
@@ -2813,6 +4733,9 @@ const Verify = () => {
                   <h2 className="option-title">No</h2>
                   <p className="option-description">
                     Accept public shame & continue streak with a mark. Your ego will hate this.
+                  </p>
+                  <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#ef4444' }}>
+                    😈 Public confession on your profile
                   </p>
                 </div>
               </motion.div>
@@ -2842,6 +4765,7 @@ const Verify = () => {
           </>
         ) : (
           <div className="verify-form">
+            {/* Back Button */}
             <button 
               className="back-button glass"
               onClick={() => {
@@ -2863,10 +4787,14 @@ const Verify = () => {
             
             {verificationMethod === 'photo' ? (
               <>
+                {/* Photo Verification Form */}
                 <div className="form-header">
                   <h2 className="form-title text-gradient">Prove Your Outdoor Adventure</h2>
                   <p className="form-subtitle">
                     Upload a photo or video showing grass, nature, or outdoor activity
+                  </p>
+                  <p style={{ color: '#00E5FF', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                    📸 This will be automatically posted to the public Verification Wall
                   </p>
                 </div>
                 
@@ -2895,6 +4823,7 @@ const Verify = () => {
                   </ul>
                 </div>
                 
+                {/* Media Upload Section */}
                 <div className="media-upload-container">
                   <div className="upload-options">
                     <div 
@@ -2914,6 +4843,7 @@ const Verify = () => {
                     </div>
                   </div>
                   
+                  {/* Camera Views */}
                   {showCamera ? (
                     <div className="camera-container glass">
                       <video
@@ -3060,6 +4990,7 @@ const Verify = () => {
                     </div>
                   )}
                   
+                  {/* Upload Progress */}
                   {isUploading && (
                     <div className="upload-progress">
                       <div className="progress-bar">
@@ -3074,6 +5005,7 @@ const Verify = () => {
                     </div>
                   )}
                   
+                  {/* Hidden File Inputs */}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -3090,6 +5022,7 @@ const Verify = () => {
                     style={{ display: 'none' }}
                   />
                   
+                  {/* Camera Buttons */}
                   {!showCamera && !showVideoRecorder && (
                     <div style={{ 
                       display: 'flex', 
@@ -3117,10 +5050,35 @@ const Verify = () => {
                   )}
                 </div>
                 
+                {/* Activity Type Selector */}
+                <div className="activity-selector">
+                  <div className="form-label">
+                    <Activity size={16} style={{ marginRight: '0.5rem' }} />
+                    Activity Type
+                  </div>
+                  <div 
+                    className="activity-preview glass"
+                    onClick={() => setShowActivitySelector(true)}
+                  >
+                    <div 
+                      className="activity-emoji"
+                      style={{ background: `${getActivityInfo(activityType).color}20` }}
+                    >
+                      {getActivityInfo(activityType).emoji}
+                    </div>
+                    <div className="activity-info">
+                      <div className="activity-name">{getActivityInfo(activityType).label}</div>
+                      <div className="activity-description">{getActivityInfo(activityType).description}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Duration Selector */}
                 <div style={{ marginBottom: '2rem' }}>
-                  <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.25rem' }}>
-                    ⏱️ How many minutes were you outside?
-                  </h3>
+                  <div className="form-label">
+                    <Timer size={16} style={{ marginRight: '0.5rem' }} />
+                    How many minutes were you outside?
+                  </div>
                   <div className="duration-selector">
                     {durations.map((mins) => (
                       <button
@@ -3134,6 +5092,78 @@ const Verify = () => {
                   </div>
                 </div>
                 
+                {/* Caption Input */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <div className="form-label">
+                    <MessageCircle size={16} style={{ marginRight: '0.5rem' }} />
+                    Caption (optional)
+                  </div>
+                  <textarea
+                    className="form-input"
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    placeholder="Describe your outdoor activity..."
+                    rows="3"
+                    maxLength="300"
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#71717a', textAlign: 'right', marginTop: '0.25rem' }}>
+                    {caption.length}/300 characters
+                  </div>
+                </div>
+                
+                {/* Location Input */}
+                <div style={{ marginBottom: '2rem' }}>
+                  <div className="form-label">
+                    <MapPin size={16} style={{ marginRight: '0.5rem' }} />
+                    Location (optional)
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Where did you do this activity?"
+                  />
+                </div>
+                
+                {/* Post Preview */}
+                {(photo || video) && (
+                  <div className="wall-post-preview glass">
+                    <p style={{ 
+                      padding: '1rem', 
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                      fontSize: '0.875rem',
+                      color: '#a1a1aa'
+                    }}>
+                      📸 This is how your post will appear on the Verification Wall:
+                    </p>
+                    <div className="wall-preview-header">
+                      <img 
+                        src={userData?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData?.username || 'user'}`} 
+                        alt="Avatar" 
+                        className="wall-preview-avatar"
+                      />
+                      <div className="wall-preview-user">
+                        <div className="wall-preview-name">{userData?.displayName || userData?.username || 'User'}</div>
+                        <div className="wall-preview-time">Just now • {getActivityInfo(activityType).label}</div>
+                      </div>
+                    </div>
+                    {mediaType === 'photo' ? (
+                      <img src={photo} alt="Preview" className="wall-preview-media" />
+                    ) : (
+                      <video src={video} className="wall-preview-media" controls />
+                    )}
+                    <div className="wall-preview-caption">
+                      {caption || `${getActivityInfo(activityType).emoji} Day ${streakData.current + 1} streak! ${getActivityInfo(activityType).description}`}
+                    </div>
+                    <div className="wall-preview-stats">
+                      <span>❤️ 0 likes</span>
+                      <span>💬 0 comments</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Submit Button */}
                 <div className="action-buttons">
                   <button
                     onClick={() => submitVerification('photo')}
@@ -3146,13 +5176,14 @@ const Verify = () => {
                         Submitting...
                       </>
                     ) : (
-                      '🌱 Submit Verification'
+                      '🌱 Submit Verification & Post to Wall'
                     )}
                   </button>
                 </div>
               </>
             ) : (
               <>
+                {/* Shame Verification Form */}
                 <div className="form-header">
                   <h2 className="form-title text-gradient">Accept Your Digital Shame</h2>
                   <p className="form-subtitle">
@@ -3202,6 +5233,10 @@ const Verify = () => {
                       <span className="instruction-icon">📊</span>
                       Ranked below users with verified days
                     </li>
+                    <li className="instruction-item">
+                      <span className="instruction-icon">🚫</span>
+                      No post on verification wall
+                    </li>
                   </ul>
                 </div>
                 
@@ -3231,6 +5266,7 @@ const Verify = () => {
               </>
             )}
             
+            {/* Time Left Counter */}
             <div className="time-left glass">
               <p className="time-left-text">
                 ⏰ Time until streak breaks: {streakData.nextCheckpoint}
@@ -3240,22 +5276,125 @@ const Verify = () => {
         )}
       </div>
       
+      {/* Activity Type Modal */}
+      {showActivitySelector && (
+        <div className="activity-modal">
+          <motion.div 
+            className="activity-modal-content glass"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+          >
+            <button 
+              onClick={() => setShowActivitySelector(false)}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '0.75rem',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              ✕
+            </button>
+            
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '900', marginBottom: '0.5rem' }}>
+              Select Activity Type
+            </h2>
+            <p style={{ color: '#a1a1aa', marginBottom: '1.5rem' }}>
+              Choose the type of outdoor activity you did
+            </p>
+            
+            <div className="activity-grid">
+              {activityTypes.map((activity) => (
+                <div
+                  key={activity.value}
+                  className={`activity-option glass ${activityType === activity.value ? 'selected' : ''}`}
+                  onClick={() => {
+                    setActivityType(activity.value);
+                    setShowActivitySelector(false);
+                  }}
+                  style={{
+                    borderColor: activityType === activity.value ? activity.color : undefined,
+                    background: activityType === activity.value ? `${activity.color}20` : undefined
+                  }}
+                >
+                  <div className="activity-option-emoji">{activity.emoji}</div>
+                  <div className="activity-option-name">{activity.label}</div>
+                  <div className="activity-option-desc">{activity.description}</div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      )}
+      
+      {/* Success Modal */}
       {showSuccess && (
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ background: 'rgba(0, 0, 0, 0.8)' }}
+          className="activity-modal"
         >
           <motion.div
             initial={{ scale: 0.5 }}
             animate={{ scale: 1 }}
-            className="p-8 rounded-3xl glass text-center"
+            className="activity-modal-content glass text-center"
             style={{ maxWidth: '400px' }}
           >
-            <div className="text-6xl mb-4">🎉</div>
-            <h3 className="text-2xl font-bold mb-2">Verification Complete!</h3>
-            <p className="text-gray-400">Redirecting to dashboard...</p>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '900', marginBottom: '0.5rem' }}>
+              Verification Complete!
+            </h3>
+            <p style={{ color: '#a1a1aa', marginBottom: '2rem' }}>
+              {verificationMethod === 'photo' 
+                ? 'Your verification has been posted to the Verification Wall!' 
+                : 'Your shame confession has been recorded.'}
+            </p>
+            
+            {verificationMethod === 'photo' && (
+              <button
+                onClick={() => navigate('/verification-wall')}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#00E5FF',
+                  color: 'black',
+                  border: 'none',
+                  borderRadius: '0.75rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  width: '100%',
+                  marginBottom: '1rem'
+                }}
+              >
+                View Verification Wall →
+              </button>
+            )}
+            
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'rgba(255, 255, 255, 0.1)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '0.75rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              Back to Dashboard
+            </button>
           </motion.div>
         </motion.div>
       )}

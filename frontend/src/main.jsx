@@ -1,12 +1,14 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { RecoilRoot } from 'recoil';
+import { ThemeProvider } from './contexts/ThemeContext';
 import App from './App';
+import './styles/themes.css';
 // import './global.css';
 
 // Initialize theme before render
 const savedTheme = localStorage.getItem('theme') || 'dark';
-document.documentElement.setAttribute('data-theme', savedTheme);
+document.body.className = `theme-${savedTheme}`;
 
 // Global error handling
 window.addEventListener('error', (event) => {
@@ -36,7 +38,9 @@ const root = createRoot(container);
 root.render(
   <React.StrictMode>
     <RecoilRoot>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </RecoilRoot>
   </React.StrictMode>
 );

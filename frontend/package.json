@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@entrext/support-client": "^0.2.0",
     "@react-oauth/google": "^0.13.4",
     "@stripe/react-stripe-js": "^2.3.0",
     "@stripe/stripe-js": "^2.0.0",

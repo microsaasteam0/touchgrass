@@ -197,18 +197,63 @@ export const ChatProvider = ({ children }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  const API_BASE_URL = 'http://localhost:5001/api';
+  // Add a flag to control API usage
+  const USE_API = false; // Set to false to use localStorage only for now
+
+  const getAuthToken = () => {
+    // Try multiple possible token locations
+    const tokens = [
+      localStorage.getItem('touchgrass_token'),
+      localStorage.getItem('supabase.auth.token'),
+      localStorage.getItem('sb-auth-token')
+    ];
+    
+    // Get the first non-null token
+    const token = tokens.find(t => t !== null && t !== 'undefined');
+    
+    if (token) {
+      try {
+        // If it's a JSON string (like Supabase stores), parse it
+        const parsed = JSON.parse(token);
+        return parsed.access_token || token;
+      } catch {
+        return token;
+      }
+    }
+    
+    return null;
+  };
 
   const loadChats = async () => {
-    try {
-      const token = localStorage.getItem('touchgrass_token');
-
-      if (!token) {
-        console.log('No token found for chat');
-        return { messages: [] };
+    // If API is disabled or no token, use localStorage
+    if (!USE_API || !getAuthToken()) {
+      console.log('Using mock/offline chat data');
+      const storedData = localStorage.getItem('touchgrass_chats');
+      if (storedData) {
+        try {
+          return { messages: JSON.parse(storedData) };
+        } catch (e) {
+          console.warn('Failed to parse stored chats:', e);
+        }
       }
+      
+      // Return default mock data
+      return {
+        messages: [
+          {
+            id: '1',
+            sender: 'system',
+            message: 'Welcome to TouchGrass! Start a conversation.',
+            timestamp: new Date().toISOString(),
+            read: true
+          }
+        ]
+      };
+    }
 
-      const response = await fetch(`${API_BASE_URL}/chat/messages`, {
+    try {
+      const token = getAuthToken();
+      const response = await fetch('http://localhost:5001/api/chat/messages', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -216,76 +261,52 @@ export const ChatProvider = ({ children }) => {
       });
 
       if (response.ok) {
-        return await response.json();
+        const data = await response.json();
+        // Store in localStorage for offline use
+        localStorage.setItem('touchgrass_chats', JSON.stringify(data.messages || []));
+        return data;
       }
 
-      console.error('Failed to load chats:', response.status);
+      console.log('API failed, using local data');
+      // Fallback to localStorage
+      const storedData = localStorage.getItem('touchgrass_chats');
+      if (storedData) {
+        return { messages: JSON.parse(storedData) };
+      }
+      
       return { messages: [] };
     } catch (error) {
-      console.error('Chat error:', error.message);
+      console.warn('Chat API error, using local data:', error.message);
+      const storedData = localStorage.getItem('touchgrass_chats');
+      if (storedData) {
+        return { messages: JSON.parse(storedData) };
+      }
       return { messages: [] };
     }
   };
 
   const loadOnlineUsers = async () => {
-    try {
-      const token = localStorage.getItem('touchgrass_token');
-      
-      if (!token || token.startsWith('mock_')) {
-        console.log('Using mock online users (mock token)');
-        return {
-          onlineUsers: [
-            {
-              id: 'mock1',
-              username: 'demo_user',
-              displayName: 'Demo User',
-              avatar: '',
-              streak: 5
-            }
-          ]
-        };
+    // Always use mock for now since we don't have real online users
+    const mockUsers = [
+      {
+        id: 'mock1',
+        username: 'demo_user',
+        displayName: 'Demo User',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo',
+        streak: 5,
+        isOnline: true
+      },
+      {
+        id: 'mock2',
+        username: 'streak_master',
+        displayName: 'Streak Master',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=streak',
+        streak: 12,
+        isOnline: true
       }
-
-      // const response = await fetch(`${API_BASE_URL}/chat/online-users`, {
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //     'Content-Type': 'application/json'
-      //   }
-      // });
-       
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.log('Online users endpoint returned HTML, using mock');
-        return {
-          onlineUsers: [
-            {
-              id: 'mock1',
-              username: 'user1',
-              displayName: 'User One',
-              avatar: '',
-              streak: 3
-            },
-            {
-              id: 'mock2',
-              username: 'user2',
-              displayName: 'User Two',
-              avatar: '',
-              streak: 7
-            }
-          ]
-        };
-      }
-
-      if (response.ok) {
-        return await response.json();
-      }
-      
-      return { onlineUsers: [] };
-    } catch (error) {
-      console.warn('Online users error:', error.message);
-      return { onlineUsers: [] };
-    }
+    ];
+    
+    return { onlineUsers: mockUsers };
   };
 
   useEffect(() => {
