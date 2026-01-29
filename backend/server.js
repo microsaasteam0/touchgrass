@@ -76,20 +76,10 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-  
-  res.json({
-    service: 'TouchGrass Backend API',
-    status: 'running',
-    version: '1.0.0',
-    database: dbStatus,
-    url: 'https://touchgrass-11.onrender.com',
-    endpoints: ['/api/health', '/api/auth/register', '/api/auth/login'],
-    timestamp: new Date().toISOString()
-  });
+  res.json({ status: 'Backend is running', timestamp: new Date() });
 });
 // Render health check (required!)
-app.get('/healthz', (req, res) => {
+('/healthz', (req, res) => {
   res.status(200).json({ 
     status: 'ok',
     timestamp: new Date().toISOString() 
