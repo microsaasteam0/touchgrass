@@ -1,15 +1,13 @@
-# TODO: Update Profile Modal Upload Function
+# TODO
 
-## Tasks Completed
-- [x] Add getAvatarStatus helper function to return avatar status (cloudinary, local, default)
-- [x] Update loadUserData() to prioritize Cloudinary avatar URL, set avatarType, handle fallbacks
-- [x] Modify Profile Modal with Cloudinary upload logic, image compression, error handling, and avatar status display
+## Support Widget Improvements
+- [x] Make support widget open directly to messages tab with typing option available
+- [x] Update support widget to work with both light and dark themes using CSS variables
+- [x] Import and use ThemeContext in SupportWidget component
+- [x] Replace hardcoded colors with theme-aware CSS variables
+- [x] Test widget functionality in both themes
 
-## Implementation Details
-- Added getAvatarStatus helper after extractNameFromEmail function
-- Updated loadUserData to include avatar priority logic in localStorage loading
-- Replaced Profile Modal with new Cloudinary upload functionality including:
-  - Async Cloudinary upload with validation
-  - Fallback to local storage if Cloudinary fails
-  - Avatar status indicator for Cloudinary uploads
-  - Improved error handling and user feedback
+## Completed Tasks
+- Updated SupportWidget.jsx to default to 'messages' tab and conversation step 1
+- Added theme support with CSS variables for all colors
+- Imported useTheme hook and applied theme context

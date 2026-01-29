@@ -8,13 +8,20 @@ export default defineConfig({
       'touchgrass2.onrender.com',  // Your frontend domain
       'touchgrass-backend.onrender.com',  // Your backend
       'touchgrass-7.onrender.com'  // Your other backend
-    ]
+    ],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
   build: {
     outDir: 'dist',
     sourcemap: false,
     rollupOptions: {
-      external: [],  // <-- Comma was missing here!
+      external: [],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],

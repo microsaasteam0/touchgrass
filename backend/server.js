@@ -810,13 +810,62 @@ app.get('/api', (req, res) => {
         userStreak: 'GET /api/streaks/user/:userId'
       },
       leaderboard: 'GET /api/leaderboard',
-      leaderboardUserRank: 'GET /api/leaderboard/user-rank/:userId'
+      leaderboardUserRank: 'GET /api/leaderboard/user-rank/:userId',
+      seo: {
+        sitemap: 'GET /api/seo/sitemap.xml',
+        robots: 'GET /api/seo/robots.txt'
+      }
     },
     dodo: {
       checkout: 'GET /api/dodo/checkout/:plan',
       webhook: 'POST /api/dodo/webhook'
     }
   });
+});
+
+// ========== SEO ROUTES ==========
+
+// Sitemap route
+app.get('/api/seo/sitemap.xml', async (req, res) => {
+  try {
+    const baseUrl = process.env.FRONTEND_URL || 'https://touchgrass.now';
+    const generator = new SitemapGenerator(baseUrl);
+    const sitemap = await generator.generate();
+
+    res.header('Content-Type', 'application/xml');
+    res.send(sitemap);
+  } catch (error) {
+    console.error('Sitemap generation error:', error);
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
+// Static sitemap
+app.get('/api/seo/sitemap-static.xml', async (req, res) => {
+  try {
+    const baseUrl = process.env.FRONTEND_URL || 'https://touchgrass.now';
+    const generator = new SitemapGenerator(baseUrl);
+    const sitemap = await generator.generateStatic();
+
+    res.header('Content-Type', 'application/xml');
+    res.send(sitemap);
+  } catch (error) {
+    console.error('Static sitemap error:', error);
+    res.status(500).send('Error generating static sitemap');
+  }
+});
+
+// Robots.txt route
+app.get('/api/seo/robots.txt', (req, res) => {
+  const robots = `User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /api/
+Sitemap: ${process.env.FRONTEND_URL || 'https://touchgrass.now'}/api/seo/sitemap.xml`;
+
+  res.header('Content-Type', 'text/plain');
+  res.send(robots);
 });
 
 // ========== AUTH ROUTES ==========
