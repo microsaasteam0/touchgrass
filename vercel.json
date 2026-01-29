@@ -3,7 +3,7 @@
   "builds": [
     {
       "src": "frontend/package.json",
-      "use":  "@vercel/vite" 
+       "framework": "vite"
     },
     {
       "src": "api/**/*.js",

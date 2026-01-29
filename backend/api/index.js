@@ -2624,5 +2624,3 @@ process.on('SIGINT', () => {
 });
 
 module.exports = { app, server };
-// ========== VERCEL EXPORT ==========
-module.exports = app;
