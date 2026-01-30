@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 
 const Blog = () => {
   const [selectedPost, setSelectedPost] = useState(null);
+  const { slug } = useParams();
   
   const [posts] = useState([
     {
@@ -1552,6 +1554,31 @@ A world where fitness tracking means understanding your relationship with the na
     "You miss daylight."
   ];
 
+  // Function to create slug from title
+  const createSlug = (title) => {
+    return title
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .trim();
+  };
+
+  // Find post by slug
+  const findPostBySlug = (slug) => {
+    return posts.find(post => createSlug(post.title) === slug);
+  };
+
+  // Handle individual post URL
+  useEffect(() => {
+    if (slug) {
+      const post = findPostBySlug(slug);
+      if (post) {
+        setSelectedPost(post);
+      }
+    }
+  }, [slug]);
+
   const styles = {
     blogContainer: {
       maxWidth: '1200px',
@@ -1817,6 +1844,9 @@ A world where fitness tracking means understanding your relationship with the na
   };
 
   const openPost = (post) => {
+    // Create slug and navigate to individual post URL
+    const postSlug = createSlug(post.title);
+    window.history.pushState(null, '', `/blog/${postSlug}`);
     setSelectedPost(post);
   };
 

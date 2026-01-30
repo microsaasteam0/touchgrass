@@ -30,7 +30,7 @@ class SitemapGenerator {
       // Authority & AEO Layer - Blog page exists
       { url: '/blog', changefreq: 'weekly', priority: 0.9 },
 
-      // Blog Content Pages (Authority content) - All exist in Blog.jsx
+      // Blog Content Pages (Authority content) - All exist in Blog.jsx with individual URLs
       { url: '/blog/why-do-i-feel-tired-even-when-i-dont-do-much', changefreq: 'yearly', priority: 0.8 },
       { url: '/blog/what-happens-to-your-body-when-you-stay-indoors-too-much', changefreq: 'yearly', priority: 0.8 },
       { url: '/blog/the-hidden-effects-of-not-going-outside-enough', changefreq: 'yearly', priority: 0.8 },

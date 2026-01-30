@@ -240,6 +240,14 @@ const routesConfig = [
     preload: true
   },
   {
+    path: '/blog/:slug',
+    element: Blog,
+    name: 'Blog Post',
+    public: true,
+    animation: 'default',
+    priority: 'medium'
+  },
+  {
     path: '*',
     element: NotFound,
     name: 'Not Found',

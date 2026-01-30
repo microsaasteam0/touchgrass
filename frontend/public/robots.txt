@@ -20,8 +20,12 @@ Disallow: /api/
 Disallow: /forgot-password
 Disallow: /reset-password
 
+# Allow blog posts for indexing
+Allow: /blog
+Allow: /blog/
+
 # Sitemap
-Sitemap: https://touchgrass.now/sitemap.xml
+Sitemap: https://touchgrass.entrext.com/sitemap.xml
 
 # Crawl delay (optional)
 Crawl-delay: 1

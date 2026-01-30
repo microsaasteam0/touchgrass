@@ -131,7 +131,7 @@ const NotFound = () => {
     }
 
     .error-code::after {
-      content: '404';
+      
       position: absolute;
       top: 0;
       left: 0;
@@ -511,7 +511,8 @@ const NotFound = () => {
           
           <p className="error-subtitle">
             You’ve discovered a quiet corner of the internet.
-            feel free to explore.
+            feel free to explore. 
+            
           </p>
           
           <div className="action-buttons">
