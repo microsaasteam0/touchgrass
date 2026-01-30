@@ -2417,6 +2417,7 @@ const VerificationWall = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('all');
   const [following, setFollowing] = useState([]);
+  const [userPosts, setUserPosts] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportPost, setReportPost] = useState(null);
@@ -2927,19 +2928,27 @@ const VerificationWall = () => {
     } else {
       navigate('/auth');
     }
+
+    // Listen for verification wall updates from other components
+    const handleVerificationWallUpdate = (event) => {
+      console.log('Verification wall updated, reloading posts...');
+      loadVerificationData();
+    };
+
+    window.addEventListener('verification-wall-updated', handleVerificationWallUpdate);
+
+    return () => {
+      window.removeEventListener('verification-wall-updated', handleVerificationWallUpdate);
+    };
   }, [navigate]);
 
   const loadVerificationData = useCallback(() => {
     setIsLoading(true);
     try {
       const storedPosts = JSON.parse(localStorage.getItem('touchgrass_verification_posts') || '[]');
-      
+
       if (storedPosts.length > 0) {
         setPosts(storedPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
-        if (userData) {
-          const myFiltered = storedPosts.filter(post => post.userId === userData.username);
-          setMyPosts(myFiltered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
-        }
       } else {
         const demoPosts = generateDemoPosts();
         setPosts(demoPosts);
@@ -2951,7 +2960,7 @@ const VerificationWall = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [userData]);
+  }, []);
 
   // Generate initial demo posts
   const generateDemoPosts = () => {
@@ -4315,13 +4324,13 @@ const VerificationWall = () => {
           All Posts
         </button>
         
-        <button 
+        {/* <button 
           className={`tab ${activeTab === 'my-posts' ? 'active' : ''}`}
           onClick={() => setActiveTab('my-posts')}
         >
           <User size={18} />
-          My Posts
-        </button>
+          
+        </button> */}
         
         <button 
           className={`tab ${activeTab === 'following' ? 'active' : ''}`}

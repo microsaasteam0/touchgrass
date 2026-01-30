@@ -3532,10 +3532,9 @@ const Verify = () => {
   };
 
   // CRITICAL FUNCTION: AUTO-POST TO VERIFICATION WALL
-  const autoPostToVerificationWall = (verificationData) => {
+  const autoPostToVerificationWall = (verificationData, user) => {
     try {
-      // Get user data
-      const user = JSON.parse(localStorage.getItem('touchgrass_user') || '{}');
+      // Use passed user data
       if (!user || !user.username) {
         console.error('No user found for verification wall post');
         return null;
@@ -3585,7 +3584,9 @@ const Verify = () => {
         showComments: false,
         showLikes: false,
         isVerified: true,
-        verificationBadge: true
+        verificationBadge: true,
+        // Add to my posts section
+        isMyPost: true
       };
       
       // Get existing posts from localStorage
@@ -3626,16 +3627,16 @@ const Verify = () => {
       return;
     }
 
+    if (!userData || !userData.username) {
+      toast.error('Please login first');
+      return;
+    }
+
     setIsSubmitting(true);
-    
+
     setTimeout(() => {
       try {
-        const user = JSON.parse(localStorage.getItem('touchgrass_user') || '{}');
-        if (!user.username) {
-          toast.error('Please login first');
-          setIsSubmitting(false);
-          return;
-        }
+        const user = userData;
         
         const streakKey = `touchgrass_streak_${user.username}`;
         const currentStreak = JSON.parse(localStorage.getItem(streakKey) || '{}');
@@ -3676,9 +3677,9 @@ const Verify = () => {
             caption: caption || `${activityTypes.find(a => a.value === activityType)?.emoji} Day ${updatedStreak.currentStreak} streak!`,
             location: location || 'Outdoors'
           };
-          
-          const posted = autoPostToVerificationWall(postData);
-          
+
+          const posted = autoPostToVerificationWall(postData, user);
+
           if (posted) {
             setIsPostedToWall(true);
             toast.success('📸 Posted to Verification Wall!', {
@@ -3690,9 +3691,13 @@ const Verify = () => {
                 fontWeight: 'bold'
               }
             });
+            setIsSubmitting(false);
+            // Navigate immediately to see the post
+            setTimeout(() => navigate('/verification-wall'), 500);
+            return; // Exit early, don't show success modal
           }
         }
-        
+
         setIsSubmitting(false);
         setShowSuccess(true);
         
