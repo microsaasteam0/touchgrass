@@ -56,7 +56,7 @@ const NotFound = () => {
     for (let i = 0; i < 3; i++) {
       const number = document.createElement('div');
       number.className = 'floating-number';
-      number.textContent = ['4', '0', '4'][i];
+      number.textContent = [][i];
       
       const left = 30 + i * 20;
       const duration = 6 + Math.random() * 4;
@@ -510,9 +510,8 @@ const NotFound = () => {
           </h2>
           
           <p className="error-subtitle">
-            The page you're looking for seems to have wandered off. 
-            Don't worry—even the most disciplined streaks need a break sometimes. 
-            Let's get you back on track.
+            You’ve discovered a quiet corner of the internet.
+            feel free to explore.
           </p>
           
           <div className="action-buttons">
