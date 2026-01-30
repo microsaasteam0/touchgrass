@@ -6,7 +6,7 @@
 
     <!-- Core: Homepage -->
     <url>
-        <loc>https://touchgrass.now/</loc>
+        <loc>https://touchgrass.entrext.com/</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>daily</changefreq>
         <priority>1.0</priority>
@@ -14,7 +14,7 @@
 
     <!-- Value Pages: Authentication (public access for sign-up/login) -->
     <url>
-        <loc>https://touchgrass.now/auth</loc>
+        <loc>https://touchgrass.entrext.com/auth</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
@@ -22,7 +22,7 @@
 
     <!-- Value Pages: Password Recovery -->
     <url>
-        <loc>https://touchgrass.now/forgot-password</loc>
+        <loc>https://touchgrass.entrext.com/forgot-password</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
@@ -30,7 +30,7 @@
 
     <!-- Value Pages: Password Reset (dynamic, but public) -->
     <url>
-        <loc>https://touchgrass.now/reset-password</loc>
+        <loc>https://touchgrass.entrext.com/reset-password</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
@@ -38,7 +38,7 @@
 
     <!-- Value Pages: Leaderboard -->
     <url>
-        <loc>https://touchgrass.now/leaderboard</loc>
+        <loc>https://touchgrass.entrext.com/leaderboard</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>hourly</changefreq>
         <priority>0.9</priority>
@@ -46,7 +46,7 @@
 
     <!-- Value Pages: Subscription -->
     <url>
-        <loc>https://touchgrass.now/subscription</loc>
+        <loc>https://touchgrass.entrext.com/subscription</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
@@ -54,7 +54,7 @@
 
     <!-- Value Pages: Challenges -->
     <url>
-        <loc>https://touchgrass.now/challenges</loc>
+        <loc>https://touchgrass.entrext.com/challenges</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.8</priority>
@@ -62,7 +62,7 @@
 
     <!-- Value Pages: Chat -->
     <url>
-        <loc>https://touchgrass.now/chat</loc>
+        <loc>https://touchgrass.entrext.com/chat</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.7</priority>
@@ -70,32 +70,112 @@
 
     <!-- Value Pages: Shame Wall -->
     <url>
-        <loc>https://touchgrass.now/shame-wall</loc>
+        <loc>https://touchgrass.entrext.com/shame-wall</loc>
         <lastmod>2026-01-22</lastmod>
         <changefreq>hourly</changefreq>
         <priority>0.8</priority>
     </url>
 
-    <!-- Legal Pages -->
+    <!-- Value Pages: Blog -->
     <url>
-        <loc>https://touchgrass.now/privacy</loc>
+        <loc>https://touchgrass.entrext.com/blog</loc>
         <lastmod>2026-01-22</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.3</priority>
+        <changefreq>weekly</changefreq>
+        <priority>0.9</priority>
+    </url>
+
+    <!-- Blog Content Pages -->
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/why-do-i-feel-tired-even-when-i-dont-do-much</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.8</priority>
     </url>
 
     <url>
-        <loc>https://touchgrass.now/terms</loc>
+        <loc>https://touchgrass.entrext.com/blog/what-happens-to-your-body-when-you-stay-indoors-too-much</loc>
         <lastmod>2026-01-22</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.3</priority>
+        <changefreq>yearly</changefreq>
+        <priority>0.8</priority>
     </url>
 
     <url>
-        <loc>https://touchgrass.now/contact</loc>
+        <loc>https://touchgrass.entrext.com/blog/the-hidden-effects-of-not-going-outside-enough</loc>
         <lastmod>2026-01-22</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.4</priority>
+        <changefreq>yearly</changefreq>
+        <priority>0.8</priority>
     </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/why-staying-inside-all-day-makes-you-feel-worse-not-better</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/mental-health-effects-of-spending-too-much-time-indoors</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/is-it-bad-to-stay-inside-all-day-heres-what-actually-happens</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/why-you-feel-lazy-after-being-at-home-all-day</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/how-lack-of-sunlight-affects-your-energy-and-mood</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/the-simplest-health-habit-most-people-are-missing</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/why-going-outside-daily-is-more-important-than-you-think</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/walking-outside-is-the-simplest-fitness-habit-nobody-tracks</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/why-touch-grass-might-be-the-most-honest-health-app</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://touchgrass.entrext.com/blog/new-alternative-to-strava</loc>
+        <lastmod>2026-01-22</lastmod>
+        <changefreq>yearly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+
 
 </urlset>
