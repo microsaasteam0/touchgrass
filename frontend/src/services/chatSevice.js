@@ -1,4 +1,5 @@
-import React from 'react';
+
+  import React from 'react';
   
   
   /**
@@ -89,7 +90,6 @@ class PremiumChatService {
       // Reset reconnect attempts on successful connection
       this.reconnectAttempts = 0;
 
-      console.log('[Chat Service] Connected to WebSocket server');
 
     } catch (error) {
       console.error('[Chat Service] Connection failed:', error);
@@ -118,7 +118,6 @@ class PremiumChatService {
   }
 
   handleConnectionOpen() {
-    console.log('[Chat Service] WebSocket connection established');
     
     // Send connection metadata
     this.send({
@@ -299,7 +298,6 @@ class PremiumChatService {
   }
 
   handleConnectionClose(event) {
-    console.log('[Chat Service] WebSocket connection closed:', event.code, event.reason);
     
     // Stop heartbeat
     this.stopHeartbeat();
@@ -354,7 +352,6 @@ class PremiumChatService {
       this.maxReconnectDelay
     ) + Math.random() * 1000;
 
-    console.log(`[Chat Service] Reconnecting in ${Math.round(delay / 1000)} seconds...`);
 
     setTimeout(() => {
       this.connect();
@@ -901,7 +898,6 @@ class PremiumChatService {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.register('/sw.js')
         .then(registration => {
-          console.log('[Chat Service] Service Worker registered');
           
           // Request permission for notifications
           return Notification.requestPermission();
@@ -1006,7 +1002,6 @@ class PremiumChatService {
     this.stopHeartbeat();
     this.reconnectAttempts = 0;
     
-    console.log('[Chat Service] Disconnected');
   }
 }
 

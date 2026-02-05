@@ -4,6 +4,8 @@ import { Sun, Moon } from 'lucide-react';
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
 
+  const isDark = theme === 'dark';
+
   return (
     <button
       onClick={toggleTheme}
@@ -14,22 +16,23 @@ const ThemeToggle = () => {
         width: '40px',
         height: '40px',
         borderRadius: '50%',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        border: 'none',
+        backgroundColor: isDark ? '#ffffff' : '#000000',
         cursor: 'pointer',
         transition: 'all 0.3s ease',
-        color: theme === 'dark' ? '#ffffff' : '#000000'
+        color: isDark ? '#000000' : '#ffffff',
+        boxShadow: isDark ? '0 2px 8px rgba(255, 255, 255, 0.2)' : '0 2px 8px rgba(0, 0, 0, 0.2)'
       }}
       onMouseEnter={(e) => {
-        e.target.style.backgroundColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-        e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+        e.target.style.transform = 'scale(1.1)';
+        e.target.style.boxShadow = isDark ? '0 4px 12px rgba(255, 255, 255, 0.3)' : '0 4px 12px rgba(0, 0, 0, 0.3)';
       }}
       onMouseLeave={(e) => {
-        e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-        e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        e.target.style.transform = 'scale(1)';
+        e.target.style.boxShadow = isDark ? '0 2px 8px rgba(255, 255, 255, 0.2)' : '0 2px 8px rgba(0, 0, 0, 0.2)';
       }}
     >
-      {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+      {isDark ? <Sun size={20} /> : <Moon size={20} />}
     </button>
   );
 };

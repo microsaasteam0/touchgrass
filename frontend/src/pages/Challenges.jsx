@@ -1,11 +1,16 @@
 // import React, { useState, useEffect } from 'react';
 // import { useNavigate } from 'react-router-dom';
+// import { motion } from 'framer-motion';
+// import { toast } from 'react-hot-toast';
+// // import challengeService from '../services/challengeService';
+import { useAuth } from '../contexts/AuthContext';
 // import Button from '../components/ui/Button';
 // import Card from '../components/ui/Card';
 // import Modal from '../components/ui/Model';
 // import Toast from '../components/ui/Toast';
 // import Confetti from '../components/ui/Confetti';
 // import Tooltip from '../components/ui/Tooltip';
+// import LoadingSpinner from '../components/layout/LoadingSpinner';
 // import SEO from '../components/seo/SEO';
 // import { SEO_CONFIG } from '../config/seo';
 
@@ -1004,15 +1009,19 @@
 // };
 
 // export default Challenges;
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { 
-  Target, 
-  Trophy, 
-  Users, 
-  Calendar, 
-  Clock, 
+import challengeService from '../services/challengeService';
+import RealChallengeService from '../services/challengeService';
+import  AuthContext  from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import {
+  Target,
+  Trophy,
+  Users,
+  Calendar,
+  Clock,
   TrendingUp,
   Flame,
   Award,
@@ -1101,11 +1110,13 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 
 const Challenges = ({ onNavigate }) => {
   // State Management
+  const { user } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('active');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showChallengeDetails, setShowChallengeDetails] = useState(false);
@@ -1114,10 +1125,10 @@ const Challenges = ({ onNavigate }) => {
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [challenges, setChallenges] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [userData, setUserData] = useState(null);
-  const [userStreakData, setUserStreakData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [userChallenges, setUserChallenges] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingUserChallenges, setIsLoadingUserChallenges] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -1133,16 +1144,10 @@ const Challenges = ({ onNavigate }) => {
     groupId: null,
     isPublic: true
   });
-  const [newGroup, setNewGroup] = useState({
-    name: '',
-    description: '',
-    isPublic: true,
-    maxMembers: 50
-  });
   const [showJoinedList, setShowJoinedList] = useState({});
-  const [userChallenges, setUserChallenges] = useState([]);
-  const [userGroups, setUserGroups] = useState([]);
-  const [challengeParticipants, setChallengeParticipants] = useState({});
+  const [error, setError] = useState(null);
+  const [dailyCheckins, setDailyCheckins] = useState([]);
+  const [groups, setGroups] = useState([]);
 
   // CSS Styles matching Dashboard/Profile design
   const styles = `
@@ -2591,7 +2596,6 @@ const Challenges = ({ onNavigate }) => {
           window.location.href = '/auth';
           break;
         default:
-          console.log('Navigating to:', page);
       }
     }
   };
@@ -2602,365 +2606,64 @@ const Challenges = ({ onNavigate }) => {
       const storedUser = localStorage.getItem('touchgrass_user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
-        console.log('Loaded user from localStorage:', user);
         return user;
       }
       return null;
     } catch (error) {
-      console.error('Error loading user data:', error);
       return null;
     }
   };
 
-  // Load streak data
-  const loadStreakData = (username) => {
+  // Load challenges from REAL backend API
+  const loadChallenges = async (params = {}) => {
     try {
-      const streakKey = `touchgrass_streak_${username}`;
-      const storedStreak = localStorage.getItem(streakKey);
-      if (storedStreak) {
-        return JSON.parse(storedStreak);
-      }
-      return null;
-    } catch (error) {
-      console.error('Error loading streak data:', error);
-      return null;
-    }
-  };
+      const response = await challengeService.getChallenges(params);
+      const transformedChallenges = challengeService.transformChallenges(response.data?.data || []);
+      setChallenges(transformedChallenges);
 
-  // Load challenges from localStorage
-  const loadChallenges = () => {
-    try {
-      const storedChallenges = localStorage.getItem('touchgrass_challenges');
-      if (storedChallenges) {
-        return JSON.parse(storedChallenges);
-      }
-      
-      // Default challenges
-      const defaultChallenges = [
-        {
-          id: 1,
-          name: "30-Day Discipline Marathon",
-          description: "Maintain a perfect streak for 30 days. Compete against elite competitors.",
-          duration: 30,
-          type: "streak",
-          difficulty: "hard",
-          stake: 49.99,
-          prizePool: 32450,
-          participants: 1248,
-          maxParticipants: 5000,
-          progress: 65,
-          status: "active",
-          createdBy: "Elite Master",
-          createdAt: new Date().toISOString(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          rules: [
-            "Maintain daily verification streak",
-            "Minimum 15 minutes outdoors daily",
-            "Photo verification required",
-            "No excuses accepted"
-          ],
-          tags: ["premium", "competitive", "high-stakes"],
-          isPublic: true,
-          groupId: null,
-          featured: true,
-          joinedUsers: [
-            { id: 1, name: "Elite Master", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=elitemaster", streak: 45, isCreator: true },
-            { id: 2, name: "Discipline Pro", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=disciplinepro", streak: 32 },
-            { id: 3, name: "Streak Warrior", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=streakwarrior", streak: 28 },
-            { id: 4, name: "Mindset King", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=mindsetking", streak: 21 },
-            { id: 5, name: "Accountability Queen", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=accountabilityqueen", streak: 18 }
-          ]
-        },
-        {
-          id: 2,
-          name: "Weekly Warrior Challenge",
-          description: "Perfect 7-day streak challenge. Perfect for beginners!",
-          duration: 7,
-          type: "streak",
-          difficulty: "easy",
-          stake: 4.99,
-          prizePool: 12540,
-          participants: 5421,
-          maxParticipants: 10000,
-          progress: 42,
-          status: "active",
-          createdBy: "Community Leader",
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          rules: [
-            "Complete 7-day streak",
-            "Share progress daily",
-            "Support other participants",
-            "No shame days allowed"
-          ],
-          tags: ["beginner", "weekly", "social"],
-          isPublic: true,
-          groupId: 1,
-          featured: false,
-          joinedUsers: [
-            { id: 1, name: "Community Leader", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=communityleader", streak: 12, isCreator: true },
-            { id: 2, name: "Beginner Buddy", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=beginnerbuddy", streak: 5 },
-            { id: 3, name: "Weekend Warrior", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=weekendwarrior", streak: 7 },
-            { id: 4, name: "Morning Person", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=morningperson", streak: 4 },
-            { id: 5, name: "Evening Star", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=eveningstar", streak: 6 }
-          ]
-        },
-        {
-          id: 3,
-          name: "No Excuses Mindset Challenge",
-          description: "7 days without complaints or excuses. Build radical responsibility.",
-          duration: 7,
-          type: "mindset",
-          difficulty: "medium",
-          stake: 0,
-          prizePool: 0,
-          participants: 842,
-          maxParticipants: 1000,
-          progress: 28,
-          status: "active",
-          createdBy: "Mindset Coach",
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          rules: [
-            "No complaining about anything",
-            "No excuses for missed tasks",
-            "State actionable improvement when slipping",
-            "Daily journal entry required"
-          ],
-          tags: ["mindset", "discipline", "self-improvement"],
-          isPublic: true,
-          groupId: 2,
-          featured: true,
-          joinedUsers: [
-            { id: 1, name: "Mindset Coach", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=mindsetcoach", streak: 21, isCreator: true },
-            { id: 2, name: "Positive Thinker", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=positivethinker", streak: 14 },
-            { id: 3, name: "Growth Mindset", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=growthmindset", streak: 10 },
-            { id: 4, name: "No Excuses", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=noexcuses", streak: 7 },
-            { id: 5, name: "Accountability Buddy", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=accountabilitybuddy", streak: 5 }
-          ]
-        },
-        {
-          id: 4,
-          name: "100-Day Legend Challenge",
-          description: "The ultimate test of discipline. Only for the truly committed.",
-          duration: 100,
-          type: "streak",
-          difficulty: "extreme",
-          stake: 199.99,
-          prizePool: 84200,
-          participants: 84,
-          maxParticipants: 100,
-          progress: 12,
-          status: "active",
-          createdBy: "Streak Legend",
-          createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date(Date.now() + 100 * 24 * 60 * 60 * 1000).toISOString(),
-          rules: [
-            "100 consecutive days",
-            "Minimum 30 minutes outdoors daily",
-            "Weekly progress report",
-            "Mentor accountability partner"
-          ],
-          tags: ["legend", "prestige", "exclusive"],
-          isPublic: false,
-          groupId: 3,
-          featured: true,
-          joinedUsers: [
-            { id: 1, name: "Streak Legend", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=streaklegend", streak: 89, isCreator: true },
-            { id: 2, name: "Discipline Master", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=disciplinemaster", streak: 76 },
-            { id: 3, name: "Legend Hunter", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=legendhunter", streak: 63 },
-            { id: 4, name: "Ultimate Warrior", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=ultimatewarrior", streak: 52 },
-            { id: 5, name: "Century Seeker", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=centuryseeker", streak: 41 }
-          ]
-        },
-        {
-          id: 5,
-          name: "Weekend Warrior Sprint",
-          description: "2-day intensive challenge. Perfect for busy professionals.",
-          duration: 2,
-          type: "sprint",
-          difficulty: "easy",
-          stake: 2.99,
-          prizePool: 6240,
-          participants: 3120,
-          maxParticipants: 5000,
-          progress: 100,
-          status: "completed",
-          createdBy: "Weekend Warrior",
-          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-          rules: [
-            "Complete both weekend days",
-            "Morning and evening verification",
-            "Share weekend activities",
-            "Support fellow weekend warriors"
-          ],
-          tags: ["weekend", "sprint", "quick"],
-          isPublic: true,
-          groupId: null,
-          featured: false,
-          winner: "JohnDoe123",
-          joinedUsers: [
-            { id: 1, name: "Weekend Warrior", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=weekendwarrior", streak: 2, isCreator: true },
-            { id: 2, name: "Saturday Star", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=saturdaystar", streak: 2 },
-            { id: 3, name: "Sunday Champ", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=sundaychamp", streak: 2 },
-            { id: 4, name: "Weekend Rookie", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=weekendrookie", streak: 1 },
-            { id: 5, name: "Saturday Sprint", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=saturdaysprint", streak: 2 }
-          ]
-        }
-      ];
-      
-      localStorage.setItem('touchgrass_challenges', JSON.stringify(defaultChallenges));
-      return defaultChallenges;
+      // Initialize joined list state
+      const joinedState = {};
+      transformedChallenges.forEach(challenge => {
+        joinedState[challenge.id] = false;
+      });
+      setShowJoinedList(joinedState);
+
+      return transformedChallenges;
     } catch (error) {
-      console.error('Error loading challenges:', error);
+      setError(error.message || 'Failed to load challenges');
+      toast.error('Failed to load challenges');
       return [];
     }
   };
 
-  // Load groups from localStorage
-  const loadGroups = () => {
+  // Load user's joined challenges from API
+  const loadUserChallenges = async () => {
+    if (!user) return;
+
     try {
-      const storedGroups = localStorage.getItem('touchgrass_groups');
-      if (storedGroups) {
-        return JSON.parse(storedGroups);
-      }
-      
-      // Default groups
-      const defaultGroups = [
-        {
-          id: 1,
-          name: "Elite Streak Masters",
-          description: "For those committed to 30+ day streaks. Elite accountability group.",
-          members: 248,
-          maxMembers: 500,
-          createdBy: "StreakMaster",
-          createdAt: new Date().toISOString(),
-          isPublic: true,
-          challenges: [1, 2],
-          rules: [
-            "30+ day streak required",
-            "Daily check-in mandatory",
-            "Support all members",
-            "No negative energy"
-          ],
-          tags: ["elite", "streak", "accountability"]
-        },
-        {
-          id: 2,
-          name: "Mindset Warriors",
-          description: "Building mental discipline and radical responsibility together.",
-          members: 842,
-          maxMembers: 1000,
-          createdBy: "MindsetCoach",
-          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          isPublic: true,
-          challenges: [3],
-          rules: [
-            "No excuses mentality",
-            "Daily mindset practice",
-            "Share progress regularly",
-            "Positive reinforcement only"
-          ],
-          tags: ["mindset", "discipline", "growth"]
-        },
-        {
-          id: 3,
-          name: "100-Day Legends",
-          description: "Exclusive group for 100-day challenge participants.",
-          members: 42,
-          maxMembers: 100,
-          createdBy: "LegendCreator",
-          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          isPublic: false,
-          challenges: [4],
-          rules: [
-            "100-day commitment required",
-            "Weekly video check-ins",
-            "Mentor system participation",
-            "Strict confidentiality"
-          ],
-          tags: ["exclusive", "legend", "premium"]
-        }
-      ];
-      
-      localStorage.setItem('touchgrass_groups', JSON.stringify(defaultGroups));
-      return defaultGroups;
+      setIsLoadingUserChallenges(true);
+      const response = await challengeService.getUserChallenges();
+      const transformedChallenges = challengeService.transformChallenges(response.data?.data || []);
+      setUserChallenges(transformedChallenges);
+      return transformedChallenges;
     } catch (error) {
-      console.error('Error loading groups:', error);
+      // Don't show error for user challenges as it might be due to not being logged in
       return [];
+    } finally {
+      setIsLoadingUserChallenges(false);
     }
   };
 
-  // Save challenges to localStorage
-  const saveChallenges = (challengesData) => {
-    try {
-      localStorage.setItem('touchgrass_challenges', JSON.stringify(challengesData));
-      console.log('Saved challenges:', challengesData);
-    } catch (error) {
-      console.error('Error saving challenges:', error);
-    }
-  };
+  // Load daily check-ins for today
+  const loadDailyCheckins = async () => {
+    if (!user) return;
 
-  // Save groups to localStorage
-  const saveGroups = (groupsData) => {
     try {
-      localStorage.setItem('touchgrass_groups', JSON.stringify(groupsData));
-      console.log('Saved groups:', groupsData);
+      const today = new Date().toISOString().split('T')[0];
+      const response = await challengeService.getDailyCheckins(today);
+      setDailyCheckins(response.data?.data || []);
     } catch (error) {
-      console.error('Error saving groups:', error);
-    }
-  };
-
-  // Load user's joined challenges
-  const loadUserChallenges = (username) => {
-    try {
-      const userChallengesKey = `touchgrass_user_challenges_${username}`;
-      const storedChallenges = localStorage.getItem(userChallengesKey);
-      if (storedChallenges) {
-        return JSON.parse(storedChallenges);
-      }
-      return [];
-    } catch (error) {
-      console.error('Error loading user challenges:', error);
-      return [];
-    }
-  };
-
-  // Save user's joined challenges
-  const saveUserChallenges = (username, challengesData) => {
-    try {
-      const userChallengesKey = `touchgrass_user_challenges_${username}`;
-      localStorage.setItem(userChallengesKey, JSON.stringify(challengesData));
-      console.log('Saved user challenges:', challengesData);
-    } catch (error) {
-      console.error('Error saving user challenges:', error);
-    }
-  };
-
-  // Load user's groups
-  const loadUserGroups = (username) => {
-    try {
-      const userGroupsKey = `touchgrass_user_groups_${username}`;
-      const storedGroups = localStorage.getItem(userGroupsKey);
-      if (storedGroups) {
-        return JSON.parse(storedGroups);
-      }
-      return [];
-    } catch (error) {
-      console.error('Error loading user groups:', error);
-      return [];
-    }
-  };
-
-  // Save user's groups
-  const saveUserGroups = (username, groupsData) => {
-    try {
-      const userGroupsKey = `touchgrass_user_groups_${username}`;
-      localStorage.setItem(userGroupsKey, JSON.stringify(groupsData));
-      console.log('Saved user groups:', groupsData);
-    } catch (error) {
-      console.error('Error saving user groups:', error);
+      // Don't show error for daily check-ins
     }
   };
 
@@ -2974,177 +2677,111 @@ const Challenges = ({ onNavigate }) => {
 
   // Check if user has joined a challenge
   const hasUserJoinedChallenge = (challengeId) => {
-    if (!userData) return false;
-    return userChallenges.some(c => c.challengeId === challengeId);
+    if (!user) return false;
+    return userChallenges.some(c => c.id === challengeId);
   };
 
   // Check if user created a challenge
   const isChallengeCreator = (challenge) => {
-    if (!userData) return false;
-    return challenge.createdBy === userData.username;
+    if (!user) return false;
+    return challenge.createdBy === user.username;
   };
 
   // Get user's progress in a challenge
   const getUserChallengeProgress = (challengeId) => {
-    if (!userData) return { streak: 0, progress: 0 };
-    const userChallenge = userChallenges.find(c => c.challengeId === challengeId);
-    return userChallenge || { streak: 0, progress: 0 };
+    if (!user) return { streak: 0, progress: 0 };
+    const userChallenge = userChallenges.find(c => c.id === challengeId);
+    return userChallenge?.userProgress || { streak: 0, progress: 0 };
   };
 
   // Get challenges created by current user
   const getMyCreatedChallenges = () => {
-    if (!userData) return [];
-    return challenges.filter(challenge => challenge.createdBy === userData.username);
+    if (!user) return [];
+    return challenges.filter(challenge => challenge.createdBy === user.username);
   };
 
   // Initialize data
   useEffect(() => {
     const initializeData = async () => {
       setIsLoading(true);
-      
+      setError(null);
+
       try {
-        const user = loadUserData();
-        setUserData(user);
-        
+        // Load challenges (public challenges)
+        await loadChallenges();
+
+        // Load user's joined challenges and daily check-ins if logged in
         if (user) {
-          const streakData = loadStreakData(user.username);
-          setUserStreakData(streakData);
-          
-          const userChallengesData = loadUserChallenges(user.username);
-          setUserChallenges(userChallengesData);
-          
-          const userGroupsData = loadUserGroups(user.username);
-          setUserGroups(userGroupsData);
+          await loadUserChallenges();
+          await loadDailyCheckins();
         }
-        
-        const challengesData = loadChallenges();
-        const groupsData = loadGroups();
-        
-        setChallenges(challengesData);
-        setGroups(groupsData);
-        
-        // Initialize joined list state
-        const joinedState = {};
-        challengesData.forEach(challenge => {
-          joinedState[challenge.id] = false;
-        });
-        setShowJoinedList(joinedState);
-        
-        console.log('Challenges data loaded:', challengesData);
-        console.log('Groups data loaded:', groupsData);
-        console.log('User challenges:', userChallenges);
-        
+
       } catch (error) {
-        console.error('Error initializing challenges:', error);
+        setError('Failed to load challenges data');
         toast.error('Failed to load challenges data');
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     initializeData();
-  }, []);
+  }, [user]);
 
   // Handle join challenge
-  const handleJoinChallenge = (challenge) => {
-    if (!userData) {
+  const joinChallenge = async (challenge) => {
+    if (!user) {
       toast.error('Please login to join challenges');
       navigateTo('auth');
       return;
     }
-    
-    const userChallengesData = loadUserChallenges(userData.username);
-    
-    // Check if already joined
-    if (userChallengesData.some(c => c.challengeId === challenge.id)) {
-      toast.error('You have already joined this challenge');
-      return;
-    }
-    
-    // Check if challenge is full
-    if (challenge.participants >= challenge.maxParticipants) {
-      toast.error('This challenge is full');
-      return;
-    }
-    
-    // Add challenge to user's joined challenges
-    const newUserChallenge = {
-      challengeId: challenge.id,
-      joinedAt: new Date().toISOString(),
-      progress: 0,
-      streak: 0,
-      lastVerified: null,
-      status: 'active',
-      challengeName: challenge.name,
-      challengeType: challenge.type,
-      challengeDuration: challenge.duration
-    };
-    
-    const updatedUserChallenges = [...userChallengesData, newUserChallenge];
-    saveUserChallenges(userData.username, updatedUserChallenges);
-    setUserChallenges(updatedUserChallenges);
-    
-    // Update challenge participants count and add user to joinedUsers
-    const updatedChallenges = challenges.map(c => {
-      if (c.id === challenge.id) {
-        const newJoinedUser = {
-          id: Date.now(),
-          name: userData.displayName || userData.username,
-          avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.username}`,
-          streak: 0,
-          isNew: true
-        };
-        
-        return {
-          ...c,
-          participants: c.participants + 1,
-          joinedUsers: [...(c.joinedUsers || []), newJoinedUser]
-        };
-      }
-      return c;
-    });
-    
-    setChallenges(updatedChallenges);
-    saveChallenges(updatedChallenges);
-    
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 3000);
-    
-    toast.success(`Successfully joined "${challenge.name}"!`);
-    
-    if (challenge.groupId) {
-      // Auto-join group if challenge has one
-      handleJoinGroup(challenge.groupId);
+
+    try {
+      // 1. Show loading state
+      setIsJoining(true);
+
+      // 2. REAL API CALL to backend
+      const result = await RealChallengeService.joinChallenge(challenge.id);
+
+      // 3. Update state WITHOUT localStorage
+      setUserChallenges(prev => [...prev, result]);
+
+      alert(`Successfully joined "${challenge.title}"! Data saved to database.`);
+
+      // 5. Check Network tab - you should see a REAL HTTP request
+    } catch (error) {
+      alert('Failed to join challenge. Please try again.');
+    } finally {
+      setIsJoining(false);
     }
   };
 
   // Handle join group
   const handleJoinGroup = (groupId) => {
-    if (!userData) {
+    if (!user) {
       toast.error('Please login to join groups');
       return;
     }
-    
+
     const group = groups.find(g => g.id === groupId);
     if (!group) {
       toast.error('Group not found');
       return;
     }
-    
-    const userGroupsData = loadUserGroups(userData.username);
-    
+
+    const userGroupsData = loadUserGroups(user.username);
+
     // Check if already in group
     if (userGroupsData.some(g => g.groupId === groupId)) {
       toast.error('You are already in this group');
       return;
     }
-    
+
     // Check if group is full
     if (group.members >= group.maxMembers) {
       toast.error('This group is full');
       return;
     }
-    
+
     // Add group to user's groups
     const newUserGroup = {
       groupId: group.id,
@@ -3152,118 +2789,87 @@ const Challenges = ({ onNavigate }) => {
       role: 'member',
       contributions: 0
     };
-    
+
     const updatedUserGroups = [...userGroupsData, newUserGroup];
-    saveUserGroups(userData.username, updatedUserGroups);
+    saveUserGroups(user.username, updatedUserGroups);
     setUserGroups(updatedUserGroups);
-    
+
     // Update group members count
-    const updatedGroups = groups.map(g => 
-      g.id === groupId 
+    const updatedGroups = groups.map(g =>
+      g.id === groupId
         ? { ...g, members: g.members + 1 }
         : g
     );
-    
+
     setGroups(updatedGroups);
     saveGroups(updatedGroups);
-    
+
     toast.success(`Successfully joined "${group.name}"!`);
     setShowJoinGroupModal(false);
   };
 
   // Handle create challenge
-  const handleCreateChallenge = () => {
-    if (!userData) {
+  const handleCreateChallenge = async () => {
+    if (!user) {
       toast.error('Please login to create challenges');
       return;
     }
-    
+
     if (!newChallenge.name.trim() || !newChallenge.description.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
-    
-    const challengeId = Date.now();
-    const challenge = {
-      id: challengeId,
-      name: newChallenge.name,
-      description: newChallenge.description,
-      duration: newChallenge.duration,
-      type: newChallenge.type,
-      difficulty: newChallenge.difficulty,
-      stake: parseFloat(newChallenge.stake) || 0,
-      prizePool: parseFloat(newChallenge.prizePool) || 0,
-      participants: 1, // Creator automatically joins
-      maxParticipants: 100,
-      progress: 0,
-      status: "active",
-      createdBy: userData.username,
-      createdAt: new Date().toISOString(),
-      endDate: new Date(Date.now() + newChallenge.duration * 24 * 60 * 60 * 1000).toISOString(),
-      rules: newChallenge.rules.filter(rule => rule.trim()),
-      tags: [newChallenge.type, newChallenge.difficulty],
-      isPublic: newChallenge.isPublic,
-      groupId: newChallenge.groupId || null,
-      featured: false,
-      joinedUsers: [
-        {
-          id: Date.now() + 1,
-          name: userData.displayName || userData.username,
-          avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.username}`,
-          streak: 0,
-          isCreator: true
-        }
-      ]
-    };
-    
-    // Add to challenges list
-    const updatedChallenges = [...challenges, challenge];
-    setChallenges(updatedChallenges);
-    saveChallenges(updatedChallenges);
-    
-    // Auto-join the challenge
-    const userChallengesData = loadUserChallenges(userData.username);
-    const newUserChallenge = {
-      challengeId: challenge.id,
-      joinedAt: new Date().toISOString(),
-      progress: 0,
-      streak: 0,
-      lastVerified: null,
-      status: 'active',
-      challengeName: challenge.name,
-      challengeType: challenge.type,
-      challengeDuration: challenge.duration
-    };
-    
-    const updatedUserChallenges = [...userChallengesData, newUserChallenge];
-    saveUserChallenges(userData.username, updatedUserChallenges);
-    setUserChallenges(updatedUserChallenges);
-    
-    // Initialize joined list state for new challenge
-    setShowJoinedList(prev => ({
-      ...prev,
-      [challengeId]: false
-    }));
-    
-    // Reset form
-    setNewChallenge({
-      name: '',
-      description: '',
-      duration: 7,
-      type: 'streak',
-      difficulty: 'medium',
-      stake: 0,
-      prizePool: 0,
-      rules: [''],
-      groupId: null,
-      isPublic: true
-    });
-    
-    setShowCreateModal(false);
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 3000);
-    
-    toast.success('Challenge created successfully! You have been automatically joined.');
+
+    try {
+      setIsJoining(true);
+
+      // Transform frontend data to backend format
+      const challengeData = {
+        name: newChallenge.name,
+        description: newChallenge.description,
+        duration: newChallenge.duration,
+        type: newChallenge.type,
+        difficulty: newChallenge.difficulty,
+        stake: parseFloat(newChallenge.stake) || 0,
+        prizePool: parseFloat(newChallenge.prizePool) || 0,
+        rules: newChallenge.rules.filter(rule => rule.trim()),
+        isPublic: newChallenge.isPublic,
+        groupId: newChallenge.groupId || null
+      };
+
+      // Create challenge via API
+      await challengeService.createChallenge(challengeData);
+
+      // Reload challenges and user challenges
+      await loadChallenges();
+      await loadUserChallenges();
+      await loadDailyCheckins();
+
+      // Reset form
+      setNewChallenge({
+        name: '',
+        description: '',
+        duration: 7,
+        type: 'streak',
+        difficulty: 'medium',
+        stake: 0,
+        prizePool: 0,
+        rules: [''],
+        groupId: null,
+        isPublic: true
+      });
+
+      setShowCreateModal(false);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+
+      toast.success('Challenge created successfully! You have been automatically joined.');
+
+    } catch (error) {
+      toast.error(error.message || 'Failed to create challenge');
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   // Handle create group
@@ -3327,73 +2933,45 @@ const Challenges = ({ onNavigate }) => {
   };
 
   // Handle verify streak for challenge
-  const handleVerifyChallenge = (challengeId) => {
-    if (!userData) {
+  const handleVerifyChallenge = async (challengeId) => {
+    if (!user) {
       toast.error('Please login to verify');
       return;
     }
-    
-    const userChallengesData = loadUserChallenges(userData.username);
-    const userChallenge = userChallengesData.find(c => c.challengeId === challengeId);
-    
-    if (!userChallenge) {
-      toast.error('You are not in this challenge');
-      return;
-    }
-    
-    const today = new Date().toDateString();
-    const lastVerified = userChallenge.lastVerified ? new Date(userChallenge.lastVerified).toDateString() : null;
-    
-    if (lastVerified === today) {
-      toast.error('You have already verified for today');
-      return;
-    }
-    
-    // Update user's challenge streak
-    const updatedUserChallenge = {
-      ...userChallenge,
-      streak: userChallenge.streak + 1,
-      progress: Math.min(100, Math.round(((userChallenge.streak + 1) / userChallenge.challengeDuration) * 100)),
-      lastVerified: new Date().toISOString()
-    };
-    
-    const updatedUserChallenges = userChallengesData.map(c => 
-      c.challengeId === challengeId ? updatedUserChallenge : c
-    );
-    
-    saveUserChallenges(userData.username, updatedUserChallenges);
-    setUserChallenges(updatedUserChallenges);
-    
-    // Update challenge joined users streak
-    const updatedChallenges = challenges.map(challenge => {
-      if (challenge.id === challengeId) {
-        const updatedJoinedUsers = challenge.joinedUsers?.map(user => {
-          if (user.name === (userData.displayName || userData.username)) {
-            return { ...user, streak: updatedUserChallenge.streak };
-          }
-          return user;
-        });
-        
-        return {
-          ...challenge,
-          joinedUsers: updatedJoinedUsers
-        };
-      }
-      return challenge;
-    });
-    
-    setChallenges(updatedChallenges);
-    saveChallenges(updatedChallenges);
-    
-    toast.success('Challenge streak verified! Keep going!');
-    
-    // Check for milestone achievements
-    if (updatedUserChallenge.streak === 7 || updatedUserChallenge.streak === 30 || updatedUserChallenge.streak === 100) {
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3000);
-      toast.success(`🎉 ${updatedUserChallenge.streak}-day milestone achieved in challenge!`, {
-        duration: 5000
+
+    try {
+      setIsJoining(true);
+
+      // Update progress via API
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      await challengeService.updateProgress(challengeId, {
+        date: today,
+        completed: true,
+        notes: 'Verified via challenge page'
       });
+
+      // Reload user challenges to get updated progress
+      await loadUserChallenges();
+
+      toast.success('Challenge progress updated! Keep going!');
+
+      // Check for milestone achievements
+      const userChallenge = userChallenges.find(c => c.id === challengeId);
+      if (userChallenge) {
+        const currentStreak = userChallenge.userProgress?.streak || 0;
+        if (currentStreak === 7 || currentStreak === 30 || currentStreak === 100) {
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 3000);
+          toast.success(`🎉 ${currentStreak}-day milestone achieved in challenge!`, {
+            duration: 5000
+          });
+        }
+      }
+
+    } catch (error) {
+      toast.error(error.message || 'Failed to update progress');
+    } finally {
+      setIsJoining(false);
     }
   };
 
@@ -3402,36 +2980,36 @@ const Challenges = ({ onNavigate }) => {
     // Tab filter
     if (activeTab === 'my') {
       // Show challenges created by current user
-      if (!userData) return false;
-      return challenge.createdBy === userData.username;
+      if (!user) return false;
+      return challenge.createdBy === user.username;
     }
-    
+
     if (activeTab === 'my-challenges') {
       // Show challenges joined by current user
-      if (!userData) return false;
-      return userChallenges.some(c => c.challengeId === challenge.id);
+      if (!user) return false;
+      return userChallenges.some(c => c.id === challenge.id);
     }
-    
+
     if (activeTab !== 'all' && challenge.status !== activeTab) {
       return false;
     }
-    
+
     // Search filter
-    if (searchQuery && !challenge.name.toLowerCase().includes(searchQuery.toLowerCase()) && 
+    if (searchQuery && !challenge.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
         !challenge.description.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
-    
+
     // Difficulty filter
     if (filterDifficulty !== 'all' && challenge.difficulty !== filterDifficulty) {
       return false;
     }
-    
+
     // Type filter
     if (filterType !== 'all' && challenge.type !== filterType) {
       return false;
     }
-    
+
     return true;
   });
 
@@ -3445,8 +3023,9 @@ const Challenges = ({ onNavigate }) => {
     upcomingChallenges: challenges.filter(c => c.status === 'upcoming').length,
     completedChallenges: challenges.filter(c => c.status === 'completed').length,
     totalGroups: groups.length,
-    myChallenges: userData ? userChallenges.length : 0,
-    myCreatedChallenges: userData ? getMyCreatedChallenges().length : 0
+    myChallenges: user ? userChallenges.length : 0,
+    myCreatedChallenges: user ? getMyCreatedChallenges().length : 0,
+    dailyCheckins: dailyCheckins.length
   };
 
   // Quick actions
@@ -3592,8 +3171,8 @@ const Challenges = ({ onNavigate }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            {userData ? (
-              <button 
+            {user ? (
+              <button
                 className="challenges-nav-button"
                 onClick={() => setShowCreateModal(true)}
               >
@@ -3601,7 +3180,7 @@ const Challenges = ({ onNavigate }) => {
                 Create Challenge
               </button>
             ) : (
-              <button 
+              <button
                 className="challenges-nav-button"
                 onClick={() => navigateTo('auth')}
               >
@@ -3767,24 +3346,24 @@ const Challenges = ({ onNavigate }) => {
             <span className="tab-badge">{stats.completedChallenges}</span>
           </button>
           
-          <button 
+          <button
             className={`challenges-tab ${activeTab === 'my' ? 'active' : ''}`}
             onClick={() => setActiveTab('my')}
           >
             <User size={16} />
             My Created
-            {userData && stats.myCreatedChallenges > 0 && (
+            {user && stats.myCreatedChallenges > 0 && (
               <span className="tab-badge">{stats.myCreatedChallenges}</span>
             )}
           </button>
-          
-          <button 
+
+          <button
             className={`challenges-tab ${activeTab === 'my-challenges' ? 'active' : ''}`}
             onClick={() => setActiveTab('my-challenges')}
           >
             <Target size={16} />
             My Challenges
-            {userData && stats.myChallenges > 0 && (
+            {user && stats.myChallenges > 0 && (
               <span className="tab-badge">{stats.myChallenges}</span>
             )}
           </button>
@@ -3972,7 +3551,7 @@ const Challenges = ({ onNavigate }) => {
                     <div className="challenge-actions">
                       {hasJoined ? (
                         <>
-                          <button 
+                          <button
                             className="button button-joined"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -3982,29 +3561,49 @@ const Challenges = ({ onNavigate }) => {
                             <CheckCircle size={16} />
                             Joined
                           </button>
-                          
-                          <button 
+
+                          <button
                             className="button button-success"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleVerifyChallenge(challenge.id);
                             }}
+                            disabled={isJoining}
                           >
-                            <Camera size={16} />
-                            Verify Today
+                            {isJoining ? (
+                              <>
+                                <Loader2 size={16} className="animate-spin mr-2" />
+                                Verifying...
+                              </>
+                            ) : (
+                              <>
+                                <Camera size={16} />
+                                Verify Today
+                              </>
+                            )}
                           </button>
                         </>
                       ) : (
-                        <button 
-                          className="button button-primary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleJoinChallenge(challenge);
-                          }}
-                        >
-                          <UserPlus size={16} />
-                          Join Challenge
-                        </button>
+                  <button
+                    className="button button-primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      joinChallenge(challenge);
+                    }}
+                    disabled={isJoining}
+                  >
+                    {isJoining ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin mr-2" />
+                        Joining...
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={16} />
+                        Join Challenge
+                      </>
+                    )}
+                  </button>
                       )}
                       
                       {challenge.groupId && (
@@ -4053,6 +3652,56 @@ const Challenges = ({ onNavigate }) => {
 
           {/* Sidebar */}
           <div className="challenges-sidebar">
+            {/* Daily Check-ins */}
+            {user && dailyCheckins.length > 0 && (
+              <section className="groups-section glass">
+                <div className="section-header">
+                  <h3 className="section-title">
+                    <CheckCircle2 size={20} />
+                    Today's Check-ins
+                  </h3>
+                </div>
+
+                <div className="groups-list">
+                  {dailyCheckins.slice(0, 5).map((checkin, index) => (
+                    <div
+                      key={checkin.id || index}
+                      className="group-item"
+                      onClick={() => {
+                        const challenge = userChallenges.find(c => c.id === checkin.challengeId);
+                        if (challenge) {
+                          setSelectedChallenge(challenge);
+                          setShowChallengeDetails(true);
+                        }
+                      }}
+                    >
+                      <div className="group-icon" style={{ background: checkin.completed ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'linear-gradient(135deg, #fbbf24, #d97706)' }}>
+                        {checkin.completed ? <CheckCircle2 size={20} /> : <Clock size={20} />}
+                      </div>
+                      <div className="group-content">
+                        <div className="group-name">{checkin.challengeName || `Challenge ${checkin.challengeId}`}</div>
+                        <div className="group-meta">
+                          <span>{checkin.completed ? 'Completed' : 'Pending'}</span>
+                          {checkin.streak && <span>🔥 {checkin.streak} streak</span>}
+                        </div>
+                      </div>
+                      <ChevronRight size={16} color="#71717a" />
+                    </div>
+                  ))}
+
+                  {dailyCheckins.length === 0 && (
+                    <div className="empty-state" style={{ padding: '1rem' }}>
+                      <div className="empty-icon" style={{ fontSize: '1.5rem' }}>✅</div>
+                      <div className="empty-title" style={{ fontSize: '0.875rem' }}>All Done!</div>
+                      <div className="empty-description" style={{ fontSize: '0.75rem' }}>
+                        Great job on your daily check-ins
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* Quick Actions */}
             <section className="quick-actions-section glass">
               <div className="section-header">
@@ -4061,7 +3710,7 @@ const Challenges = ({ onNavigate }) => {
                   Quick Actions
                 </h3>
               </div>
-              
+
               <div className="quick-actions-grid">
                 {quickActions.map(action => (
                   <button
@@ -4382,12 +4031,20 @@ const Challenges = ({ onNavigate }) => {
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="button button-primary"
                 onClick={handleCreateChallenge}
                 style={{ flex: 1 }}
+                disabled={isJoining}
               >
-                Create Challenge
+                {isJoining ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Create Challenge'
+                )}
               </button>
             </div>
           </motion.div>
@@ -4484,18 +4141,18 @@ const Challenges = ({ onNavigate }) => {
                   <div className="progress-header">
                     <span className="progress-label">Current Streak</span>
                     <span className="progress-value">
-                      {userData ? (
+                      {user ? (
                         getUserChallengeProgress(selectedChallenge.id).streak || 0
                       ) : 0} days
                     </span>
                   </div>
                   <div className="progress-bar">
-                    <div 
-                      className="progress-fill" 
-                      style={{ 
-                        width: userData 
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: user
                           ? `${(getUserChallengeProgress(selectedChallenge.id).streak / selectedChallenge.duration) * 100}%`
-                          : '0%' 
+                          : '0%'
                       }}
                     />
                   </div>
@@ -4604,12 +4261,22 @@ const Challenges = ({ onNavigate }) => {
                   )}
                   
                   {hasUserJoinedChallenge(selectedChallenge.id) && (
-                    <button 
+                    <button
                       className="button button-success"
                       onClick={() => handleVerifyChallenge(selectedChallenge.id)}
+                      disabled={isJoining}
                     >
-                      <Camera size={16} />
-                      Verify Today
+                      {isJoining ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Verifying...
+                        </>
+                      ) : (
+                        <>
+                          <Camera size={16} />
+                          Verify Today
+                        </>
+                      )}
                     </button>
                   )}
                 </>
@@ -4701,8 +4368,8 @@ const Challenges = ({ onNavigate }) => {
                 Close
               </button>
               
-              {userData && (
-                <button 
+              {user && (
+                <button
                   className="button button-primary"
                   onClick={() => handleJoinGroup(selectedGroup.id)}
                 >

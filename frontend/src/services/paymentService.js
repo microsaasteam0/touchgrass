@@ -1,4 +1,5 @@
-import dodoService from './dodoService';
+import React from 'react';
+  import dodoService from './dodoService';
 
 class PaymentService {
   
@@ -151,7 +152,6 @@ class PaymentService {
   async processManualPayment(userId, productType, amount, notes) {
     try {
       // This would call your backend API
-      console.log('Manual payment processed:', { userId, productType, amount, notes });
       return {
         success: true,
         message: 'Manual payment recorded'

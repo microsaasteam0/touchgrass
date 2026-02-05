@@ -75,7 +75,6 @@
 
 //   // Navigation function - UPDATED TO USE REACT ROUTER NAVIGATE
 //   const navigateTo = useCallback((page) => {
-//     console.log('Navigating to:', page);
 
 //     if (onNavigate && typeof onNavigate === 'function') {
 //       onNavigate(page);
@@ -122,7 +121,6 @@
 //           navigate('/verification-wall');
 //           break;
 //         default:
-//           console.log('Navigating to:', page);
 //       }
 //     }
 //   }, [onNavigate, navigate]);
@@ -136,7 +134,6 @@
       
 //       if (storedUser) {
 //         const user = JSON.parse(storedUser);
-//         console.log('Loaded user from localStorage:', user);
         
 //         if (user.email && (!user.displayName || user.displayName.includes('@'))) {
 //           user.displayName = extractNameFromEmail(user.email);
@@ -166,7 +163,6 @@
 //             lastActive: new Date().toISOString()
 //           };
           
-//           console.log('Created new user from auth:', newUser);
 //           localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
 //           return newUser;
 //         }
@@ -192,12 +188,10 @@
 //               lastActive: new Date().toISOString()
 //             };
             
-//             console.log('Created user from Supabase:', newUser);
 //             localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
 //             return newUser;
 //           }
 //         } catch (error) {
-//           console.error('Error parsing Supabase session:', error);
 //         }
 //       }
       
@@ -222,18 +216,15 @@
 //               isGoogleAuth: true
 //             };
             
-//             console.log('Created user from Google auth:', newUser);
 //             localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
 //             return newUser;
 //           }
 //         } catch (error) {
-//           console.error('Error parsing Google auth:', error);
 //         }
 //       }
       
 //       return null;
 //     } catch (error) {
-//       console.error('Error loading user data:', error);
 //       return null;
 //     }
 //   }, [extractNameFromEmail]);
@@ -266,7 +257,6 @@
 //       localStorage.setItem(streakKey, JSON.stringify(newStreak));
 //       return newStreak;
 //     } catch (error) {
-//       console.error('Error loading streak data:', error);
 //       return null;
 //     }
 //   }, []);
@@ -277,7 +267,6 @@
 //       const streakKey = `touchgrass_streak_${username}`;
 //       localStorage.setItem(streakKey, JSON.stringify(streakData));
 //     } catch (error) {
-//       console.error('Error saving streak data:', error);
 //     }
 //   }, []);
 
@@ -361,7 +350,6 @@
 //       }
 //       return false;
 //     } catch (error) {
-//       console.error('Error updating profile:', error);
 //       toast.error('Failed to update profile');
 //       return false;
 //     }
@@ -377,7 +365,6 @@
 //       const user = loadUserData();
       
 //       if (!user) {
-//         console.log('No user found, showing welcome screen');
 //         setUserData(null);
 //         setIsLoading(false);
 //         return;
@@ -665,10 +652,8 @@
 //       setChallenges(userChallenges);
 //       setAchievements(userAchievements);
       
-//       console.log('Dashboard initialized with user:', user);
       
 //     } catch (error) {
-//       console.error('Error initializing dashboard:', error);
 //       toast.error('Failed to load dashboard data');
 //     } finally {
 //       setIsLoading(false);
@@ -915,7 +900,6 @@
 //         initializeDashboard();
 //       })
 //       .catch(err => {
-//         console.error('Failed to copy:', err);
 //         toast.error('Failed to copy link');
 //       });
 //   }, [userData, loadStreakData, saveStreakData, initializeDashboard]);
@@ -994,7 +978,6 @@
 //   // Listen for auth state changes
 //   useEffect(() => {
 //     const handleAuthChange = () => {
-//       console.log('Auth state changed, refreshing dashboard...');
 //       initializeDashboard();
 //     };
     
@@ -4743,7 +4726,6 @@
 //       setUserData(updatedUser);
 //       toast.success('Avatar updated successfully!');
 //     } catch (error) {
-//       console.error('Error saving avatar:', error);
 //       toast.error('Failed to save avatar. The image might be too large.');
 //     }
 //   };
@@ -4925,7 +4907,6 @@ const Dashboard = ({ onNavigate }) => {
 
   // Navigation function - UPDATED TO USE REACT ROUTER NAVIGATE
   const navigateTo = useCallback((page) => {
-    console.log('Navigating to:', page);
 
     if (onNavigate && typeof onNavigate === 'function') {
       onNavigate(page);
@@ -4972,7 +4953,6 @@ const Dashboard = ({ onNavigate }) => {
           navigate('/verification-wall');
           break;
         default:
-          console.log('Navigating to:', page);
       }
     }
   }, [onNavigate, navigate]);
@@ -4986,18 +4966,14 @@ const Dashboard = ({ onNavigate }) => {
 
       if (storedUser) {
         const user = JSON.parse(storedUser);
-        console.log('Loaded user from localStorage:', user);
 
         // Priority: Cloudinary URL > Local avatar > Default avatar
         if (user.cloudinaryAvatar) {
-          console.log('Using Cloudinary avatar:', user.cloudinaryAvatar);
           user.avatar = user.cloudinaryAvatar;
           user.avatarType = 'cloudinary';
         } else if (user.avatar && !user.avatar.includes('api.dicebear.com')) {
-          console.log('Using local avatar');
           user.avatarType = 'local';
         } else {
-          console.log('Using default avatar');
           user.avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
           user.avatarType = 'default';
         }
@@ -5009,14 +4985,11 @@ const Dashboard = ({ onNavigate }) => {
 
       // Priority: Cloudinary URL > Local avatar > Default avatar
       if (user.cloudinaryAvatar) {
-        console.log('Using Cloudinary avatar:', user.cloudinaryAvatar);
         user.avatar = user.cloudinaryAvatar;
         user.avatarType = 'cloudinary';
       } else if (user.avatar && !user.avatar.includes('api.dicebear.com')) {
-        console.log('Using local avatar');
         user.avatarType = 'local';
       } else {
-        console.log('Using default avatar');
         user.avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
         user.avatarType = 'default';
       }
@@ -5045,7 +5018,6 @@ const Dashboard = ({ onNavigate }) => {
             lastActive: new Date().toISOString()
           };
 
-          console.log('Created new user from auth:', newUser);
           localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
           return newUser;
         }
@@ -5072,12 +5044,10 @@ const Dashboard = ({ onNavigate }) => {
               lastActive: new Date().toISOString()
             };
 
-            console.log('Created user from Supabase:', newUser);
             localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
             return newUser;
           }
         } catch (error) {
-          console.error('Error parsing Supabase session:', error);
         }
       }
 
@@ -5103,18 +5073,15 @@ const Dashboard = ({ onNavigate }) => {
               isGoogleAuth: true
             };
 
-            console.log('Created user from Google auth:', newUser);
             localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
             return newUser;
           }
         } catch (error) {
-          console.error('Error parsing Google auth:', error);
         }
       }
 
       return null;
     } catch (error) {
-      console.error('Error loading user data:', error);
       return null;
     }
   }, [extractNameFromEmail]);
@@ -5149,7 +5116,6 @@ const Dashboard = ({ onNavigate }) => {
       localStorage.setItem(streakKey, JSON.stringify(newStreak));
       return newStreak;
     } catch (error) {
-      console.error('Error loading streak data:', error);
       return null;
     }
   }, []);
@@ -5160,7 +5126,6 @@ const Dashboard = ({ onNavigate }) => {
       const streakKey = `touchgrass_streak_${username}`;
       localStorage.setItem(streakKey, JSON.stringify(streakData));
     } catch (error) {
-      console.error('Error saving streak data:', error);
     }
   }, []);
 
@@ -5244,7 +5209,6 @@ const Dashboard = ({ onNavigate }) => {
       }
       return false;
     } catch (error) {
-      console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
       return false;
     }
@@ -5260,7 +5224,6 @@ const Dashboard = ({ onNavigate }) => {
       const user = loadUserData();
       
       if (!user) {
-        console.log('No user found, showing welcome screen');
         setUserData(null);
         setIsLoading(false);
         return;
@@ -5548,10 +5511,8 @@ const Dashboard = ({ onNavigate }) => {
       setChallenges(userChallenges);
       setAchievements(userAchievements);
       
-      console.log('Dashboard initialized with user:', user);
       
     } catch (error) {
-      console.error('Error initializing dashboard:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
@@ -5790,7 +5751,6 @@ You can also save this image and share it directly!`;
         initializeDashboard();
       })
       .catch(err => {
-        console.error('Failed to copy:', err);
         toast.error('Failed to copy link');
       });
   }, [userData, loadStreakData, saveStreakData, initializeDashboard]);
@@ -5869,7 +5829,6 @@ You can also save this image and share it directly!`;
   // Listen for auth state changes
   useEffect(() => {
     const handleAuthChange = () => {
-      console.log('Auth state changed, refreshing dashboard...');
       initializeDashboard();
     };
     
@@ -8702,7 +8661,6 @@ const uploadToCloudinary = async (file) => {
   formData.append('folder', 'touchgrass/avatars');
   
   try {
-    console.log('Uploading to Cloudinary...');
     
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -8714,18 +8672,15 @@ const uploadToCloudinary = async (file) => {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Cloudinary upload failed:', response.status, errorText);
       throw new Error(`Upload failed: ${response.status}`);
     }
     
     const data = await response.json();
-    console.log('Cloudinary upload successful:', data);
     
     // Return the optimized avatar URL with face detection and cropping
     return data.secure_url.replace('/upload/', '/upload/w_200,h_200,c_fill,g_face,q_auto:good/');
     
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
     throw error;
   }
 };

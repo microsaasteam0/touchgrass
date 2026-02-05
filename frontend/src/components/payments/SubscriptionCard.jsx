@@ -1022,7 +1022,6 @@ const SubscriptionDashboard = () => {
   ]);
 
   const handleUpgrade = (tier) => {
-    console.log('Upgrading to:', tier);
   };
 
   const handleCancel = (subscriptionId) => {
@@ -1036,7 +1035,6 @@ const SubscriptionDashboard = () => {
   };
 
   const handleManage = (subscriptionId) => {
-    console.log('Managing subscription:', subscriptionId);
   };
 
   return (

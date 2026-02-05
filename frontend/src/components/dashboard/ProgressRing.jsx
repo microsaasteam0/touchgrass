@@ -459,7 +459,6 @@ export const ProgressDashboard = () => {
             size={180}
             strokeWidth={14}
             showAnimation
-            onClick={() => console.log(`Clicked ${ring.label}`)}
           />
           
           {/* Additional stats */}

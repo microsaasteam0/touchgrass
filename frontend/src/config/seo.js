@@ -1,4 +1,7 @@
-export const SEO_CONFIG = {
+import React from 'react';
+  
+
+  export const SEO_CONFIG = {
   home: {
     title: 'TouchGrass - Daily Accountability & Habit Building Platform',
     description: 'Build unbreakable outdoor habits with psychology-backed streak systems. Join thousands using behavioral science to build discipline.',

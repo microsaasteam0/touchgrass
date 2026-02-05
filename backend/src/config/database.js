@@ -8,15 +8,22 @@ const mongoose = require('mongoose');
 // MongoDB Configuration
 const configureMongoDB = async () => {
   const {
-    MONGODB_URI = 'mongodb+srv://hitanshiee:Hitanshii14@touchgrass.dgyxbbm.mongodb.net/touchgrass?retryWrites=true&w=majority&appName=touchgrass',
+    MONGODB_URI,
     MONGODB_USER,
     MONGODB_PASSWORD,
     MONGODB_DATABASE,
     NODE_ENV = 'development'
   } = process.env;
 
-  console.log('🔄 Attempting to connect to MongoDB...');
-  console.log(`📁 Database URI: ${MONGODB_URI.replace(/:([^:@]+)@/, ':****@')}`);
+  // Default to local MongoDB for development, Atlas for production
+  const defaultUri = NODE_ENV === 'production'
+    ? 'mongodb+srv://hitanshiee:Hitanshii14@touchgrass.dgyxbbm.mongodb.net/touchgrass?retryWrites=true&w=majority&appName=touchgrass'
+    : 'mongodb://localhost:27017/touchgrass';
+
+  // For development, always use local MongoDB unless explicitly overridden
+  const mongoUri = NODE_ENV === 'development' && !process.env.FORCE_ATLAS
+    ? 'mongodb://localhost:27017/touchgrass'
+    : (MONGODB_URI || defaultUri);
 
   const isProduction = NODE_ENV === 'production';
   
@@ -81,31 +88,58 @@ const configureMongoDB = async () => {
   });
 
   try {
-    // Connect to MongoDB
-    await mongoose.connect(MONGODB_URI, connectionOptions);
-    
+    // Connect to MongoDB with retry logic
+    let connected = false;
+    let lastError;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Connection attempt ${attempt}/${maxRetries} to MongoDB...`);
+        await mongoose.connect(mongoUri, connectionOptions);
+        connected = true;
+        break;
+      } catch (error) {
+        lastError = error;
+        console.warn(`❌ Connection attempt ${attempt} failed:`, error.message);
+
+        if (attempt < maxRetries) {
+          console.log(`⏳ Retrying in ${retryDelay / 1000} seconds...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      }
+    }
+
+    if (!connected) {
+      throw lastError;
+    }
+
     // Verify connection
     await mongoose.connection.db.admin().ping();
     console.log('✅ MongoDB ping successful');
-    
+
     // Set up indexes
     if (!isProduction) {
       await createIndexes();
     }
-    
+
     return mongoose.connection;
   } catch (error) {
-    console.error('❌ Failed to connect to MongoDB:', error.message);
-    
+    console.error('❌ Failed to connect to MongoDB after retries:', error.message);
+
     if (isProduction) {
-      console.log('Attempting to reconnect in 5 seconds...');
+      console.log('🔄 Attempting to reconnect in 5 seconds...');
       setTimeout(() => configureMongoDB(), 5000);
     } else {
-      console.log('💡 Development tip: Make sure MongoDB is running locally:');
-      console.log('   brew services start mongodb-community (on macOS)');
-      console.log('   or: mongod --config /usr/local/etc/mongod.conf');
+      console.log('💡 Development tips:');
+      console.log('   1. Make sure MongoDB is running locally:');
+      console.log('      brew services start mongodb-community (on macOS)');
+      console.log('      or: mongod --config /usr/local/etc/mongod.conf');
+      console.log('   2. If using MongoDB Atlas, check your network and IP whitelist');
+      console.log('   3. Verify your MONGODB_URI environment variable');
     }
-    
+
     throw error;
   }
 };

@@ -52,8 +52,6 @@
 //   }
 
 //   componentDidCatch(error, errorInfo) {
-//     console.error('🔥 Error caught by boundary:', error);
-//     console.error('📝 Component stack:', errorInfo.componentStack);
 //     this.setState({ errorInfo });
 //   }
 
@@ -269,7 +267,6 @@
 //   // Auto-redirect authenticated users from home to dashboard
 //   useEffect(() => {
 //     if (isAuthenticated && location.pathname === '/') {
-//       console.log('🔄 Auto-redirecting from home to dashboard');
 //       navigate('/dashboard', { replace: true });
 //     }
 //   }, [isAuthenticated, location.pathname, navigate]);
@@ -464,12 +461,15 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastContainer } from 'react-toastify';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import 'react-toastify/dist/ReactToastify.css';
 import LoadingScreen from './components/ui/LoadingScreen';
 import SupportWidget from './components/ui/SupportWidget';
+import WelcomePopup from './components/ui/WelcomePopup';
+
 
 
 // Lazy load pages
@@ -512,7 +512,6 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('🔥 Error caught by boundary:', error);
   }
 
   render() {
@@ -697,13 +696,14 @@ function AppContent() {
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
+      <Router future={{ v7_relativeSplatPath: true }}>
         <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
           <AuthProvider>
             <NotificationProvider>
               <StreakProvider>
                 <ChatProvider>
                   <SupportWidget />
+
                   <AppContent />
                 </ChatProvider>
               </StreakProvider>

@@ -97,7 +97,6 @@ const VerificationModal = ({ isOpen, onClose, onVerify, user, streakData }) => {
         webcamRef.current.srcObject = stream;
       }
     } catch (err) {
-      console.error('Camera permission denied:', err);
     }
   };
 

@@ -22,8 +22,9 @@ const Profile = lazyLoad('Profile');
 const Subscription = lazyLoad('Subscription');
 const Auth = lazyLoad('Auth');
 const Chat = lazyLoad('Chat');
-const Challenges = lazyLoad('Challenges');
+const Challenges = lazyLoad('ChallengesNew');
 const Settings = lazyLoad('Settings');
+const Search = lazyLoad('Search');
 const NotFound = lazyLoad('NotFound');
 
 // Import VerificationWall separately since it's not using lazyLoad
@@ -231,6 +232,14 @@ const routesConfig = [
     priority: 'low'
   },
   {
+    path: '/search',
+    element: Search,
+    name: 'Search',
+    public: true,
+    animation: 'default',
+    priority: 'medium'
+  },
+  {
     path: '/verification-wall',
     element: VerificationWall,
     name: 'Verification Wall',
@@ -431,12 +440,10 @@ export default function AppRoutes({ location }) {
             if (typeof route.element._payload !== 'undefined') {
               // This is a React.lazy component
               route.element._payload._result.then(() => {
-                console.log(`Preloaded: ${route.name}`);
               }).catch(() => {});
             }
           } catch (error) {
             // Silently handle preload errors
-            console.debug(`Preload failed for ${route.name}:`, error.message);
           }
         }
       });
@@ -587,6 +594,7 @@ export const getRouteMetadata = (path) => {
 export const getNavigationItems = (isAuthenticated) => {
   const publicItems = [
     { path: '/', name: 'Home', icon: '🏠' },
+    { path: '/search', name: 'Search', icon: '🔍' },
     { path: '/leaderboard', name: 'Leaderboard', icon: '🏆', requiresAuth: true },
     { path: '/auth', name: 'Login', icon: '🔐', requiresAuth: false, hideWhenAuth: true },
   ];
@@ -603,7 +611,7 @@ export const getNavigationItems = (isAuthenticated) => {
   ];
 
   const allItems = [...publicItems];
-  
+
   if (isAuthenticated) {
     allItems.push(...protectedItems);
     // Remove login item when authenticated
@@ -613,9 +621,9 @@ export const getNavigationItems = (isAuthenticated) => {
     }
   }
 
-  return allItems.filter(item => 
+  return allItems.filter(item =>
     !item.requiresAuth || (item.requiresAuth && isAuthenticated)
-  ).filter(item => 
+  ).filter(item =>
     !item.hideWhenAuth || (item.hideWhenAuth && !isAuthenticated)
   );
 };

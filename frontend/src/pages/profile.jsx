@@ -1,15 +1,16 @@
 // import React, { useState, useEffect } from 'react';
 // import { motion } from 'framer-motion';
 // import { toast } from 'react-hot-toast';
-// import { 
-//   Bell, 
-//   Settings, 
-//   Calendar, 
-//   Flame, 
-//   Target, 
-//   Trophy, 
-//   Users, 
-//   TrendingUp, 
+// import { useAuth } from '../contexts/AuthContext';
+// import {
+//   Bell,
+//   Settings,
+//   Calendar,
+//   Flame,
+//   Target,
+//   Trophy,
+//   Users,
+//   TrendingUp,
 //   Clock,
 //   Share2,
 //   Camera,
@@ -1347,7 +1348,6 @@
 //           window.location.href = '/auth';
 //           break;
 //         default:
-//           console.log('Navigating to:', page);
 //       }
 //     }
 //   };
@@ -1359,7 +1359,6 @@
       
 //       if (storedUser) {
 //         const user = JSON.parse(storedUser);
-//         console.log('Loaded user from localStorage:', user);
 //         return user;
 //       }
       
@@ -1379,7 +1378,6 @@
 //             lastActive: new Date().toISOString()
 //           };
           
-//           console.log('Created new user from auth:', newUser);
 //           localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
 //           return newUser;
 //         }
@@ -1387,7 +1385,6 @@
       
 //       return null;
 //     } catch (error) {
-//       console.error('Error loading user data:', error);
 //       return null;
 //     }
 //   };
@@ -1400,7 +1397,6 @@
       
 //       if (storedStreak) {
 //         const streak = JSON.parse(storedStreak);
-//         console.log('Loaded streak data:', streak);
 //         return streak;
 //       }
       
@@ -1419,11 +1415,9 @@
 //         lastVerification: null
 //       };
       
-//       console.log('Created new streak:', newStreak);
 //       localStorage.setItem(streakKey, JSON.stringify(newStreak));
 //       return newStreak;
 //     } catch (error) {
-//       console.error('Error loading streak data:', error);
 //       return null;
 //     }
 //   };
@@ -1436,7 +1430,6 @@
       
 //       if (storedChallenges) {
 //         const challenges = JSON.parse(storedChallenges);
-//         console.log('Loaded user challenges:', challenges);
 //         return challenges;
 //       }
       
@@ -1455,11 +1448,9 @@
 //         }
 //       ];
       
-//       console.log('Created default challenges:', defaultChallenges);
 //       localStorage.setItem(challengesKey, JSON.stringify(defaultChallenges));
 //       return defaultChallenges;
 //     } catch (error) {
-//       console.error('Error loading challenges:', error);
 //       return [];
 //     }
 //   };
@@ -1469,9 +1460,7 @@
 //     try {
 //       const challengesKey = `touchgrass_challenges_${username}`;
 //       localStorage.setItem(challengesKey, JSON.stringify(challenges));
-//       console.log('Saved challenges:', challenges);
 //     } catch (error) {
-//       console.error('Error saving challenges:', error);
 //     }
 //   };
 
@@ -1480,9 +1469,7 @@
 //     try {
 //       const streakKey = `touchgrass_streak_${username}`;
 //       localStorage.setItem(streakKey, JSON.stringify(streakData));
-//       console.log('Saved streak data:', streakData);
 //     } catch (error) {
-//       console.error('Error saving streak data:', error);
 //     }
 //   };
 
@@ -1506,7 +1493,6 @@
 //       }
 //       return false;
 //     } catch (error) {
-//       console.error('Error updating profile:', error);
 //       toast.error('Failed to update profile');
 //       return false;
 //     }
@@ -1886,10 +1872,8 @@
 //       // Set active challenges (from user's challenges)
 //       setActiveChallenges(userChallengesData.filter(challenge => challenge.isActive));
       
-//       console.log('Profile initialized with real data:', { user, streakData, userChallengesData });
       
 //     } catch (error) {
-//       console.error('Error initializing profile:', error);
 //       toast.error('Failed to load profile data');
 //     } finally {
 //       setIsLoading(false);
@@ -2993,15 +2977,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { 
-  Bell, 
-  Settings, 
-  Calendar, 
-  Flame, 
-  Target, 
-  Trophy, 
-  Users, 
-  TrendingUp, 
+import challengeService from '../services/challengeService';
+import { useAuth } from '../contexts/AuthContext'; // Import Supabase auth context
+import Logo from '../components/ui/Logo';
+import {
+  Bell,
+  Settings,
+  Calendar,
+  Flame,
+  Target,
+  Trophy,
+  Users,
+  TrendingUp,
   Clock,
   Share2,
   Camera,
@@ -3093,24 +3080,158 @@ import {
   Flame as FlameIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
-  BarChart as BarChartIcon,
-  PieChart as PieChartIcon,
-  Activity as ActivityIcon3,
-  Target as TargetIcon5,
-  Award as AwardIcon3,
-  Users as UsersIcon2,
-  Eye as EyeIcon,
-  MessageCircle as MessageCircleIcon,
-  Globe as GlobeIcon,
-  FileText as FileTextIcon,
-  Search as SearchIcon,
-  Mic as MicIcon,
-  Shield as ShieldIcon,
-  Zap as ZapIcon3,
-  CalendarDays as CalendarDaysIcon
+  BarChart as BarChartIcon
 } from 'lucide-react';
 
+// IMMEDIATE FIX: Bypass backend entirely - use localStorage only
+const realBackend = {
+  joinChallenge: async (challengeId) => {
+    // Simulate success
+    return {
+      success: true,
+      message: 'Challenge joined',
+      challengeId,
+      joinedAt: new Date().toISOString()
+    };
+  },
+
+  getUserChallenges: async () => {
+    // Return from localStorage
+    const challengesKey = `touchgrass_challenges_${userData?.username || 'default'}`;
+    const storedChallenges = localStorage.getItem(challengesKey);
+    return storedChallenges ? JSON.parse(storedChallenges) : [];
+  },
+
+  saveStreakData: async (streakData) => {
+    // Save to localStorage
+    const streakKey = `touchgrass_streak_${userData?.username || 'default'}`;
+    localStorage.setItem(streakKey, JSON.stringify(streakData));
+    return { success: true };
+  },
+
+  updateDailyProgress: async (challengeId, progress) => {
+    return { success: true, progress };
+  }
+};
+
+// // REAL BACKEND API CALLS
+// const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || 'http://localhost:5001/api';
+
+// const realBackend = {
+//   // REAL: Join a challenge
+//   joinChallenge: async (challengeId, userEmail) => {
+
+//     const response = await fetch(`${BACKEND_URL}/challenges/${challengeId}/join`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'X-User-Email': userEmail
+//       },
+//       body: JSON.stringify({
+//         joinedAt: new Date().toISOString(),
+//         source: 'web-app'
+//       })
+//     });
+
+//     if (!response.ok) {
+//       throw new Error(`Failed to join challenge: ${response.status}`);
+//     }
+
+//     const data = await response.json();
+//     return data;
+//   },
+
+//   // REAL: Get user's challenges from database
+//   getUserChallenges: async (userEmail) => {
+
+//     const response = await fetch(`${BACKEND_URL}/user/${userEmail}/challenges`);
+
+//     if (!response.ok) {
+//       throw new Error(`Failed to fetch challenges: ${response.status}`);
+//     }
+
+//     const data = await response.json();
+//     return data;
+//   },
+
+//   // REAL: Save streak to database
+//   saveStreakData: async (userEmail, streakData) => {
+
+//     const response = await fetch(`${BACKEND_URL}/user/${userEmail}/streak`, {
+//       method: 'PUT',
+//       headers: {
+//         'Content-Type': 'application/json'
+//       },
+//       body: JSON.stringify({
+//         ...streakData,
+//         updatedAt: new Date().toISOString()
+//       })
+//     });
+
+//     if (!response.ok) {
+//       throw new Error(`Failed to save streak: ${response.status}`);
+//     }
+
+//     return await response.json();
+//   },
+
+//   // REAL: Update daily progress
+//   updateDailyProgress: async (challengeId, userEmail, progress) => {
+
+//     const response = await fetch(`${BACKEND_URL}/challenges/${challengeId}/progress`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'X-User-Email': userEmail
+//       },
+//       body: JSON.stringify({
+//         date: new Date().toISOString().split('T')[0],
+//         completed: true,
+//         progress,
+//         timestamp: new Date().toISOString()
+//       })
+//     });
+
+//     if (!response.ok) {
+//       throw new Error(`Failed to update progress: ${response.status}`);
+//     }
+
+//     return await response.json();
+//   }
+// };
+
 const Profile = ({ onNavigate }) => {
+  // Get user from Supabase auth context
+  const { user, session } = useAuth();
+
+  // Add this at the top of your Profile component
+  const debugLocalStorage = () => {
+
+    const allKeys = Object.keys(localStorage);
+    allKeys.forEach(key => {
+      const value = localStorage.getItem(key);
+
+      // Show all auth-related keys
+      if (key.includes('auth') || key.includes('token') || key.includes('session') || key.includes('supabase')) {
+        try {
+          const parsed = JSON.parse(value);
+
+          // Check for token in nested structures
+          if (parsed.currentSession?.access_token) {
+          }
+          if (parsed.access_token) {
+          }
+          if (parsed.session?.access_token) {
+          }
+        } catch (e) {
+        }
+      }
+    });
+
+  };
+
+
+
   // User State
   const [showAchievement, setShowAchievement] = useState(false);
   const [showSocialShareModal, setShowSocialShareModal] = useState(false);
@@ -3141,6 +3262,9 @@ const Profile = ({ onNavigate }) => {
   });
   const [userChallenges, setUserChallenges] = useState([]);
   const [activeChallenges, setActiveChallenges] = useState([]);
+  const [availableChallenges, setAvailableChallenges] = useState([]);
+  const [activeUserChallenges, setActiveUserChallenges] = useState([]);
+  const [challengesLoading, setChallengesLoading] = useState(false);
 
   // CSS Styles matching Dashboard - NOW RESPONSIVE
   const styles = `
@@ -4741,7 +4865,6 @@ const Profile = ({ onNavigate }) => {
         case 'verification-wall':
           window.location.href = '/verification-wall';
         default:
-          console.log('Navigating to:', page);
       }
     }
   };
@@ -4753,7 +4876,6 @@ const Profile = ({ onNavigate }) => {
       
       if (storedUser) {
         const user = JSON.parse(storedUser);
-        console.log('Loaded user from localStorage:', user);
         return user;
       }
       
@@ -4773,7 +4895,6 @@ const Profile = ({ onNavigate }) => {
             lastActive: new Date().toISOString()
           };
           
-          console.log('Created new user from auth:', newUser);
           localStorage.setItem('touchgrass_user', JSON.stringify(newUser));
           return newUser;
         }
@@ -4781,7 +4902,6 @@ const Profile = ({ onNavigate }) => {
       
       return null;
     } catch (error) {
-      console.error('Error loading user data:', error);
       return null;
     }
   };
@@ -4794,7 +4914,6 @@ const Profile = ({ onNavigate }) => {
       
       if (storedStreak) {
         const streak = JSON.parse(storedStreak);
-        console.log('Loaded streak data:', streak);
         return streak;
       }
       
@@ -4813,11 +4932,9 @@ const Profile = ({ onNavigate }) => {
         lastVerification: null
       };
       
-      console.log('Created new streak:', newStreak);
       localStorage.setItem(streakKey, JSON.stringify(newStreak));
       return newStreak;
     } catch (error) {
-      console.error('Error loading streak data:', error);
       return null;
     }
   };
@@ -4830,7 +4947,6 @@ const Profile = ({ onNavigate }) => {
       
       if (storedChallenges) {
         const challenges = JSON.parse(storedChallenges);
-        console.log('Loaded user challenges:', challenges);
         return challenges;
       }
       
@@ -4849,11 +4965,9 @@ const Profile = ({ onNavigate }) => {
         }
       ];
       
-      console.log('Created default challenges:', defaultChallenges);
       localStorage.setItem(challengesKey, JSON.stringify(defaultChallenges));
       return defaultChallenges;
     } catch (error) {
-      console.error('Error loading challenges:', error);
       return [];
     }
   };
@@ -4863,9 +4977,7 @@ const Profile = ({ onNavigate }) => {
     try {
       const challengesKey = `touchgrass_challenges_${username}`;
       localStorage.setItem(challengesKey, JSON.stringify(challenges));
-      console.log('Saved challenges:', challenges);
     } catch (error) {
-      console.error('Error saving challenges:', error);
     }
   };
 
@@ -4874,9 +4986,7 @@ const Profile = ({ onNavigate }) => {
     try {
       const streakKey = `touchgrass_streak_${username}`;
       localStorage.setItem(streakKey, JSON.stringify(streakData));
-      console.log('Saved streak data:', streakData);
     } catch (error) {
-      console.error('Error saving streak data:', error);
     }
   };
 
@@ -4900,7 +5010,6 @@ const Profile = ({ onNavigate }) => {
       }
       return false;
     } catch (error) {
-      console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
       return false;
     }
@@ -4959,279 +5068,168 @@ const Profile = ({ onNavigate }) => {
     return 'Just now';
   };
 
-  // Initialize profile data
-  const initializeProfile = async () => {
-    setIsLoading(true);
-    
-    try {
-      const user = loadUserData();
-      
-      if (!user) {
-        toast.error('Please login to view your profile');
-        setTimeout(() => navigateTo('auth'), 1500);
-        return;
-      }
-      
-      setUserData(user);
-      
-      const streakData = loadStreakData(user.username);
-      const userChallengesData = loadUserChallenges(user.username);
-      
-      // Update today's verification status
-      streakData.todayVerified = checkTodayVerified(streakData);
-      saveStreakData(user.username, streakData);
-      
-      // Calculate days since join
-      const joinDate = new Date(user.createdAt || new Date());
-      const now = new Date();
-      const daysSinceJoin = Math.max(1, Math.floor((now - joinDate) / (1000 * 60 * 60 * 24)));
-      
-      // Calculate consistency
-      const consistency = streakData.totalDays > 0 
-        ? Math.min(100, Math.round((streakData.totalDays / daysSinceJoin) * 100))
-        : 0;
-      
-      // Prepare stats
-      const calculatedStats = [
-        {
-          id: 1,
-          title: "Current Streak",
-          value: streakData.currentStreak,
-          change: streakData.todayVerified ? "+1" : "0",
-          description: "Consecutive verified days",
-          icon: <Flame size={24} />
-        },
-        {
-          id: 2,
-          title: "Total Time Outside",
-          value: `${Math.floor(streakData.totalOutdoorTime / 60) || 0}h`,
-          change: "+12%",
-          description: "Time spent touching grass",
-          icon: <Clock size={24} />
-        },
-        {
-          id: 3,
-          title: "Consistency",
-          value: `${consistency}%`,
-          change: consistency > 50 ? "+5%" : "0%",
-          description: "Verification rate",
-          icon: <Target size={24} />
-        },
-        {
-          id: 4,
-          title: "Challenges",
-          value: userChallengesData.length,
-          change: "+2",
-          description: "Active challenges",
-          icon: <TargetIcon2 size={24} />
-        },
-        {
-          id: 5,
-          title: "Social Score",
-          value: streakData.viralScore || 0,
-          change: "+8%",
-          description: "Impact on community",
-          icon: <TrendingUp size={24} />
-        },
-        {
-          id: 6,
-          title: "Global Rank",
-          value: `#${Math.floor(Math.random() * 1000) + 1}`,
-          change: streakData.currentStreak > 0 ? "↑12" : "0",
-          description: "Out of 50k users",
-          icon: <Users size={24} />
-        }
-      ];
+  // Add this near the top of your component:
+  const [realChallenges, setRealChallenges] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const userEmail = 'tandelhitanshi@gmail.com'; // Get from auth
 
-      // Prepare activities
-      const recentActivities = [];
-      
-      if (streakData.todayVerified) {
-        recentActivities.push({
-          id: 1,
-          action: "Verified today's outdoor time",
-          time: 'Just now',
-          icon: <CheckCircle2 size={20} />,
-          meta: '+1 day'
+  // SIMPLE LOCALSTORAGE DATA LOADING
+  useEffect(() => {
+    const loadChallenges = () => {
+      const challengesKey = `touchgrass_challenges_${userData?.username || 'default'}`;
+      const storedChallenges = localStorage.getItem(challengesKey);
+
+      if (storedChallenges) {
+        const challenges = JSON.parse(storedChallenges);
+        setRealChallenges(challenges);
+      } else {
+        setRealChallenges([]);
+      }
+
+      setLoading(false);
+    };
+
+    loadChallenges();
+  }, [userData?.username]); // Only depend on username
+
+  // Initialize profile data - SIMPLE LOCALSTORAGE VERSION
+  const initializeProfile = () => {
+    setIsLoading(true);
+
+    try {
+      // Get user from localStorage or create from Supabase
+      let userData = null;
+      const storedUser = localStorage.getItem('touchgrass_user');
+
+      if (storedUser) {
+        userData = JSON.parse(storedUser);
+      } else if (user) {
+        userData = {
+          id: user.id,
+          email: user.email,
+          username: user.email.split('@')[0],
+          displayName: user.user_metadata?.full_name || user.email.split('@')[0],
+          avatar: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`,
+          location: { city: 'Online', country: 'Internet' },
+          bio: 'Building discipline through daily outdoor accountability.',
+          createdAt: new Date().toISOString(),
+          lastActive: new Date().toISOString()
+        };
+
+        localStorage.setItem('touchgrass_user', JSON.stringify(userData));
+      }
+
+      if (userData) {
+        setUserData(userData);
+
+        setProfileEdit({
+          displayName: userData.displayName || '',
+          bio: userData.bio || '',
+          city: userData.location?.city || '',
+          country: userData.location?.country || ''
         });
       }
-      
-      if (streakData.history && streakData.history.length > 0) {
-        const recentHistory = streakData.history.slice(-3).reverse();
-        recentHistory.forEach((entry, index) => {
-          if (index === 0 && streakData.todayVerified) return;
-          
-          const timeText = timeAgo(entry.date);
-          recentActivities.push({
-            id: recentActivities.length + 1,
-            action: `Verified ${entry.activity || 'outdoor time'}`,
-            time: timeText,
-            icon: <CheckCircle2 size={20} />,
-            meta: `+${entry.duration || 30}min`
-          });
-        });
-      }
-      
-      if (streakData.shareCount > 0) {
-        recentActivities.push({
-          id: recentActivities.length + 1,
-          action: 'Shared achievement on social media',
-          time: '4 hours ago',
-          icon: <Share2 size={20} />,
-          meta: `+${streakData.shareCount} shares`
-        });
-      }
+
+      // Set stats
+      const streakKey = `touchgrass_streak_${userData?.username || 'default'}`;
+      const storedStreak = localStorage.getItem(streakKey);
+      const streakData = storedStreak ? JSON.parse(storedStreak) : {
+        currentStreak: 7,
+        longestStreak: 30,
+        totalDays: 45,
+        totalOutdoorTime: 120
+      };
+
+      setStats([
+        {
+          id: 'current-streak',
+          value: streakData.currentStreak || 0,
+          icon: '🔥',
+          title: 'Current Streak',
+          description: 'Days in a row',
+          change: streakData.currentStreak > 0 ? 'Active' : 'Start Now',
+          label: 'Current Streak'
+        },
+        {
+          id: 'longest-streak',
+          value: streakData.longestStreak || 0,
+          icon: '🏆',
+          title: 'Longest Streak',
+          description: 'Best streak ever',
+          change: 'Personal Best',
+          label: 'Longest Streak'
+        },
+        {
+          id: 'total-days',
+          value: streakData.totalDays || 0,
+          icon: '📅',
+          title: 'Total Days',
+          description: 'Total outdoor days',
+          change: 'Lifetime Total',
+          label: 'Total Days'
+        },
+        {
+          id: 'outdoor-time',
+          value: `${streakData.totalOutdoorTime || 0}h`,
+          icon: '🌳',
+          title: 'Outdoor Time',
+          description: 'Hours spent outdoors',
+          change: 'Total Hours',
+          label: 'Outdoor Time'
+        }
+      ]);
+
+      // Set activities
+      setActivities([
+        {
+          id: 'activity-1',
+          action: 'Completed daily verification',
+          time: '2 hours ago',
+          icon: '✅',
+          meta: '+10 XP'
+        },
+        {
+          id: 'activity-2',
+          action: 'Reached 7-day streak milestone',
+          time: '1 day ago',
+          icon: '🔥',
+          meta: 'Milestone'
+        },
+        {
+          id: 'activity-3',
+          action: 'Shared progress on social media',
+          time: '2 days ago',
+          icon: '📱',
+          meta: 'Shared'
+        }
+      ]);
 
       // Set social stats
-      const socialPlatforms = [
+      setSocialStats([
         {
           id: 1,
           platform: "Twitter",
           icon: <Twitter size={20} />,
           color: "rgba(29, 161, 242, 0.2)",
-          metrics: `${Math.min(streakData.shareCount, 24)} Shares • 1.2K Views`
+          metrics: `${Math.min(streakData.shareCount || 0, 24)} Shares • 1.2K Views`
         },
         {
           id: 2,
           platform: "LinkedIn",
           icon: <Linkedin size={20} />,
           color: "rgba(0, 119, 181, 0.2)",
-          metrics: `${Math.min(streakData.shareCount, 18)} Shares • 420 Views`
+          metrics: `${Math.min(streakData.shareCount || 0, 18)} Shares • 420 Views`
         },
         {
           id: 3,
           platform: "Instagram",
           icon: <Instagram size={20} />,
           color: "rgba(225, 48, 108, 0.2)",
-          metrics: `${Math.min(streakData.shareCount, 12)} Shares • 780 Likes`
+          metrics: `${Math.min(streakData.shareCount || 0, 12)} Shares • 780 Likes`
         }
-      ];
+      ]);
 
-      // Set predefined challenges (from your list)
-      const predefinedChallenges = [
-        {
-          id: 1,
-          name: "No Complaining / No Excuses Week",
-          type: "mindset",
-          description: "For 7 days, ban all complaints and excuses. Every time you catch yourself, state one actionable step to improve the situation.",
-          duration: 7,
-          rules: [
-            "No complaining about anything",
-            "No excuses for not completing tasks",
-            "When you slip, state one actionable improvement step",
-            "Track slips in a journal"
-          ],
-          difficulty: "hard",
-          icon: "🧠"
-        },
-        {
-          id: 2,
-          name: "First Principles Week",
-          type: "mindset",
-          description: "For every major problem or assumption, break it down to fundamental truths and rebuild from there.",
-          duration: 7,
-          rules: [
-            "Question everything 'why' at least 5 times",
-            "Break down 3 major assumptions daily",
-            "Rebuild solutions from first principles",
-            "Document insights"
-          ],
-          difficulty: "medium",
-          icon: "🔍"
-        },
-        {
-          id: 3,
-          name: "Emotional Weather Report",
-          type: "emotional",
-          description: "Three times daily, pause and name your emotional state with one word. No judgment, just observation.",
-          duration: 30,
-          rules: [
-            "Morning, afternoon, evening check-ins",
-            "One-word emotional state",
-            "No judgment or analysis",
-            "Track patterns weekly"
-          ],
-          difficulty: "easy",
-          icon: "⛅"
-        },
-        {
-          id: 4,
-          name: "Deliberate Discomfort Daily",
-          type: "mindset",
-          description: "Do one thing daily that pushes you slightly outside your comfort zone, especially socially.",
-          duration: "ongoing",
-          rules: [
-            "One uncomfortable action daily",
-            "Focus on social situations",
-            "Document your fears and outcomes",
-            "Increase difficulty weekly"
-          ],
-          difficulty: "medium",
-          icon: "🚀"
-        },
-        {
-          id: 5,
-          name: "10 Customer Calls Challenge",
-          type: "business",
-          description: "Every week, have 10 conversations with potential or current users. No selling, just ask 'Why?' and 'Tell me more.'",
-          duration: "weekly",
-          rules: [
-            "10 conversations weekly",
-            "No selling allowed",
-            "Focus on understanding needs",
-            "Document all insights"
-          ],
-          difficulty: "hard",
-          icon: "📞"
-        },
-        {
-          id: 6,
-          name: "Perfect Week Role Play",
-          type: "business",
-          description: "Spend one week living exactly as your ideal customer does. Use their tools, read their forums, follow their routines.",
-          duration: 7,
-          rules: [
-            "Live as your customer for a week",
-            "Use their tools and platforms",
-            "Follow their daily routines",
-            "Develop empathy insights"
-          ],
-          difficulty: "hard",
-          icon: "🎭"
-        },
-        {
-          id: 7,
-          name: "Fake Door Test",
-          type: "business",
-          description: "Create a mock-up or button for a feature and see how many people try to access it. Validate demand with zero code.",
-          duration: 14,
-          rules: [
-            "Create feature mock-up",
-            "Add 'coming soon' button",
-            "Track clicks and interest",
-            "Survey interested users"
-          ],
-          difficulty: "medium",
-          icon: "🚪"
-        },
-        {
-          id: 8,
-          name: "Competitor Love Letter",
-          type: "business",
-          description: "Write a detailed analysis of your top competitor, listing everything they do better than you.",
-          duration: 3,
-          rules: [
-            "Analyze top competitor",
-            "List everything they do better",
-            "Identify opportunity gaps",
-            "Create improvement plan"
-          ],
-          difficulty: "easy",
-          icon: "💌"
-        }
-      ];
-
-      // Prepare achievements
+      // Set achievements
       const userAchievements = [];
       if (streakData.currentStreak >= 7) {
         userAchievements.push({
@@ -5242,7 +5240,7 @@ const Profile = ({ onNavigate }) => {
           description: "7 consecutive days"
         });
       }
-      if (streakData.shareCount >= 10) {
+      if ((streakData.shareCount || 0) >= 10) {
         userAchievements.push({
           id: 2,
           name: "Social Butterfly",
@@ -5270,21 +5268,10 @@ const Profile = ({ onNavigate }) => {
         });
       }
 
-      setStats(calculatedStats);
-      setActivities(recentActivities);
-      setSocialStats(socialPlatforms);
-      setChallenges(predefinedChallenges);
-      setUserChallenges(userChallengesData);
       setAchievements(userAchievements);
-      
-      // Set active challenges (from user's challenges)
-      setActiveChallenges(userChallengesData.filter(challenge => challenge.isActive));
-      
-      console.log('Profile initialized with real data:', { user, streakData, userChallengesData });
-      
+
     } catch (error) {
-      console.error('Error initializing profile:', error);
-      toast.error('Failed to load profile data');
+      console.error('Profile initialization error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -5333,29 +5320,244 @@ const Profile = ({ onNavigate }) => {
     toast.success('Challenge created successfully!');
   };
 
-  // Handle join challenge
-  const handleJoinChallenge = (challenge) => {
-    if (!userData) {
-      toast.error('Please login to join challenges');
-      return;
+// Updated handleJoinChallenge function that calls backend
+const handleJoinChallenge = async (challenge) => {
+  if (!user?.email) {
+    toast.error('Please login to join challenges');
+    return;
+  }
+  
+  try {
+    setChallengesLoading(true);
+    
+    // Call backend to join challenge
+    const result = await challengeService.joinChallenge(challenge.id, user.email);
+    
+    if (result.success) {
+      // Refresh challenges data
+      await loadChallengesFromBackend();
+      
+      // Show success message
+      toast.success(`Joined "${challenge.name}" challenge!`);
+      
+      // Show achievement if it's their first challenge
+      if (activeUserChallenges.length === 0) {
+        setShowAchievement(true);
+        setTimeout(() => setShowAchievement(false), 3000);
+      }
+    } else {
+      toast.error(result.message || 'Failed to join challenge');
     }
+  } catch (error) {
+    console.error('Error joining challenge:', error);
+    toast.error('Failed to join challenge. Please try again.');
+  } finally {
+    setChallengesLoading(false);
+  }
+};
+
+// Add this function to load challenges from backend
+const loadChallengesFromBackend = async () => {
+  if (!user?.email) return;
+  
+  try {
+    setChallengesLoading(true);
     
-    const joinedChallenge = {
-      ...challenge,
-      id: Date.now(),
-      joinedAt: new Date().toISOString(),
-      isActive: true,
-      progress: 0,
-      userId: userData.username
-    };
+    // Load available challenges from backend
+    const availableData = await challengeService.getAvailableChallenges(user.email);
+    setAvailableChallenges(availableData);
     
-    const updatedChallenges = [...userChallenges, joinedChallenge];
-    saveUserChallenges(userData.username, updatedChallenges);
-    setUserChallenges(updatedChallenges);
-    setActiveChallenges(updatedChallenges.filter(c => c.isActive));
+    // Load user's active challenges from backend
+    const userChallengesData = await challengeService.getUserActiveChallenges(user.email);
+    setActiveUserChallenges(userChallengesData);
     
-    toast.success(`Joined "${challenge.name}" challenge!`);
-  };
+    setChallengesLoading(false);
+  } catch (error) {
+    console.error('Error loading challenges:', error);
+    setChallengesLoading(false);
+    
+    // Fallback to default challenges if backend fails
+    const defaultChallenges = getDefaultChallenges();
+    setAvailableChallenges(defaultChallenges);
+    
+    // You might want to show a toast here
+    toast.error('Failed to load challenges. Using default data.');
+  }
+};
+
+// Default challenges as fallback
+const getDefaultChallenges = () => [
+  {
+    id: 1,
+    name: "The First 10 Minutes",
+    type: "foundation",
+    description: "Start your day outside—no phone, no agenda. Just be present in the open air for the first 10 minutes after you wake up.",
+    duration: "daily",
+    rules: [
+      "Go outside within 10 minutes of waking",
+      "Stay for minimum 10 minutes",
+      "No phone usage allowed",
+      "Breathe deeply and observe your surroundings"
+    ],
+    difficulty: "easy",
+    icon: "☀️",
+    participants: 42,
+    category: "mindfulness"
+  },
+  {
+    id: 2,
+    name: "The Silent Kilometer",
+    type: "mindfulness",
+    description: "Walk one full kilometer in complete silence—no phone, no music, no podcasts. Just you, your breath, and your surroundings.",
+    duration: "daily",
+    rules: [
+      "1 km minimum distance (track via basic pedometer or map)",
+      "Absolute silence (no audio input)",
+      "Phone stays in pocket",
+      "Note one small detail you've never noticed before"
+    ],
+    difficulty: "medium",
+    icon: "🤫",
+    participants: 28,
+    category: "mindfulness"
+  },
+  {
+    id: 3,
+    name: "Greening Your Loop",
+    type: "exploration",
+    description: "For one week, you cannot take the exact same outdoor route twice. Find a new street, path, or trail every single time.",
+    duration: 7,
+    rules: [
+      "No repeated routes for 7 days",
+      "Minimum 15 minutes per outing",
+      "Must end at a new destination or starting point",
+      "Map your week's 'spiderweb' in your journal"
+    ],
+    difficulty: "medium",
+    icon: "🕸️",
+    participants: 65,
+    category: "exploration"
+  },
+  {
+    id: 4,
+    name: "Sunrise-Sunset Bookends",
+    type: "discipline",
+    description: "Bookend your day with natural light. Be present for the sunrise and the sunset, no matter the weather. 5 minutes minimum each.",
+    duration: "weekly",
+    rules: [
+      "Catch sunrise (within 30 min of dawn)",
+      "Catch sunset (within 30 min of dusk)",
+      "At least 5 minutes of presence each",
+      "Complete 5 out of 7 days in a week"
+    ],
+    difficulty: "hard",
+    icon: "🌅",
+    participants: 19,
+    category: "discipline"
+  },
+  {
+    id: 5,
+    name: "The 5-Bench Circuit",
+    type: "community",
+    description: "Find and sit on 5 different public benches in your neighborhood or a park. Observe the rhythm of life from each station.",
+    duration: "single",
+    rules: [
+      "Find 5 distinct benches",
+      "Sit for at least 3 minutes each",
+      "No phone while sitting",
+      "Sketch or write one sentence about the view from each"
+    ],
+    difficulty: "easy",
+    icon: "🪑",
+    participants: 87,
+    category: "community"
+  },
+  {
+    id: 6,
+    name: "The Weatherproof Pledge",
+    type: "resilience",
+    description: "Go outside every day for 7 days, regardless of weather conditions. Rain, wind, or shine—your commitment doesn't waver.",
+    duration: 7,
+    rules: [
+      "Minimum 10 minutes outside daily",
+      "No weather-based excuses",
+      "Document the conditions with a photo",
+      "Reflect on how the weather affected your mood"
+    ],
+    difficulty: "hard",
+    icon: "🌧️",
+    participants: 31,
+    category: "resilience"
+  },
+  {
+    id: 7,
+    name: "Tree Identification Week",
+    type: "learning",
+    description: "Learn to identify 5 different tree species in your local area. Find them, photograph them, and learn one fact about each.",
+    duration: 7,
+    rules: [
+      "Correctly identify 5 local tree species",
+      "Visit at least one of each during the week",
+      "Photograph leaf, bark, and overall shape",
+      "Note the location of your favorite"
+    ],
+    difficulty: "medium",
+    icon: "🌳",
+    participants: 45,
+    category: "learning"
+  },
+  {
+    id: 8,
+    name: "The Digital Sunset",
+    type: "detox",
+    description: "For one week, your last screen time of the day must end at least 1 hour before bedtime. Replace that time with an evening outdoor ritual.",
+    duration: 7,
+    rules: [
+      "Screens off 60+ minutes before bed",
+      "Spend those 60 minutes outside (e.g., porch, walk, stargazing)",
+      "No checking phones during outdoor time",
+      "Track how your sleep quality changes"
+    ],
+    difficulty: "medium",
+    icon: "📵",
+    participants: 52,
+    category: "detox"
+  },
+  {
+    id: 9,
+    name: "The Pilgrimage",
+    type: "endurance",
+    description: "Walk to a meaningful local destination that you'd normally drive to. A friend's house, a favorite cafe, a library—earn the arrival.",
+    duration: "single",
+    rules: [
+      "Choose a destination 30+ minutes away by foot",
+      "Walk the entire way there",
+      "No motorized transport allowed",
+      "Share a photo from your destination as proof"
+    ],
+    difficulty: "hard",
+    icon: "🥾",
+    participants: 23,
+    category: "endurance"
+  },
+  {
+    id: 10,
+    name: "The Micro-Season Observer",
+    type: "mindfulness",
+    description: "Visit the same natural spot (a park, a tree, a pond) every day for 2 weeks and document the subtle daily changes.",
+    duration: 14,
+    rules: [
+      "Visit the same spot daily",
+      "Spend at least 5 minutes observing",
+      "Take one photo or write one observation",
+      "Create a time-lapse collage at the end"
+    ],
+    difficulty: "easy",
+    icon: "🔍",
+    participants: 68,
+    category: "mindfulness"
+  }
+];
 
   // Handle share profile
   const handleShareProfile = (platform) => {
@@ -5474,14 +5676,15 @@ const Profile = ({ onNavigate }) => {
 
   // Initialize profile on mount
   useEffect(() => {
+    debugLocalStorage();
     initializeProfile();
-    
+
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
     }, 1000);
-    
+
     return () => clearInterval(timer);
-  }, []);
+  }, [user]); // Only depend on user
 
   if (isLoading && !userData) {
     return (
@@ -5545,14 +5748,11 @@ const Profile = ({ onNavigate }) => {
       {/* Navigation */}
       <nav className="profile-nav glass">
         <div className="profile-nav-container">
-          <button 
-            className="profile-nav-logo"
-            onClick={() => navigateTo('dashboard')}
-          >
+          <div className="profile-nav-logo">
             <div className="profile-nav-logo-text">
               Touch<span className="profile-nav-logo-highlight">Grass</span>
             </div>
-          </button>
+          </div>
           
           <div className="profile-nav-links">
             <button className="profile-nav-link" onClick={() => navigateTo('verify')}>
@@ -5641,20 +5841,20 @@ const Profile = ({ onNavigate }) => {
             <div className="profile-info">
               <h2 className="profile-name">{userData?.displayName || 'User'}</h2>
               
-              <div className="profile-meta">
-                <div className="meta-item">
-                  <User size={16} />
-                  @{userData?.username || 'username'}
-                </div>
-                <div className="meta-item">
-                  <MapPin size={16} />
-                  {userData?.location?.city || 'Online'}, {userData?.location?.country || 'Internet'}
-                </div>
-                <div className="meta-item">
-                  <Calendar size={16} />
-                  Joined {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
-                </div>
-              </div>
+  <div className="profile-meta">
+    <div key="username" className="meta-item">
+      <User size={16} />
+      @{userData?.username || 'username'}
+    </div>
+    <div key="location" className="meta-item">
+      <MapPin size={16} />
+      {userData?.location?.city || 'Online'}, {userData?.location?.country || 'Internet'}
+    </div>
+    <div key="joined" className="meta-item">
+      <Calendar size={16} />
+      Joined {userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
+    </div>
+  </div>
               
               <p className="profile-bio">
                 {userData?.bio || 'No bio yet. Click edit to add your personal journey...'}
@@ -5690,21 +5890,24 @@ const Profile = ({ onNavigate }) => {
 
           {/* Tabs */}
           <div className="profile-tabs">
-            <button 
+            <button
+              key="overview"
               className={`profile-tab ${activeTab === 'overview' ? 'active' : ''}`}
               onClick={() => setActiveTab('overview')}
             >
               <Activity size={16} />
               Overview
             </button>
-            <button 
+            <button
+              key="challenges"
               className={`profile-tab ${activeTab === 'challenges' ? 'active' : ''}`}
               onClick={() => setActiveTab('challenges')}
             >
               <TargetIcon2 size={16} />
               Challenges
             </button>
-            <button 
+            <button
+              key="achievements"
               className={`profile-tab ${activeTab === 'achievements' ? 'active' : ''}`}
               onClick={() => setActiveTab('achievements')}
             >
@@ -5792,9 +5995,19 @@ const Profile = ({ onNavigate }) => {
                 <div className="section-header">
                   <h2 className="section-title">
                     <TargetIcon2 size={24} />
-                    Your Challenges
+                    Your Active Challenges
+                    {activeUserChallenges.length > 0 && (
+                      <span style={{
+                        fontSize: '0.875rem',
+                        marginLeft: '0.5rem',
+                        color: '#00E5FF',
+                        fontWeight: 'normal'
+                      }}>
+                        ({activeUserChallenges.length} active)
+                      </span>
+                    )}
                   </h2>
-                  <button 
+                  <button
                     className="profile-button button-secondary"
                     onClick={() => setShowCreateChallenge(true)}
                     style={{ padding: '0.75rem 1.5rem' }}
@@ -5803,23 +6016,47 @@ const Profile = ({ onNavigate }) => {
                     Create New
                   </button>
                 </div>
-                
-                {activeChallenges.length > 0 ? (
+
+                {challengesLoading ? (
+                  <div style={{ textAlign: 'center', padding: '3rem' }}>
+                    <div className="loading-skeleton" style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '50%',
+                      margin: '0 auto 1rem'
+                    }}></div>
+                    <div className="loading-skeleton" style={{
+                      width: '200px',
+                      height: '20px',
+                      margin: '0 auto'
+                    }}></div>
+                  </div>
+                ) : activeUserChallenges.length > 0 ? (
                   <div className="challenges-grid">
-                    {activeChallenges.map(challenge => (
+                    {activeUserChallenges.map(challenge => (
                       <div key={challenge.id} className="challenge-card glass">
                         <div className="challenge-header">
-                          <span className={`challenge-type type-${challenge.type}`}>
-                            {challenge.type}
+                          <span className={`challenge-type type-${challenge.category || challenge.type}`}>
+                            {challenge.category || challenge.type}
                           </span>
-                          <span style={{ fontSize: '0.75rem', color: '#71717a' }}>
-                            {challenge.difficulty}
+                          <span style={{
+                            fontSize: '0.75rem',
+                            color: '#71717a',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem'
+                          }}>
+                            <Users size={12} />
+                            {challenge.participants || 0}
                           </span>
                         </div>
-                        
-                        <h3 className="challenge-title">{challenge.name}</h3>
+
+                        <h3 className="challenge-title">
+                          <span style={{ marginRight: '0.5rem' }}>{challenge.icon || '🎯'}</span>
+                          {challenge.name}
+                        </h3>
                         <p className="challenge-description">{challenge.description}</p>
-                        
+
                         <div className="challenge-rules">
                           {challenge.rules?.slice(0, 3).map((rule, index) => (
                             <div key={index} className="rule-item">
@@ -5828,13 +6065,36 @@ const Profile = ({ onNavigate }) => {
                             </div>
                           ))}
                         </div>
-                        
+
                         <div className="challenge-footer">
                           <div className="challenge-duration">
-                            {challenge.duration === 'ongoing' ? 'Ongoing' : `${challenge.duration} days`}
+                            {challenge.duration === 'daily' ? 'Daily' :
+                             challenge.duration === 'weekly' ? 'Weekly' :
+                             typeof challenge.duration === 'number' ? `${challenge.duration} days` :
+                             challenge.duration}
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: '#00E5FF' }}>
-                            {challenge.progress || 0}% complete
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: '#00E5FF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                          }}>
+                            <div style={{
+                              width: '60px',
+                              height: '4px',
+                              background: 'rgba(255,255,255,0.1)',
+                              borderRadius: '2px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                width: `${challenge.progress || 0}%`,
+                                height: '100%',
+                                background: 'linear-gradient(90deg, #00E5FF, #7F00FF)',
+                                borderRadius: '2px'
+                              }}></div>
+                            </div>
+                            {challenge.progress || 0}%
                           </div>
                         </div>
                       </div>
@@ -5844,15 +6104,7 @@ const Profile = ({ onNavigate }) => {
                   <div className="empty-state">
                     <div className="empty-icon">🎯</div>
                     <div className="empty-title">No Active Challenges</div>
-                    <p className="empty-description">Create or join challenges to build discipline.</p>
-                    <button 
-                      className="profile-button button-secondary"
-                      onClick={() => setShowCreateChallenge(true)}
-                      style={{ marginTop: '1rem' }}
-                    >
-                      <Plus size={16} />
-                      Create Your First Challenge
-                    </button>
+                    <p className="empty-description">Join challenges below to build discipline and track your progress.</p>
                   </div>
                 )}
               </section>
@@ -5863,48 +6115,157 @@ const Profile = ({ onNavigate }) => {
                   <h2 className="section-title">
                     <Compass size={24} />
                     Available Challenges
+                    {availableChallenges.length > 0 && (
+                      <span style={{
+                        fontSize: '0.875rem',
+                        marginLeft: '0.5rem',
+                        color: '#71717a',
+                        fontWeight: 'normal'
+                      }}>
+                        ({availableChallenges.length} available)
+                      </span>
+                    )}
                   </h2>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <select
+                      className="form-select"
+                      style={{
+                        width: 'auto',
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.75rem'
+                      }}
+                      onChange={(e) => {
+                        // Add filter functionality if needed
+                      }}
+                    >
+                      <option value="all">All Categories</option>
+                      <option value="mindfulness">Mindfulness</option>
+                      <option value="exploration">Exploration</option>
+                      <option value="discipline">Discipline</option>
+                      <option value="community">Community</option>
+                    </select>
+                  </div>
                 </div>
-                
-                <div className="challenges-grid">
-                  {challenges.map(challenge => (
-                    <div key={challenge.id} className="challenge-card glass">
-                      <div className="challenge-header">
-                        <span className={`challenge-type type-${challenge.type}`}>
-                          {challenge.type}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', color: '#71717a' }}>
-                          {challenge.difficulty}
-                        </span>
-                      </div>
-                      
-                      <h3 className="challenge-title">{challenge.name}</h3>
-                      <p className="challenge-description">{challenge.description}</p>
-                      
-                      <div className="challenge-rules">
-                        {challenge.rules?.slice(0, 3).map((rule, index) => (
-                          <div key={index} className="rule-item">
-                            <CheckCircle size={12} className="rule-icon" />
-                            <span>{rule}</span>
+
+                {challengesLoading ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="challenge-card glass loading-skeleton" style={{ height: '300px' }}></div>
+                    ))}
+                  </div>
+                ) : availableChallenges.length > 0 ? (
+                  <div className="challenges-grid">
+                    {availableChallenges.map(challenge => {
+                      // Check if user has already joined this challenge
+                      const isJoined = activeUserChallenges.some(c => c.id === challenge.id);
+
+                      return (
+                        <div key={challenge.id} className="challenge-card glass">
+                          <div className="challenge-header">
+                            <span className={`challenge-type type-${challenge.category || challenge.type}`}>
+                              {challenge.category || challenge.type}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: '#71717a' }}>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem'
+                                }}>
+                                  <Users size={12} />
+                                  {challenge.participants || 0}
+                                </span>
+                              </span>
+                              <span style={{
+                                fontSize: '0.625rem',
+                                padding: '0.125rem 0.5rem',
+                                borderRadius: '9999px',
+                                background: challenge.difficulty === 'easy' ? 'rgba(34, 197, 94, 0.1)' :
+                                           challenge.difficulty === 'medium' ? 'rgba(245, 158, 11, 0.1)' :
+                                           'rgba(239, 68, 68, 0.1)',
+                                color: challenge.difficulty === 'easy' ? '#22c55e' :
+                                       challenge.difficulty === 'medium' ? '#f59e0b' :
+                                       '#ef4444'
+                              }}>
+                                {challenge.difficulty}
+                              </span>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                      
-                      <div className="challenge-footer">
-                        <div className="challenge-duration">
-                          {challenge.duration === 'ongoing' ? 'Ongoing' : `${challenge.duration} days`}
+
+                          <h3 className="challenge-title">
+                            <span style={{ marginRight: '0.5rem' }}>{challenge.icon || '🎯'}</span>
+                            {challenge.name}
+                          </h3>
+                          <p className="challenge-description">{challenge.description}</p>
+
+                          <div className="challenge-rules">
+                            {challenge.rules?.slice(0, 2).map((rule, index) => (
+                              <div key={index} className="rule-item">
+                                <CheckCircle size={12} className="rule-icon" />
+                                <span>{rule}</span>
+                              </div>
+                            ))}
+                            {challenge.rules?.length > 2 && (
+                              <div className="rule-item" style={{ color: '#71717a', fontSize: '0.75rem' }}>
+                                +{challenge.rules.length - 2} more rules
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="challenge-footer">
+                            <div className="challenge-duration">
+                              {challenge.duration === 'daily' ? 'Daily Challenge' :
+                               challenge.duration === 'weekly' ? 'Weekly Challenge' :
+                               typeof challenge.duration === 'number' ? `${challenge.duration}-Day Challenge` :
+                               challenge.duration}
+                            </div>
+                            <button
+                              className={`profile-button ${isJoined ? 'button-secondary' : 'button-primary'}`}
+                              onClick={() => !isJoined && handleJoinChallenge(challenge)}
+                              disabled={challengesLoading || isJoined}
+                              style={{
+                                padding: '0.5rem 1rem',
+                                fontSize: '0.75rem',
+                                opacity: isJoined ? 0.6 : 1
+                              }}
+                            >
+                              {challengesLoading ? (
+                                <>
+                                  <div className="loading-skeleton" style={{ width: '12px', height: '12px', borderRadius: '50%' }}></div>
+                                  Joining...
+                                </>
+                              ) : isJoined ? (
+                                <>
+                                  <CheckCircle size={14} />
+                                  Joined
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} />
+                                  Join Challenge
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
-                        <button 
-                          className="profile-button button-secondary"
-                          onClick={() => handleJoinChallenge(challenge)}
-                          style={{ padding: '0.5rem 1rem', fontSize: '0.75rem' }}
-                        >
-                          Join Challenge
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">🔍</div>
+                    <div className="empty-title">No Challenges Available</div>
+                    <p className="empty-description">Check back later for new challenges or create your own!</p>
+                    <button
+                      className="profile-button button-primary"
+                      onClick={() => setShowCreateChallenge(true)}
+                      style={{ marginTop: '1rem' }}
+                    >
+                      <Plus size={16} />
+                      Create Your Own Challenge
+                    </button>
+                  </div>
+                )}
               </section>
             </>
           )}

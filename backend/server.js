@@ -13,12 +13,14 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
 
+// Import database configuration
+const { configureMongoDB } = require('./src/config/database');
+
 const app = express();
 
 // Environment variables
 const PORT = process.env.PORT || 5001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://hitanshiee:Hitanshii14@touchgrass.dgyxbbm.mongodb.net/touchgrass?retryWrites=true&w=majority&appName=touchgrass';
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
@@ -32,10 +34,42 @@ app.use(helmet({
 
 // CORS configuration
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:5001', 'http://127.0.0.1:3000', FRONTEND_URL],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:3003',
+      'http://localhost:5001',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'http://127.0.0.1:3002',
+      'http://127.0.0.1:3003',
+      FRONTEND_URL
+    ].filter(Boolean);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Accept',
+    'Origin',
+    'X-Requested-With',
+    'X-User-Email',
+    'X-Access-Token',
+    'X-User-Id'
+  ],
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 };
 
@@ -78,77 +112,28 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
   res.json({ status: 'Backend is running', timestamp: new Date() });
 });
+
 // Render health check (required!)
-('/healthz', (req, res) => {
-  res.status(200).json({ 
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
     status: 'ok',
-    timestamp: new Date().toISOString() 
+    timestamp: new Date().toISOString()
   });
 });
 
 // ========== DATABASE CONNECTION ==========
 
-console.log('🔄 Attempting to connect to MongoDB...');
-console.log(`📁 MongoDB URI: ${MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@')}`); // Hide password in logs
-
-// MongoDB connection options
-const mongoOptions = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 10000, // 10 seconds
-  socketTimeoutMS: 45000,
-  maxPoolSize: 10,
-  retryWrites: true,
-  w: 'majority'
-};
-
-mongoose.connect(MONGODB_URI, mongoOptions)
-.then(() => {
-  console.log('✅ MongoDB connected successfully');
-  console.log(`📊 Database: ${mongoose.connection.db?.databaseName || 'touchgrass'}`);
-  console.log(`👤 Host: ${mongoose.connection.host}`);
-  console.log(`🔌 Port: ${mongoose.connection.port}`);
-  console.log(`📈 Connection state: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
-  
-  // Check collections
-  mongoose.connection.db.listCollections().toArray()
-    .then(collections => {
-      console.log(`📁 Collections in database: ${collections.length}`);
-      collections.forEach(col => {
-        console.log(`   - ${col.name}`);
-      });
-    })
-    .catch(err => console.log('Could not list collections:', err.message));
-})
-.catch(err => {
-  console.error('❌ MongoDB connection error:', err.message);
-  console.error('Full error:', err);
-  
-  if (err.name === 'MongoServerSelectionError') {
-    console.log('\n🔍 Troubleshooting tips:');
-    console.log('1. Check if your IP is whitelisted in MongoDB Atlas');
-    console.log('2. Verify your username and password');
-    console.log('3. Check network connectivity to MongoDB Atlas');
-    console.log('4. Visit: https://cloud.mongodb.com to check your cluster status');
-  }
-  
-  if (NODE_ENV === 'production') {
-    process.exit(1);
-  }
-});
-
-// Add connection event listeners
-mongoose.connection.on('connected', () => {
-  console.log('✅ Mongoose connected to DB');
-});
-
-mongoose.connection.on('error', (err) => {
-  console.error('❌ Mongoose connection error:', err.message);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('⚠️  Mongoose disconnected from DB');
-});
+// Initialize database connection using the configured function
+configureMongoDB()
+  .then(() => {
+    console.log('✅ Database initialization completed');
+  })
+  .catch((error) => {
+    console.error('❌ Database initialization failed:', error.message);
+    if (NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  });
 // ========== DATABASE SCHEMAS & MODELS ==========
 
 // User Schema
@@ -287,6 +272,8 @@ userSchema.methods.generateResetToken = function() {
 const User = mongoose.model('User', userSchema);
 
 // Import models
+const Challenge = require('./src/models/Challenge');
+const UserChallenge = require('./src/models/UserChallenge');
 // const uploadRoutes = require('./routes/upload');
 
 // Verification Wall Schema (keeping for reference but using imported model)
@@ -2283,6 +2270,247 @@ app.put('/api/notifications/:id/read', authenticateToken, async (req, res) => {
   }
 });
 
+// ========== CHALLENGE ROUTES ==========
+
+// Get all challenges
+app.get('/api/challenges', async (req, res) => {
+  try {
+    const { status, type, limit = 20, offset = 0 } = req.query;
+
+    let query = {};
+    if (status) query.status = status;
+    if (type) query.type = type;
+
+    const challenges = await Challenge.find(query)
+      .populate('createdBy', 'username displayName avatar')
+      .sort({ createdAt: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit));
+
+    const total = await Challenge.countDocuments(query);
+
+    res.json({
+      success: true,
+      challenges,
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+  } catch (error) {
+    console.error('Get challenges error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get user's challenges
+app.get('/api/user/challenges', authenticateToken, async (req, res) => {
+  try {
+    const userChallenges = await UserChallenge.find({ userId: req.user._id })
+      .populate('challengeId')
+      .sort({ joinedAt: -1 });
+
+    res.json({
+      success: true,
+      challenges: userChallenges
+    });
+
+  } catch (error) {
+    console.error('Get user challenges error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Create challenge
+app.post('/api/challenges', authenticateToken, async (req, res) => {
+  try {
+    const { name, description, duration, type, difficulty, stake, prizePool, rules, isPublic, groupId } = req.body;
+
+    const challenge = new Challenge({
+      name,
+      description,
+      duration: parseInt(duration),
+      type,
+      difficulty,
+      stake: parseFloat(stake) || 0,
+      prizePool: parseFloat(prizePool) || 0,
+      rules: rules || [],
+      isPublic: isPublic !== false,
+      groupId,
+      createdBy: req.user._id,
+      status: 'active',
+      participants: 0,
+      maxParticipants: 100
+    });
+
+    await challenge.save();
+
+    res.status(201).json({
+      success: true,
+      challenge,
+      message: 'Challenge created successfully'
+    });
+
+  } catch (error) {
+    console.error('Create challenge error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Join challenge
+app.post('/api/challenges/:challengeId/join', authenticateToken, async (req, res) => {
+  try {
+    const { challengeId } = req.params;
+
+    const challenge = await Challenge.findById(challengeId);
+    if (!challenge) {
+      return res.status(404).json({
+        success: false,
+        message: 'Challenge not found'
+      });
+    }
+
+    // Check if user already joined
+    const existingJoin = await UserChallenge.findOne({
+      userId: req.user._id,
+      challengeId: challengeId
+    });
+
+    if (existingJoin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Already joined this challenge'
+      });
+    }
+
+    // Create user challenge record
+    const userChallenge = new UserChallenge({
+      userId: req.user._id,
+      challengeId: challengeId,
+      joinedAt: new Date(),
+      status: 'active',
+      progress: {
+        currentStreak: 0,
+        totalDays: 0,
+        completedDays: 0
+      }
+    });
+
+    await userChallenge.save();
+
+    // Update challenge participants count
+    challenge.participants += 1;
+    await challenge.save();
+
+    res.json({
+      success: true,
+      message: 'Successfully joined challenge',
+      userChallenge
+    });
+
+  } catch (error) {
+    console.error('Join challenge error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Update challenge progress
+app.post('/api/challenges/:challengeId/progress', authenticateToken, async (req, res) => {
+  try {
+    const { challengeId } = req.params;
+    const { date, completed, notes } = req.body;
+
+    const userChallenge = await UserChallenge.findOne({
+      userId: req.user._id,
+      challengeId: challengeId
+    });
+
+    if (!userChallenge) {
+      return res.status(404).json({
+        success: false,
+        message: 'User challenge not found'
+      });
+    }
+
+    // Add progress entry
+    userChallenge.progress.entries = userChallenge.progress.entries || [];
+    userChallenge.progress.entries.push({
+      date: new Date(date),
+      completed: completed || false,
+      notes: notes || ''
+    });
+
+    // Update stats
+    if (completed) {
+      userChallenge.progress.completedDays += 1;
+      userChallenge.progress.lastCompletedDate = new Date(date);
+    }
+
+    userChallenge.progress.totalDays += 1;
+    userChallenge.updatedAt = new Date();
+
+    await userChallenge.save();
+
+    res.json({
+      success: true,
+      message: 'Progress updated successfully',
+      progress: userChallenge.progress
+    });
+
+  } catch (error) {
+    console.error('Update progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get daily check-ins
+app.get('/api/challenges/daily-checkins/:date', authenticateToken, async (req, res) => {
+  try {
+    const { date } = req.params; // YYYY-MM-DD format
+
+    const userChallenges = await UserChallenge.find({
+      userId: req.user._id,
+      status: 'active'
+    }).populate('challengeId', 'name type');
+
+    const checkins = userChallenges.map(uc => ({
+      challengeId: uc.challengeId._id,
+      challengeName: uc.challengeId.name,
+      streak: uc.progress.currentStreak || 0,
+      completed: uc.progress.entries?.some(entry =>
+        entry.date.toISOString().split('T')[0] === date && entry.completed
+      ) || false
+    }));
+
+    res.json({
+      success: true,
+      checkins
+    });
+
+  } catch (error) {
+    console.error('Get daily checkins error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // ========== CHAT ROUTES ==========
 
 app.get('/api/chat/messages', authenticateToken, async (req, res) => {
@@ -2538,14 +2766,14 @@ const startServer = (port) => {
   server.listen(port, () => {
     console.log(`
     🚀 TouchGrass Backend Server Started!
-    
+
     📍 Local: http://localhost:${port}
     📡 Health: http://localhost:${port}/api/health
     🔧 Environment: ${NODE_ENV}
     🌐 CORS: Enabled for ${FRONTEND_URL}
-    
+
     🗄️  Database: ${mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected'}
-    
+
     🔐 AUTHENTICATION FEATURES:
     ├── POST   /api/auth/register            - Register new user
     ├── POST   /api/auth/login               - Login user
@@ -2554,11 +2782,11 @@ const startServer = (port) => {
     ├── GET    /api/auth/reset-password/:token - Verify reset token
     ├── POST   /api/auth/reset-password      - Reset password with token
     └── POST   /api/auth/change-password     - Change password (authenticated)
-    
+
     💰 Dodo Payments Integration: ✅ Enabled
     ├── GET    /api/dodo/checkout/:plan      - Get checkout URL for plan
     └── Webhook endpoint ready for production
-    
+
     🎯 Available Endpoints:
     ├── GET    /api/health                    - Health check
     ├── POST   /api/auth/register             - Register user
@@ -2584,14 +2812,15 @@ const startServer = (port) => {
     ├── GET    /api/debug/users               - Debug: all users
     ├── GET    /api/debug/payments            - Debug: all payments
     ├── GET    /api/debug/streaks             - Debug: all streaks
-    
+
     🔑 Authentication: Bearer token required for protected routes
     💡 Tip: Test with Postman or curl first
     `);
   }).on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.log(`⚠️  Port ${port} is busy, trying ${port + 1}...`);
-      startServer(port + 1);
+      const nextPort = parseInt(port) + 1;
+      console.log(`⚠️  Port ${port} is busy, trying ${nextPort}...`);
+      startServer(nextPort);
     } else {
       console.error('❌ Server error:', err);
       process.exit(1);

@@ -11,6 +11,7 @@ import {
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { authState, logout } from '../../state/auth';
 import { toast } from 'react-hot-toast';
+import Logo from '../ui/Logo';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -618,49 +619,7 @@ const Sidebar = () => {
 
         {/* Logo */}
         <div style={styles.logoContainer}>
-          <Link to="/" style={styles.logoInner}>
-            <motion.div
-              whileHover={{ rotate: 15, scale: 1.1 }}
-              style={{ position: 'relative' }}
-            >
-              <div style={styles.logoIcon}>
-                <span style={{ fontSize: '1.5rem' }}>🌱</span>
-              </div>
-              <motion.div
-                animate={{ 
-                  rotate: 360,
-                  scale: [1, 1.2, 1]
-                }}
-                transition={{
-                  rotate: {
-                    duration: 20,
-                    repeat: Infinity,
-                    ease: "linear"
-                  },
-                  scale: {
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }
-                }}
-                style={styles.premiumDot}
-              />
-            </motion.div>
-            
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                style={{ overflow: 'hidden' }}
-              >
-                <div style={styles.logoText}>
-                  touchgrass.now
-                </div>
-                <div style={styles.logoSubtext}>Dashboard</div>
-              </motion.div>
-            )}
-          </Link>
+          <Logo size="small" showSubtitle={false} />
         </div>
 
         {/* User Profile */}

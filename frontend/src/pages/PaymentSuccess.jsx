@@ -58,7 +58,6 @@ const PaymentSuccess = () => {
         toast.error('Payment verification failed');
       }
     } catch (error) {
-      console.error('Verification error:', error);
       toast.error('Payment received! Account update may take a few minutes.');
     } finally {
       setVerifying(false);

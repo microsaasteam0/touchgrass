@@ -11,12 +11,10 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
-      console.log('🔄 Processing OAuth callback...');
       setStatus('processing');
       
       // Capture full URL for debugging
       const fullUrl = window.location.href;
-      console.log('📍 Full URL:', fullUrl);
       
       // Parse URL
       const url = new URL(fullUrl);
@@ -28,7 +26,6 @@ const AuthCallback = () => {
       searchParams.forEach((value, key) => allParams[key] = value);
       hashParams.forEach((value, key) => allParams[key] = value);
       
-      console.log('📋 All URL parameters:', allParams);
       setDebugInfo(JSON.stringify(allParams, null, 2));
       
       // Check for errors FIRST
@@ -36,7 +33,6 @@ const AuthCallback = () => {
       const errorDescription = allParams.error_description;
 
       if (error) {
-        console.error('❌ OAuth error:', error, errorDescription);
         setStatus('error');
 
         let errorMessage = 'Google authentication failed. ';
@@ -84,8 +80,6 @@ const AuthCallback = () => {
       const code = allParams.code;
       
       if (!code) {
-        console.error('❌ No authorization code found');
-        console.log('📝 Available params:', Object.keys(allParams));
         
         setStatus('no_code');
         
@@ -103,7 +97,6 @@ const AuthCallback = () => {
         return;
       }
       
-      console.log('🔑 Found authorization code');
       setStatus('exchanging_code');
       
       try {
@@ -111,7 +104,6 @@ const AuthCallback = () => {
         const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         
         if (exchangeError) {
-          console.error('❌ Code exchange error:', exchangeError);
           setStatus('exchange_error');
           
           toast.error(`Failed to authenticate: ${exchangeError.message}`, { 
@@ -125,11 +117,8 @@ const AuthCallback = () => {
           return;
         }
         
-        console.log('✅ Code exchange successful');
-        console.log('📦 Session data:', data);
         
         if (data?.session?.user) {
-          console.log('✅ OAuth successful! User:', data.session.user.email);
           setStatus('success');
           
           // Clear URL
@@ -140,7 +129,6 @@ const AuthCallback = () => {
           // IMMEDIATELY navigate to dashboard - no delay
           navigate('/dashboard', { replace: true });
         } else {
-          console.error('❌ No session after code exchange');
           setStatus('no_session');
           
           toast.error('Authentication failed. No user session created.', { theme: 'dark' });
@@ -148,7 +136,6 @@ const AuthCallback = () => {
         }
         
       } catch (exchangeError) {
-        console.error('❌ Exchange process error:', exchangeError);
         setStatus('process_error');
         
         toast.error('Authentication process failed. Please try again.', { theme: 'dark' });

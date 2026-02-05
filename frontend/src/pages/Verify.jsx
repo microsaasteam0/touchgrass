@@ -104,7 +104,6 @@
 //         navigate('/dashboard');
 //       }
 //     } catch (error) {
-//       console.error('Error loading user data:', error);
 //     }
 //   };
 
@@ -125,7 +124,6 @@
 //         });
 //       }
 //     } catch (error) {
-//       console.error('Error loading streak data:', error);
 //     }
 //   };
 
@@ -303,7 +301,6 @@
 //           }
 //         })
 //         .catch(err => {
-//           console.error('Camera error:', err);
 //           toast.error('Camera access denied. Please check permissions.');
 //           setShowCamera(false);
 //           setShowVideoRecorder(false);
@@ -415,7 +412,6 @@
 //         }
         
 //       } catch (error) {
-//         console.error('Error submitting verification:', error);
 //         toast.error('Failed to submit verification');
 //         setIsSubmitting(false);
 //       }
@@ -3271,7 +3267,6 @@ const Verify = () => {
       }
       return null;
     } catch (error) {
-      console.error('Error loading user data:', error);
       return null;
     }
   };
@@ -3294,7 +3289,6 @@ const Verify = () => {
         });
       }
     } catch (error) {
-      console.error('Error loading streak data:', error);
     }
   };
 
@@ -3473,7 +3467,6 @@ const Verify = () => {
           }
         })
         .catch(err => {
-          console.error('Camera error:', err);
           toast.error('Camera access denied. Please check permissions.');
           setShowCamera(false);
           setShowVideoRecorder(false);
@@ -3536,7 +3529,6 @@ const Verify = () => {
     try {
       // Use passed user data
       if (!user || !user.username) {
-        console.error('No user found for verification wall post');
         return null;
       }
 
@@ -3598,7 +3590,6 @@ const Verify = () => {
       // Save updated posts to localStorage
       localStorage.setItem('touchgrass_verification_posts', JSON.stringify(updatedPosts));
       
-      console.log('✅ Auto-posted to verification wall:', newPost);
       
       // Dispatch event for real-time updates
       window.dispatchEvent(new CustomEvent('verification-wall-updated', {
@@ -3610,7 +3601,6 @@ const Verify = () => {
       
       return newPost;
     } catch (error) {
-      console.error('❌ Error auto-posting to verification wall:', error);
       return null;
     }
   };
@@ -3712,7 +3702,6 @@ const Verify = () => {
         }
         
       } catch (error) {
-        console.error('Error submitting verification:', error);
         toast.error('Failed to submit verification');
         setIsSubmitting(false);
       }

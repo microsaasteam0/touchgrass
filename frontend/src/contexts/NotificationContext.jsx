@@ -36,7 +36,6 @@
 //         setUnreadCount(unread);
 //       }
 //     } catch (error) {
-//       console.error('Failed to load notifications:', error);
 //     } finally {
 //       setLoading(false);
 //     }
@@ -61,7 +60,6 @@
       
 //       setUnreadCount(prev => Math.max(0, prev - 1));
 //     } catch (error) {
-//       console.error('Failed to mark notification as read:', error);
 //     }
 //   };
 
@@ -82,7 +80,6 @@
       
 //       toast.success('All notifications marked as read');
 //     } catch (error) {
-//       console.error('Failed to mark all as read:', error);
 //     }
 //   };
 
@@ -101,7 +98,6 @@
       
 //       toast.info('Notification deleted');
 //     } catch (error) {
-//       console.error('Failed to delete notification:', error);
 //     }
 //   };
 
@@ -183,7 +179,6 @@ export const NotificationProvider = ({ children }) => {
           const data = JSON.parse(storedData);
           return { notifications: data };
         } catch (e) {
-          console.warn('Failed to parse stored notifications:', e);
         }
       }
       
@@ -235,7 +230,6 @@ export const NotificationProvider = ({ children }) => {
       
       return { notifications: [] };
     } catch (error) {
-      console.warn('Notifications API error, using local data:', error.message);
       const storedData = localStorage.getItem('touchgrass_notifications');
       if (storedData) {
         return { notifications: JSON.parse(storedData) };
@@ -254,7 +248,6 @@ export const NotificationProvider = ({ children }) => {
         const unread = (data.notifications || []).filter(n => !n.read).length;
         setUnreadCount(unread);
       } catch (error) {
-        console.error('Error loading notifications:', error);
       } finally {
         setLoading(false);
       }

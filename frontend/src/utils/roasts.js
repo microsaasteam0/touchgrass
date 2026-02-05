@@ -1,14 +1,4 @@
-import React from 'react';
-  
-  const Roasts = () =>  {
-	return (
-	  <div>
-	  </div>
-	);
-  }
-  
-  export default Roasts;
-  // Professional Roast System for Accountability
+import react from 'react';
 
 // CSS for roast animations and styles
 export const ROASTS_CSS = `
@@ -714,13 +704,13 @@ export const getCategoryEmoji = (category) => {
 export const ROAST_ANALYTICS = {
   trackRoast: (userId, roast, context = {}) => {
     // In production, this would send to analytics service
-    console.log('Roast delivered:', {
+    const analyticsData = {
       userId,
       roast,
       context,
       timestamp: new Date().toISOString()
-    });
-    
+    };
+
     return {
       success: true,
       roastId: `roast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`

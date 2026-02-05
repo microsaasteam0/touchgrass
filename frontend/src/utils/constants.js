@@ -1,13 +1,6 @@
 import React from 'react';
   
-  const Constants = () =>  {
-	return (
-	  <div>
-	  </div>
-	);
-  }
-  
-  export default Constants;
+ 
   // Business & International Constants
 export const BUSINESS_CONSTANTS = {
   APP_NAME: 'TouchGrass',

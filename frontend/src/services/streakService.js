@@ -1,4 +1,5 @@
 import React from 'react';
+ 
   
   /**
  * TouchGrass Streak Service - Premium Habit Tracking
@@ -61,9 +62,7 @@ class PremiumStreakService {
         // Check for upcoming milestones
         this.checkUpcomingMilestones();
         
-        console.log('[Streak Service] Loaded active streak:', this.currentStreak.currentStreak);
       } else {
-        console.log('[Streak Service] No active streak');
       }
       
       // Load history
@@ -1013,37 +1012,30 @@ class PremiumStreakService {
 
   // UI Methods (to be implemented by UI layer)
   showStreakOnboarding() {
-    console.log('[Streak Service] Show streak onboarding');
     // Implementation depends on UI framework
   }
 
   showVerificationSuccess(data) {
-    console.log('[Streak Service] Show verification success:', data);
     // Implementation depends on UI framework
   }
 
   showStreakBreakModal(data) {
-    console.log('[Streak Service] Show streak break modal:', data);
     // Implementation depends on UI framework
   }
 
   showRestoreOffer(data) {
-    console.log('[Streak Service] Show restore offer:', data);
     // Implementation depends on UI framework
   }
 
   showRestorationSuccess(data) {
-    console.log('[Streak Service] Show restoration success:', data);
     // Implementation depends on UI framework
   }
 
   showAchievementNotification(achievement) {
-    console.log('[Streak Service] Show achievement:', achievement);
     // Implementation depends on UI framework
   }
 
   showMilestoneCelebration(milestone) {
-    console.log('[Streak Service] Celebrate milestone:', milestone);
     // Implementation depends on UI framework
   }
 

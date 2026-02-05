@@ -1,13 +1,6 @@
 import React from 'react';
   
-  const Emojis = () =>  {
-	return (
-	  <div>
-	  </div>
-	);
-  }
-  
-  export default Emojis;
+
   // Professional Emoji System for Business Communication
 
 export const EMOJI_CATEGORIES = {

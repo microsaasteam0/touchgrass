@@ -1,4 +1,5 @@
-import React from "react";
+import React from 'react';
+  
   /**
  * TouchGrass Authentication Service - Premium Security Layer
  * Enterprise-grade authentication with advanced security features
@@ -835,7 +836,6 @@ class SecurityMonitor {
 
   recordFailedLogin(data) {
     // Record for security analytics
-    console.log('Failed login attempt:', data);
   }
 }
 

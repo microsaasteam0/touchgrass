@@ -392,7 +392,6 @@
 //       }
 //       throw new Error('Upload failed');
 //     } catch (error) {
-//       console.error('Cloudinary upload error:', error);
 //       throw error;
 //     }
 //   };
@@ -441,7 +440,6 @@
 //         localStorage.setItem('touchgrass_verification_posts', JSON.stringify(demoPosts));
 //       }
 //     } catch (error) {
-//       console.error('Error loading verification data:', error);
 //       toast.error('Failed to load posts');
 //     } finally {
 //       setIsLoading(false);
@@ -859,7 +857,6 @@
 //       toast.success('✅ Verification posted successfully!');
       
 //     } catch (error) {
-//       console.error('Upload error:', error);
 //       toast.error('Failed to upload. Please try again.');
 //     } finally {
 //       setUploading(false);
@@ -2902,7 +2899,6 @@ const VerificationWall = () => {
       }
       throw new Error('Upload failed');
     } catch (error) {
-      console.error('Cloudinary upload error:', error);
       throw error;
     }
   };
@@ -2931,7 +2927,6 @@ const VerificationWall = () => {
 
     // Listen for verification wall updates from other components
     const handleVerificationWallUpdate = (event) => {
-      console.log('Verification wall updated, reloading posts...');
       loadVerificationData();
     };
 
@@ -2955,7 +2950,6 @@ const VerificationWall = () => {
         localStorage.setItem('touchgrass_verification_posts', JSON.stringify(demoPosts));
       }
     } catch (error) {
-      console.error('Error loading verification data:', error);
       toast.error('Failed to load posts');
     } finally {
       setIsLoading(false);
@@ -3347,7 +3341,6 @@ const VerificationWall = () => {
       toast.success('✅ Verification posted successfully with a fresh photo!');
       
     } catch (error) {
-      console.error('Upload error:', error);
       toast.error('Failed to upload. Please try again.');
     } finally {
       setUploading(false);

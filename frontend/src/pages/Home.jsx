@@ -3669,6 +3669,7 @@ import { useRecoilValue } from 'recoil';
 import { authState } from '../state/auth';
 import { Link } from 'react-router-dom';
 import ThemeToggle from '../components/ui/ThemeToggle';
+import Logo from '../components/ui/Logo';
 
 const LandingPage = ({ onStart }) => {
   const auth = useRecoilValue(authState);
@@ -4167,6 +4168,7 @@ const LandingPage = ({ onStart }) => {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: white;
           }
 
           @media (min-width: 480px) {
@@ -6194,8 +6196,9 @@ const LandingPage = ({ onStart }) => {
         >
           <div className="nav-container">
             <div className="nav-logo">
-              <Zap className="text-[#00E5FF] fill-[#00E5FF]" size={24} />
-              <span className="nav-logo-text">touchgrass<span className="nav-logo-highlight">.now</span></span>
+              <div className="nav-logo-text">
+                Touch<span className="nav-logo-highlight">Grass</span>
+              </div>
             </div>
             <div className="nav-links">
               <button className="nav-link" onClick={() => document.getElementById('psychology')?.scrollIntoView({ behavior: 'smooth' })}>

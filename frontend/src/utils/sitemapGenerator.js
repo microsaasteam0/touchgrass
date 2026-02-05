@@ -1,4 +1,6 @@
-const { SitemapStream, streamToPromise } = require('sitemap');
+import React from 'react';
+ 
+  const { SitemapStream, streamToPromise } = require('sitemap');
 const { Readable } = require('stream');
 const { format } = require('date-fns');
 

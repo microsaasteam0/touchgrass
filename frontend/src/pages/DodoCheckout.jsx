@@ -54,7 +54,6 @@ const DodoCheckout = () => {
         navigate('/subscription');
       }
     } catch (error) {
-      console.error('Payment initialization error:', error);
       toast.error('Payment initialization failed');
       navigate('/subscription');
     } finally {

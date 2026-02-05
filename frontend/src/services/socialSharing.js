@@ -1,4 +1,6 @@
 import React from 'react';
+  
+  
  
   /**
  * TouchGrass Social Sharing Service - Premium Viral Marketing
@@ -161,7 +163,6 @@ class PremiumSocialSharingService {
     this.canUseWebShare = 'share' in navigator;
     
     if (this.canUseWebShare) {
-      console.log('[Social Sharing] Web Share API available');
     }
   }
 
@@ -960,7 +961,6 @@ class PremiumSocialSharingService {
   // UI Methods
   showShareSuccess(platform, streakData) {
     // Implementation depends on UI framework
-    console.log(`Successfully shared to ${platform}!`);
     
     // Show success notification
     const notification = {
@@ -994,7 +994,6 @@ class PremiumSocialSharingService {
 
   showNotification(notification) {
     // Implementation depends on UI framework
-    console.log(`[${notification.type.toUpperCase()}] ${notification.title}: ${notification.message}`);
   }
 
   triggerConfetti() {
@@ -1116,7 +1115,6 @@ class ViralEngine {
 
   triggerViralEvent(streakId, streakData) {
     // Notify system that a streak is going viral
-    console.log(`[Viral Engine] Streak ${streakId} is going viral!`);
     
     // Could trigger:
     // - Special notifications to user

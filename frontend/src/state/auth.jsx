@@ -1,9 +1,4 @@
-
-  
-
-  import React from 'react';
- 
-  // ==============================
+// ==============================
 // PURE JAVASCRIPT STATE FILE
 // No JSX allowed here!
 // ==============================
@@ -64,7 +59,6 @@ export const login = async (email, password) => {
       loading: false
     };
   } catch (error) {
-    console.error('Login error:', error);
     throw error;
   }
 };
@@ -112,7 +106,6 @@ export const register = async (userData) => {
       loading: false
     };
   } catch (error) {
-    console.error('Registration error:', error);
     throw error;
   }
 };

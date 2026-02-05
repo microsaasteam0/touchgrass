@@ -1,4 +1,6 @@
-// utils/cloudinary.js
+import React from 'react';
+  
+  // utils/cloudinary.js
 export const uploadToCloudinary = async (file) => {
   const cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET;
@@ -15,7 +17,6 @@ export const uploadToCloudinary = async (file) => {
   formData.append('folder', 'touchgrass/avatars');
   
   try {
-    console.log('Uploading to Cloudinary...', { cloudName, uploadPreset });
     
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -32,7 +33,6 @@ export const uploadToCloudinary = async (file) => {
     }
     
     const data = await response.json();
-    console.log('Cloudinary upload successful:', data);
     
     // Return the optimized avatar URL
     return data.secure_url.replace('/upload/', '/upload/w_200,h_200,c_fill,g_face,q_auto:good/');
@@ -46,5 +46,4 @@ export const uploadToCloudinary = async (file) => {
 // Helper to delete from Cloudinary (optional, for future use)
 export const deleteFromCloudinary = async (publicId) => {
   // Note: This requires server-side implementation due to API secret
-  console.log('To delete from Cloudinary, implement server-side endpoint');
 };

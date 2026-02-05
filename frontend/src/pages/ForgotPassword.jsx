@@ -24,8 +24,6 @@ const ForgotPassword = () => {
         
         // In development, show the reset link
         if (process.env.NODE_ENV === 'development' && result.resetUrl) {
-          console.log('Development Reset Token:', result.resetToken);
-          console.log('Reset URL:', result.resetUrl);
           
           // Optionally auto-navigate to reset page in development
           // setTimeout(() => {

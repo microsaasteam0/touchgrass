@@ -1,13 +1,6 @@
 import React from 'react';
   
-  const Formatters = () =>  {
-	return (
-	  <div>
-	  </div>
-	);
-  }
-  
-  export default Formatters;
+
   // Professional Formatters for International Business
 
 // CSS for formatted elements

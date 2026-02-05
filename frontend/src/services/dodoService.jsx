@@ -1,6 +1,5 @@
 import React from 'react';
   
- 
   import axios from 'axios';
 
 class DodoService {
@@ -27,7 +26,6 @@ class DodoService {
       const response = await this.api.get(`/payments/checkout/${plan}`);
       return response.data;
     } catch (error) {
-      console.error('Get checkout URL error:', error);
       // Fallback to direct URLs
       return this.getDirectCheckoutUrls(plan);
     }
@@ -45,7 +43,6 @@ class DodoService {
       });
       return response.data;
     } catch (error) {
-      console.error('Verify payment error:', error);
       throw error;
     }
   }
@@ -109,7 +106,6 @@ class DodoService {
       const response = await this.api.get('/payments/health');
       return response.data;
     } catch (error) {
-      console.error('Health check error:', error);
       return {
         status: 'unhealthy',
         error: error.message

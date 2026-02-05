@@ -1,4 +1,7 @@
-import { createSupportClient } from "@entrext/support-client";
+import React from 'react';
+  
+ 
+  import { createSupportClient } from "@entrext/support-client";
 
 export const supportClient = createSupportClient({
   endpoint: "https://ldewwmfkymjmokopulys.supabase.co/functions/v1/submit-support",

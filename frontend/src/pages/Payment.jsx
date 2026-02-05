@@ -103,7 +103,6 @@ const PaymentPage = () => {
       const productsData = await paymentService.getProducts();
       setProducts(productsData);
     } catch (error) {
-      console.error('Failed to load products:', error);
     }
   };
 
@@ -149,7 +148,6 @@ const PaymentPage = () => {
         toast.error(checkout.error || 'Failed to create payment session');
       }
     } catch (error) {
-      console.error('Payment error:', error);
       toast.error('Failed to process payment');
     } finally {
       setIsProcessing(false);
@@ -165,7 +163,6 @@ const PaymentPage = () => {
         window.location.reload();
       }, 2000);
     } catch (error) {
-      console.error('Error checking payment:', error);
     }
   };
 

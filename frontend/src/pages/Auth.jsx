@@ -86,7 +86,6 @@
 //         }
 //       }
 //     } catch (error) {
-//       console.error('Auth error:', error);
 //       toast.error('Authentication failed. Please try again.', { theme: 'dark' });
 //     } finally {
 //       setIsLoading(false);
@@ -98,7 +97,6 @@
 //     try {
 //       await googleLogin();
 //     } catch (error) {
-//       console.error('Google login error:', error);
 //     } finally {
 //       setIsLoading(false);
 //     }
@@ -1609,7 +1607,6 @@ const Auth = () => {
         }
       }
     } catch (error) {
-      console.error('Auth error:', error);
       toast.error('Authentication failed. Please try again.', { theme: 'dark' });
     } finally {
       setIsLoading(false);
@@ -1621,7 +1618,6 @@ const Auth = () => {
     try {
       await googleLogin();
     } catch (error) {
-      console.error('Google login error:', error);
     } finally {
       setIsLoading(false);
     }

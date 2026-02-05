@@ -44,7 +44,6 @@
 //         }
 //       }
 //     } catch (error) {
-//       console.error('Failed to load streak data:', error);
 //     } finally {
 //       setLoading(false);
 //     }
@@ -214,7 +213,6 @@ export const StreakProvider = ({ children }) => {
         return JSON.parse(userData);
       }
     } catch (error) {
-      console.warn('Failed to parse user data:', error);
     }
     return null;
   };
@@ -232,7 +230,6 @@ export const StreakProvider = ({ children }) => {
         try {
           return JSON.parse(storedData);
         } catch (e) {
-          console.warn('Failed to parse stored streak:', e);
         }
       }
       
@@ -284,7 +281,6 @@ export const StreakProvider = ({ children }) => {
       
       return null;
     } catch (error) {
-      console.warn('Streak API error, using local data:', error.message);
       const streakKey = `touchgrass_streak_${username}`;
       const storedData = localStorage.getItem(streakKey);
       if (storedData) {
@@ -301,7 +297,6 @@ export const StreakProvider = ({ children }) => {
         const data = await loadStreakData();
         setStreakData(data);
       } catch (error) {
-        console.error('Error loading streak data:', error);
       } finally {
         setLoading(false);
       }

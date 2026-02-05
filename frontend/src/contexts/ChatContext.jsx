@@ -40,7 +40,6 @@
 //         setUnreadCount(unread);
 //       }
 //     } catch (error) {
-//       console.error('Failed to load chats:', error);
 //     } finally {
 //       setLoading(false);
 //     }
@@ -59,7 +58,6 @@
 //         setOnlineUsers(data);
 //       }
 //     } catch (error) {
-//       console.error('Failed to load online users:', error);
 //     }
 //   };
 
@@ -123,7 +121,6 @@
 
 //       return await response.json();
 //     } catch (error) {
-//       console.error('Failed to send message:', error);
 //       throw error;
 //     }
 //   };
@@ -144,7 +141,6 @@
 //           : chat
 //       ));
 //     } catch (error) {
-//       console.error('Failed to mark as read:', error);
 //     }
 //   };
 
@@ -161,7 +157,6 @@
 //       }
 //       return [];
 //     } catch (error) {
-//       console.error('Failed to get suggestions:', error);
 //       return [];
 //     }
 //   };
@@ -227,13 +222,11 @@ export const ChatProvider = ({ children }) => {
   const loadChats = async () => {
     // If API is disabled or no token, use localStorage
     if (!USE_API || !getAuthToken()) {
-      console.log('Using mock/offline chat data');
       const storedData = localStorage.getItem('touchgrass_chats');
       if (storedData) {
         try {
           return { messages: JSON.parse(storedData) };
         } catch (e) {
-          console.warn('Failed to parse stored chats:', e);
         }
       }
       
@@ -267,7 +260,6 @@ export const ChatProvider = ({ children }) => {
         return data;
       }
 
-      console.log('API failed, using local data');
       // Fallback to localStorage
       const storedData = localStorage.getItem('touchgrass_chats');
       if (storedData) {
@@ -276,7 +268,6 @@ export const ChatProvider = ({ children }) => {
       
       return { messages: [] };
     } catch (error) {
-      console.warn('Chat API error, using local data:', error.message);
       const storedData = localStorage.getItem('touchgrass_chats');
       if (storedData) {
         return { messages: JSON.parse(storedData) };
@@ -321,7 +312,6 @@ export const ChatProvider = ({ children }) => {
         setMessages(chatsData.messages || []);
         setOnlineUsers(usersData.onlineUsers || []);
       } catch (error) {
-        console.error('Error initializing chat:', error);
       } finally {
         setLoading(false);
       }

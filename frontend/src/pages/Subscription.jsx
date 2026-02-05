@@ -98,7 +98,6 @@ const Subscription = () => {
   }, [auth.user]);
 
   const handleUpgrade = async (planId) => {
-    console.log('handleUpgrade called for plan:', planId);
     
     if (!auth.isAuthenticated) {
       toast.error('Please login to upgrade');
@@ -139,7 +138,6 @@ const Subscription = () => {
         url = urlObj.toString();
       }
       
-      console.log('Opening Dodo payment URL:', url);
       
       // Open payment in new window
       const paymentWindow = window.open(
@@ -175,7 +173,6 @@ const Subscription = () => {
       }, 60000); // 60 seconds timeout
 
     } catch (error) {
-      console.error('Payment error:', error);
       toast.error(error.message || 'Payment setup failed. Please try again.', { id: 'payment' });
     } finally {
       setTimeout(() => {
@@ -185,7 +182,6 @@ const Subscription = () => {
   };
 
   const handleFreePlan = () => {
-    console.log('handleFreePlan called');
     if (auth.isAuthenticated) {
       navigate('/dashboard');
     } else {
@@ -432,7 +428,6 @@ const Subscription = () => {
                     fullWidth
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Button clicked for plan:', plan.id);
                       if (plan.id === 'free') {
                         handleFreePlan();
                       } else {

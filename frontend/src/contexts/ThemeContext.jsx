@@ -21,9 +21,7 @@ export const ThemeProvider = ({ children }) => {
   }, []);
 
   const applyTheme = (themeName) => {
-    console.log('Applying theme:', themeName);
     document.body.className = `theme-${themeName}`;
-    console.log('Body className set to:', document.body.className);
   };
 
   const toggleTheme = () => {

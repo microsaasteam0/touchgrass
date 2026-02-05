@@ -1,6 +1,8 @@
 import React from 'react';
   
   
+  
+  
   import React, { useState, useEffect } from 'react';
 import { atom, useRecoilState } from 'recoil';
 import { createGlobalStyle } from 'styled-components';
@@ -223,7 +225,6 @@ class ChatService {
     this.socket = new WebSocket(`ws://localhost:5000?token=${token}`);
     
     this.socket.onopen = () => {
-      console.log('WebSocket connected');
     };
 
     this.socket.onmessage = (event) => {

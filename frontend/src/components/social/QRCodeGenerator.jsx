@@ -108,7 +108,6 @@ const QRCodeGenerator = ({ streakData, user }) => {
       // Start animation
       applyAnimation();
     } catch (err) {
-      console.error('QR generation error:', err);
     } finally {
       setIsGenerating(false);
     }
@@ -308,7 +307,6 @@ const QRCodeGenerator = ({ streakData, user }) => {
         title: 'My TouchGrass QR Code',
         text: `Scan to view my ${streakData?.currentStreak}-day streak!`,
         files: [new File([qrCode], 'touchgrass-qr.png', { type: 'image/png' })]
-      }).catch(console.error);
     }
   };
 

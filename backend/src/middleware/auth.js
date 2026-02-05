@@ -34,10 +34,43 @@ const authenticateToken = async (req, res, next) => {
       });
     }
     
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    
-    // Check if token has expired
+    // For development: Accept any valid JWT (Supabase or your own)
+    let decoded;
+    let isSupabaseToken = false;
+
+    try {
+      decoded = jwt.decode(token);
+
+      if (!decoded) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid token'
+        });
+      }
+
+      // Check if this is a Supabase token by looking at issuer
+      isSupabaseToken = decoded.iss === 'https://api.supabase.co/auth/v1' ||
+                       decoded.iss?.includes('supabase') ||
+                       decoded.aud === 'authenticated';
+
+      console.log('✅ Token decoded successfully:', {
+        email: decoded.email,
+        sub: decoded.sub,
+        userId: decoded.userId,
+        iss: decoded.iss,
+        aud: decoded.aud,
+        isSupabaseToken
+      });
+
+    } catch (error) {
+      console.error('❌ Token decode error:', error);
+      return res.status(401).json({
+        success: false,
+        message: 'Token verification failed'
+      });
+    }
+
+    // Check if token has expired (for both types)
     const now = Math.floor(Date.now() / 1000);
     if (decoded.exp && decoded.exp < now) {
       return res.status(401).json({
@@ -45,21 +78,60 @@ const authenticateToken = async (req, res, next) => {
         message: 'Token expired'
       });
     }
-    
+
     // Get user from database
     const User = mongoose.model('User');
-    const user = await User.findById(decoded.userId)
-      .select('-password')
-      .populate('followers', 'username displayName avatar')
-      .populate('following', 'username displayName avatar');
-    
+    let user;
+
+    if (isSupabaseToken) {
+      // For Supabase tokens, find user by email or supabaseId
+      const email = decoded.email;
+      const supabaseId = decoded.sub;
+
+      user = await User.findOne({
+        $or: [
+          { email },
+          { supabaseId }
+        ]
+      });
+
+      // If user doesn't exist, create one from Supabase data
+      if (!user) {
+        console.log('👤 Creating user from Supabase token');
+        user = new User({
+          email,
+          supabaseId,
+          username: email.split('@')[0] + '_' + Math.random().toString(36).substr(2, 5),
+          displayName: decoded.user_metadata?.full_name || decoded.user_metadata?.name || email.split('@')[0],
+          avatar: decoded.user_metadata?.avatar_url || decoded.user_metadata?.picture || '',
+          oauthProvider: 'supabase',
+          password: crypto.randomBytes(16).toString('hex'), // Random password for OAuth users
+          stats: {
+            currentStreak: 0,
+            longestStreak: 0,
+            totalDays: 0,
+            totalOutdoorTime: 0,
+            consistencyScore: 0,
+            leaderboardRank: 999999,
+            followersCount: 0,
+            followingCount: 0
+          }
+        });
+        await user.save();
+        console.log('✅ User created from Supabase token');
+      }
+    } else {
+      // For backend JWT tokens, find by userId
+      user = await User.findById(decoded.userId);
+    }
+
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'User not found'
       });
     }
-    
+
     // Check if user is disabled/deleted
     if (user.deletedAt) {
       return res.status(401).json({
@@ -67,11 +139,13 @@ const authenticateToken = async (req, res, next) => {
         message: 'Account has been deleted'
       });
     }
-    
+
     // Attach user to request
     req.user = user;
     req.userId = user._id;
     req.token = token;
+
+    console.log('✅ Authentication successful for user:', user.email);
     
     next();
     

@@ -622,7 +622,6 @@ export const CalendarDashboard = () => {
   const [selectedDate, setSelectedDate] = useState(new Date())
   
   const handleDateSelect = (date, activity) => {
-    console.log('Selected date:', date, 'Activity:', activity)
     setSelectedDate(date)
   }
 

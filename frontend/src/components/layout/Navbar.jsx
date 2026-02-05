@@ -14,7 +14,7 @@ import { authState, logout } from '../../state/auth';
 import { toast } from 'react-hot-toast';
 import { useInView } from 'react-intersection-observer';
 import ThemeToggle from '../ui/ThemeToggle';
-import ThemeToggle from '../ui/ThemeToggle';
+import Logo from '../ui/Logo';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -216,78 +216,8 @@ const Navbar = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
           >
-            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-              <motion.div
-                whileHover={{ rotate: 15, scale: 1.1 }}
-                style={{ position: 'relative' }}
-              >
-                <div style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 20px rgba(34, 197, 94, 0.3)'
-                }}>
-                  <span style={{ fontSize: '24px' }}>🌱</span>
-                </div>
-                <motion.div
-                  animate={{ 
-                    rotate: 360,
-                    scale: [1, 1.2, 1]
-                  }}
-                  transition={{
-                    rotate: {
-                      duration: 20,
-                      repeat: Infinity,
-                      ease: "linear"
-                    },
-                    scale: {
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: '-3px',
-                    right: '-3px',
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                    border: '2px solid #111827'
-                  }}
-                />
-              </motion.div>
-              
-              <div>
-                <div style={{
-                  fontSize: '20px',
-                  fontWeight: 'bold',
-                  background: 'linear-gradient(90deg, #22c55e, #ffffff, #86efac)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text'
-                }}>
-                  touchgrass.now
-                </div>
-                <div style={{
-                  fontSize: '11px',
-                  color: '#9ca3af',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <Globe size={10} />
-                  The internet's accountability platform
-                </div>
-              </div>
-            </Link>
+            <Logo size="default" showSubtitle={true} />
           </motion.div>
 
           {/* Desktop Navigation - Center */}

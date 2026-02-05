@@ -384,15 +384,7 @@ const Footer = () => {
             transition={{ duration: 0.6 }}
             style={styles.brandSection}
           >
-            <div style={styles.brandLogo}>
-              <div style={styles.logoIcon}>
-                <span style={{ fontSize: '1.5rem' }}>🌱</span>
-              </div>
-              <div>
-                <div style={styles.logoText}>touchgrass.now</div>
-                <div style={styles.logoSubtext}>The accountability platform</div>
-              </div>
-            </div>
+            <Logo size="small" showSubtitle={true} />
             
             <p style={styles.brandDescription}>
               Building discipline through behavioral psychology. 

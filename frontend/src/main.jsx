@@ -12,23 +12,19 @@ document.body.className = `theme-${savedTheme}`;
 
 // Global error handling
 window.addEventListener('error', (event) => {
-  console.error('Global error caught:', event.error);
 });
 
 // Global promise rejection handling
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
 });
 
 // Offline/online detection
 window.addEventListener('online', () => {
   document.documentElement.classList.remove('offline');
-  console.log('Application is online');
 });
 
 window.addEventListener('offline', () => {
   document.documentElement.classList.add('offline');
-  console.warn('Application is offline');
 });
 
 // Create root and render

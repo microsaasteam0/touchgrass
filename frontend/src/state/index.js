@@ -1,4 +1,4 @@
-import React from 'react';
+
   
   
   import React from 'react';
@@ -167,10 +167,6 @@ export const debugState = {
   log: () => {
     const state = persistState();
     console.group('TouchGrass State');
-    console.log('Auth:', state.auth);
-    console.log('Chat:', state.chat);
-    console.log('Streak:', state.streak);
-    console.log('Notifications:', state.notifications);
     console.groupEnd();
   },
 
@@ -211,7 +207,6 @@ export const monitorState = () => {
     const observer = new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
         if (entry.name.includes('Recoil')) {
-          console.log('Recoil state update:', entry);
         }
       });
     });

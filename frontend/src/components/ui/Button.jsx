@@ -70,7 +70,6 @@ const Button = forwardRef(({
         }
       }, 600);
     } catch (error) {
-      console.error('Ripple effect error:', error);
     }
   };
 

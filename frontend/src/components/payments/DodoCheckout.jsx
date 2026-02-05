@@ -41,7 +41,6 @@ const DodoCheckoutRedirect = () => {
       }, 3000);
       
     } catch (err) {
-      console.error('Checkout initialization error:', err);
       setError(err.response?.data?.error || 'Failed to initialize checkout');
       toast.error('Failed to initialize payment');
     } finally {

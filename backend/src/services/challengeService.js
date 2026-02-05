@@ -1,9 +1,10 @@
+// backend/src/services/challengeManagementService.js
 const redis = require('redis');
 const mongoose = require('mongoose');
+const Challenge = require('../models/Challenge');
+const UserChallenge = require('../models/UserChallenge');
 const User = require('../models/user');
-const Streak = require('../models/Streak');
-const ShareAnalytics = require('../models/ShareAnalytics');
-const Payment = require('../models/Payment');
+const NotificationService = require('./notificationService');
 
 // Initialize Redis client
 const redisClient = redis.createClient({
@@ -12,13 +13,14 @@ const redisClient = redis.createClient({
 
 redisClient.connect().catch(console.error);
 
-class AnalyticsService {
+class ChallengeManagementService {
   constructor() {
     this.cacheDuration = 300; // 5 minutes
   }
 
-  async getPlatformAnalytics(timeframe = 'month') {
-    const cacheKey = `analytics:platform:${timeframe}`;
+  // Get all available challenges for a user
+  async getAvailableChallenges(userEmail, filters = {}) {
+    const cacheKey = `challenges:available:${userEmail}:${JSON.stringify(filters)}`;
     
     try {
       const cached = await redisClient.get(cacheKey);
@@ -29,621 +31,640 @@ class AnalyticsService {
       console.warn('Redis cache miss:', err);
     }
 
-    const dateFilter = this.getDateFilter(timeframe);
+    try {
+      // Get user to check for already joined challenges
+      const user = await User.findOne({ email: userEmail });
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Build query
+      const query = { isActive: true };
+      
+      // Apply filters
+      if (filters.category) {
+        query.category = filters.category;
+      }
+      
+      if (filters.difficulty) {
+        query.difficulty = filters.difficulty;
+      }
+      
+      if (filters.minDuration) {
+        query.duration = { $gte: parseInt(filters.minDuration) };
+      }
+      
+      if (filters.maxDuration) {
+        query.duration = query.duration ? { ...query.duration, $lte: parseInt(filters.maxDuration) } : { $lte: parseInt(filters.maxDuration) };
+      }
+
+      // Get available challenges
+      const challenges = await Challenge.find(query)
+        .sort({ participants: -1, createdAt: -1 })
+        .limit(filters.limit || 50);
+
+      // Get user's joined challenge IDs
+      const userChallenges = await UserChallenge.find({ 
+        userId: user._id,
+        status: { $in: ['active', 'in_progress', 'joined'] }
+      }).select('challengeId');
+
+      const joinedChallengeIds = userChallenges.map(uc => uc.challengeId.toString());
+      
+      // Filter out already joined challenges and add join status
+      const availableChallenges = challenges
+        .filter(challenge => !joinedChallengeIds.includes(challenge._id.toString()))
+        .map(challenge => ({
+          ...challenge.toObject(),
+          isJoined: false
+        }));
+
+      try {
+        await redisClient.setEx(cacheKey, this.cacheDuration, JSON.stringify(availableChallenges));
+      } catch (err) {
+        console.warn('Redis cache set failed:', err);
+      }
+
+      return availableChallenges;
+    } catch (error) {
+      console.error('Error getting available challenges:', error);
+      throw error;
+    }
+  }
+
+  // Get user's active challenges
+  async getUserActiveChallenges(userEmail) {
+    const cacheKey = `challenges:active:${userEmail}`;
     
-    const analytics = {
-      users: await this.getUserAnalytics(dateFilter),
-      streaks: await this.getStreakAnalytics(dateFilter),
-      engagement: await this.getEngagementAnalytics(dateFilter),
-      revenue: await this.getRevenueAnalytics(dateFilter),
-      virality: await this.getViralityAnalytics(dateFilter),
-      predictions: await this.getPredictions()
-    };
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (err) {
+      console.warn('Redis cache miss:', err);
+    }
 
     try {
-      await redisClient.setEx(cacheKey, this.cacheDuration, JSON.stringify(analytics));
-    } catch (err) {
-      console.warn('Redis cache set failed:', err);
-    }
-
-    return analytics;
-  }
-
-  async getUserAnalytics(dateFilter) {
-    const [
-      totalUsers,
-      newUsers,
-      activeUsers,
-      returningUsers,
-      churnedUsers,
-      premiumUsers
-    ] = await Promise.all([
-      User.countDocuments(),
-      User.countDocuments({ createdAt: dateFilter }),
-      User.countDocuments({ 'stats.lastActive': dateFilter }),
-      User.countDocuments({
-        'stats.lastActive': dateFilter,
-        createdAt: { $lt: dateFilter.$gte }
-      }),
-      User.countDocuments({
-        'stats.lastActive': { $lt: dateFilter.$gte },
-        'subscription.active': true
-      }),
-      User.countDocuments({ 'subscription.plan': { $ne: 'free' } })
-    ]);
-
-    const retentionRate = newUsers > 0 
-      ? ((returningUsers / newUsers) * 100).toFixed(2)
-      : 0;
-
-    return {
-      totalUsers,
-      newUsers,
-      activeUsers,
-      returningUsers,
-      churnedUsers,
-      premiumUsers,
-      retentionRate: `${retentionRate}%`,
-      freeToPaidConversion: `${((premiumUsers / totalUsers) * 100).toFixed(2)}%`
-    };
-  }
-
-  async getStreakAnalytics(dateFilter) {
-    const [
-      totalStreaks,
-      activeStreaks,
-      brokenStreaks,
-      avgStreakLength,
-      streakDistribution,
-      completionRate
-    ] = await Promise.all([
-      Streak.countDocuments(),
-      Streak.countDocuments({ status: 'active' }),
-      Streak.countDocuments({ 
-        status: 'broken',
-        updatedAt: dateFilter 
-      }),
-      Streak.aggregate([
-        { $match: { status: 'active' } },
-        { $group: { _id: null, avg: { $avg: '$currentStreak' } } }
-      ]),
-      this.getStreakDistribution(),
-      this.getStreakCompletionRate(dateFilter)
-    ]);
-
-    return {
-      totalStreaks,
-      activeStreaks,
-      brokenStreaks,
-      avgStreakLength: avgStreakLength[0]?.avg?.toFixed(2) || 0,
-      streakDistribution,
-      completionRate: `${completionRate}%`,
-      successRate: `${100 - completionRate}%`
-    };
-  }
-
-  async getStreakDistribution() {
-    const distributions = await Streak.aggregate([
-      {
-        $facet: {
-          '1-7': [
-            { $match: { currentStreak: { $gte: 1, $lte: 7 } } },
-            { $count: 'count' }
-          ],
-          '8-30': [
-            { $match: { currentStreak: { $gte: 8, $lte: 30 } } },
-            { $count: 'count' }
-          ],
-          '31-100': [
-            { $match: { currentStreak: { $gte: 31, $lte: 100 } } },
-            { $count: 'count' }
-          ],
-          '100+': [
-            { $match: { currentStreak: { $gte: 101 } } },
-            { $count: 'count' }
-          ]
-        }
+      const user = await User.findOne({ email: userEmail });
+      if (!user) {
+        throw new Error('User not found');
       }
-    ]);
 
-    return {
-      '1-7': distributions[0]['1-7'][0]?.count || 0,
-      '8-30': distributions[0]['8-30'][0]?.count || 0,
-      '31-100': distributions[0]['31-100'][0]?.count || 0,
-      '100+': distributions[0]['100+'][0]?.count || 0
-    };
+      const userChallenges = await UserChallenge.find({
+        userId: user._id,
+        status: { $in: ['active', 'in_progress'] }
+      })
+      .populate({
+        path: 'challengeId',
+        model: 'Challenge'
+      })
+      .sort({ joinedAt: -1 });
+
+      // Calculate progress for each challenge
+      const activeChallenges = await Promise.all(
+        userChallenges.map(async (uc) => {
+          const challenge = uc.challengeId;
+          const progress = await this.calculateChallengeProgress(user._id, challenge._id);
+          
+          return {
+            ...challenge.toObject(),
+            userChallengeId: uc._id,
+            progress: progress.percentage,
+            currentDay: progress.currentDay,
+            totalDays: progress.totalDays,
+            lastUpdated: uc.updatedAt,
+            status: uc.status,
+            joinedAt: uc.joinedAt
+          };
+        })
+      );
+
+      try {
+        await redisClient.setEx(cacheKey, this.cacheDuration, JSON.stringify(activeChallenges));
+      } catch (err) {
+        console.warn('Redis cache set failed:', err);
+      }
+
+      return activeChallenges;
+    } catch (error) {
+      console.error('Error getting user active challenges:', error);
+      throw error;
+    }
   }
 
-  async getStreakCompletionRate(dateFilter) {
-    const totalDays = await Streak.aggregate([
-      { $match: { 'history.date': dateFilter } },
-      { $unwind: '$history' },
-      { $match: { 'history.date': dateFilter } },
-      { $count: 'total' }
-    ]);
+  // Join a challenge
+  async joinChallenge(challengeId, userEmail, joinData = {}) {
+    try {
+      const user = await User.findOne({ email: userEmail });
+      if (!user) {
+        throw new Error('User not found');
+      }
 
-    const completedDays = await Streak.aggregate([
-      { $match: { 'history.date': dateFilter, 'history.verified': true } },
-      { $unwind: '$history' },
-      { $match: { 'history.date': dateFilter, 'history.verified': true } },
-      { $count: 'completed' }
-    ]);
+      const challenge = await Challenge.findById(challengeId);
+      if (!challenge) {
+        throw new Error('Challenge not found');
+      }
 
-    const total = totalDays[0]?.total || 0;
-    const completed = completedDays[0]?.completed || 0;
+      // Check if user already joined
+      const existingJoin = await UserChallenge.findOne({
+        userId: user._id,
+        challengeId: challenge._id,
+        status: { $in: ['active', 'in_progress', 'joined'] }
+      });
 
-    return total > 0 ? ((completed / total) * 100).toFixed(2) : 0;
+      if (existingJoin) {
+        return {
+          success: false,
+          message: 'You have already joined this challenge',
+          data: existingJoin
+        };
+      }
+
+      // Check challenge capacity if exists
+      if (challenge.maxParticipants && challenge.participants >= challenge.maxParticipants) {
+        return {
+          success: false,
+          message: 'This challenge has reached maximum capacity'
+        };
+      }
+
+      // Create user challenge record
+      const userChallenge = new UserChallenge({
+        userId: user._id,
+        challengeId: challenge._id,
+        status: 'active',
+        joinedAt: new Date(),
+        progress: {
+          currentDay: 1,
+          totalDays: challenge.duration,
+          completedDays: 0,
+          streak: 0,
+          lastCompleted: null
+        },
+        ...joinData
+      });
+
+      await userChallenge.save();
+
+      // Update challenge participants count
+      await Challenge.findByIdAndUpdate(challengeId, {
+        $inc: { participants: 1 },
+        $push: { participantIds: user._id }
+      });
+
+      // Clear relevant caches
+      await this.clearUserChallengesCache(userEmail);
+
+      // Send notification
+      await NotificationService.sendChallengeJoinNotification(
+        user._id,
+        challenge.name,
+        challenge.duration
+      );
+
+      // Add to user's activity
+      await User.findByIdAndUpdate(user._id, {
+        $push: {
+          'activity': {
+            type: 'challenge_joined',
+            challengeId: challenge._id,
+            challengeName: challenge.name,
+            timestamp: new Date()
+          }
+        },
+        $inc: { 'stats.totalChallengesJoined': 1 }
+      });
+
+      return {
+        success: true,
+        message: 'Successfully joined challenge',
+        data: userChallenge
+      };
+    } catch (error) {
+      console.error('Error joining challenge:', error);
+      throw error;
+    }
   }
 
-  async getEngagementAnalytics(dateFilter) {
-    const [
-      dailyActiveUsers,
-      avgSessionDuration,
-      verificationRate,
-      shameAcceptanceRate,
-      featureUsage
-    ] = await Promise.all([
-      User.countDocuments({ 'stats.lastActive': { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
-      this.getAvgSessionDuration(dateFilter),
-      this.getVerificationRate(dateFilter),
-      this.getShameAcceptanceRate(dateFilter),
-      this.getFeatureUsage(dateFilter)
-    ]);
+  // Calculate challenge progress
+  async calculateChallengeProgress(userId, challengeId) {
+    try {
+      const userChallenge = await UserChallenge.findOne({
+        userId: userId,
+        challengeId: challengeId
+      }).populate('challengeId');
 
-    return {
-      dailyActiveUsers,
-      avgSessionDuration: `${avgSessionDuration} minutes`,
-      verificationRate: `${verificationRate}%`,
-      shameAcceptanceRate: `${shameAcceptanceRate}%`,
-      featureUsage,
-      avgStreaksPerUser: await this.getAvgStreaksPerUser()
-    };
+      if (!userChallenge || !userChallenge.challengeId) {
+        return { percentage: 0, currentDay: 1, totalDays: 1 };
+      }
+
+      const challenge = userChallenge.challengeId;
+      const startDate = userChallenge.joinedAt;
+      const now = new Date();
+      
+      // Calculate days since joining
+      const daysSinceJoin = Math.floor((now - startDate) / (1000 * 60 * 60 * 24)) + 1;
+      const currentDay = Math.min(daysSinceJoin, challenge.duration);
+      
+      // Calculate percentage
+      const percentage = Math.round((currentDay / challenge.duration) * 100);
+
+      // Get completion stats
+      const completedDays = await this.getCompletedDaysCount(userId, challengeId);
+
+      return {
+        percentage,
+        currentDay,
+        totalDays: challenge.duration,
+        completedDays,
+        isCompleted: currentDay >= challenge.duration
+      };
+    } catch (error) {
+      console.error('Error calculating progress:', error);
+      return { percentage: 0, currentDay: 1, totalDays: 1 };
+    }
   }
 
-  async getAvgSessionDuration(dateFilter) {
-    const result = await Streak.aggregate([
-      { $match: { 'history.date': dateFilter } },
-      { $unwind: '$history' },
-      { $match: { 'history.date': dateFilter, 'history.duration': { $exists: true } } },
-      { $group: { _id: null, avg: { $avg: '$history.duration' } } }
-    ]);
-
-    return result[0]?.avg?.toFixed(2) || 15;
-  }
-
-  async getVerificationRate(dateFilter) {
-    const total = await Streak.countDocuments({ 'history.date': dateFilter });
-    const verified = await Streak.countDocuments({
-      'history.date': dateFilter,
-      'history.verified': true
+  // Get completed days count
+  async getCompletedDaysCount(userId, challengeId) {
+    const userChallenge = await UserChallenge.findOne({
+      userId: userId,
+      challengeId: challengeId
     });
 
-    return total > 0 ? ((verified / total) * 100).toFixed(2) : 0;
-  }
+    if (!userChallenge) return 0;
 
-  async getShameAcceptanceRate(dateFilter) {
-    const shameEntries = await Streak.countDocuments({
-      'history.date': dateFilter,
-      'history.verificationMethod': 'shame'
-    });
-
-    const totalMissed = await Streak.countDocuments({
-      'history.date': dateFilter,
-      'history.verified': false
-    });
-
-    return totalMissed > 0 ? ((shameEntries / totalMissed) * 100).toFixed(2) : 0;
-  }
-
-  async getFeatureUsage(dateFilter) {
-    const result = await Streak.aggregate([
-      { $match: { 'history.date': dateFilter } },
-      { $unwind: '$history' },
-      { $match: { 'history.date': dateFilter } },
-      { $group: {
-        _id: '$history.verificationMethod',
-        count: { $sum: 1 }
-      }},
-      { $sort: { count: -1 } }
-    ]);
-
-    return result.reduce((acc, item) => {
-      acc[item._id] = item.count;
-      return acc;
-    }, {});
-  }
-
-  async getAvgStreaksPerUser() {
-    const result = await User.aggregate([
-      { $group: {
-        _id: null,
-        avgStreaks: { $avg: '$stats.currentStreak' }
-      }}
-    ]);
-
-    return result[0]?.avgStreaks?.toFixed(2) || 0;
-  }
-
-  async getRevenueAnalytics(dateFilter) {
-    const [
-      totalRevenue,
-      mrr,
-      arr,
-      revenueByPlan,
-      streakRestorationRevenue,
-      averageRevenuePerUser,
-      lifetimeValue
-    ] = await Promise.all([
-      Payment.aggregate([
-        { $match: { status: 'completed', createdAt: dateFilter } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]),
-      this.calculateMRR(),
-      this.calculateARR(),
-      this.getRevenueByPlan(dateFilter),
-      this.getStreakRestorationRevenue(dateFilter),
-      this.getAverageRevenuePerUser(),
-      this.getLifetimeValue()
-    ]);
-
-    return {
-      totalRevenue: totalRevenue[0]?.total || 0,
-      mrr: `$${mrr.toFixed(2)}`,
-      arr: `$${arr.toFixed(2)}`,
-      revenueByPlan,
-      streakRestorationRevenue,
-      averageRevenuePerUser: `$${averageRevenuePerUser.toFixed(2)}`,
-      lifetimeValue: `$${lifetimeValue.toFixed(2)}`,
-      churnRate: await this.getChurnRate(dateFilter)
-    };
-  }
-
-  async calculateMRR() {
-    const plans = {
-      premium: 14.99,
-      elite: 29.99,
-      enterprise: 99.99
-    };
-
-    const subscribers = await User.aggregate([
-      { $match: { 'subscription.active': true } },
-      { $group: {
-        _id: '$subscription.plan',
-        count: { $sum: 1 }
-      }}
-    ]);
-
-    return subscribers.reduce((total, sub) => {
-      const planRate = plans[sub._id] || 0;
-      return total + (sub.count * planRate);
-    }, 0);
-  }
-
-  async calculateARR() {
-    const mrr = await this.calculateMRR();
-    return mrr * 12;
-  }
-
-  async getRevenueByPlan(dateFilter) {
-    const result = await Payment.aggregate([
-      { $match: { status: 'completed', createdAt: dateFilter } },
-      { $group: {
-        _id: '$plan',
-        revenue: { $sum: '$amount' },
-        transactions: { $sum: 1 }
-      }},
-      { $sort: { revenue: -1 } }
-    ]);
-
-    return result;
-  }
-
-  async getStreakRestorationRevenue(dateFilter) {
-    const result = await Payment.aggregate([
-      { 
-        $match: { 
-          status: 'completed',
-          type: 'streak_restoration',
-          createdAt: dateFilter
+    // Count completed days in the last duration days
+    const startDate = userChallenge.joinedAt;
+    const challenge = await Challenge.findById(challengeId);
+    const duration = challenge?.duration || 30;
+    
+    const days = await UserChallenge.aggregate([
+      {
+        $match: {
+          userId: mongoose.Types.ObjectId(userId),
+          challengeId: mongoose.Types.ObjectId(challengeId),
+          'progress.completedDays': { $exists: true }
         }
       },
-      { $group: {
-        _id: null,
-        revenue: { $sum: '$amount' },
-        count: { $sum: 1 }
-      }}
-    ]);
-
-    return {
-      revenue: result[0]?.revenue || 0,
-      transactions: result[0]?.count || 0,
-      avgRestorationAmount: result[0]?.revenue ? (result[0].revenue / result[0].count).toFixed(2) : 0
-    };
-  }
-
-  async getAverageRevenuePerUser() {
-    const [totalRevenue, totalUsers] = await Promise.all([
-      Payment.aggregate([
-        { $match: { status: 'completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]),
-      User.countDocuments({ 'subscription.active': true })
-    ]);
-
-    const revenue = totalRevenue[0]?.total || 0;
-    return totalUsers > 0 ? revenue / totalUsers : 0;
-  }
-
-  async getLifetimeValue() {
-    const avgRevenuePerUser = await this.getAverageRevenuePerUser();
-    const avgCustomerLifetime = 12; // months - adjust based on actual data
-    
-    return avgRevenuePerUser * avgCustomerLifetime;
-  }
-
-  async getChurnRate(dateFilter) {
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
-    const [startSubscribers, endSubscribers] = await Promise.all([
-      User.countDocuments({
-        'subscription.active': true,
-        'subscription.currentPeriodEnd': { $gte: monthAgo }
-      }),
-      User.countDocuments({
-        'subscription.active': true,
-        'subscription.currentPeriodEnd': { $gte: new Date() }
-      })
-    ]);
-
-    return startSubscribers > 0 
-      ? (((startSubscribers - endSubscribers) / startSubscribers) * 100).toFixed(2)
-      : 0;
-  }
-
-  async getViralityAnalytics(dateFilter) {
-    const [
-      totalShares,
-      sharesByPlatform,
-      referralSignups,
-      viralCoefficient,
-      topSharedStreaks
-    ] = await Promise.all([
-      ShareAnalytics.countDocuments({ timestamp: dateFilter }),
-      this.getSharesByPlatform(dateFilter),
-      this.getReferralSignups(dateFilter),
-      this.calculateViralCoefficient(dateFilter),
-      this.getTopSharedStreaks(dateFilter)
-    ]);
-
-    return {
-      totalShares,
-      sharesByPlatform,
-      referralSignups,
-      viralCoefficient: viralCoefficient.toFixed(2),
-      topSharedStreaks,
-      avgSharesPerUser: totalShares > 0 ? (totalShares / await User.countDocuments()).toFixed(2) : 0
-    };
-  }
-
-  async getSharesByPlatform(dateFilter) {
-    const result = await ShareAnalytics.aggregate([
-      { $match: { timestamp: dateFilter } },
-      { $group: {
-        _id: '$platform',
-        count: { $sum: 1 }
-      }},
-      { $sort: { count: -1 } }
-    ]);
-
-    return result;
-  }
-
-  async getReferralSignups(dateFilter) {
-    const result = await User.aggregate([
-      { $match: { 
-        createdAt: dateFilter,
-        referredBy: { $exists: true, $ne: null }
-      }},
-      { $group: {
-        _id: '$referredBy',
-        count: { $sum: 1 }
-      }},
-      { $sort: { count: -1 } }
-    ]);
-
-    return {
-      total: result.reduce((sum, item) => sum + item.count, 0),
-      topReferrers: result.slice(0, 10)
-    };
-  }
-
-  async calculateViralCoefficient(dateFilter) {
-    const shares = await ShareAnalytics.countDocuments({ timestamp: dateFilter });
-    const signups = await User.countDocuments({ createdAt: dateFilter });
-    
-    // Basic viral coefficient calculation
-    // In production, you'd want more sophisticated tracking
-    return signups > 0 ? (shares / signups) : 0;
-  }
-
-  async getTopSharedStreaks(dateFilter) {
-    const result = await ShareAnalytics.aggregate([
-      { $match: { timestamp: dateFilter } },
-      { $group: {
-        _id: '$streakId',
-        shareCount: { $sum: 1 }
-      }},
-      { $sort: { shareCount: -1 } },
-      { $limit: 10 },
-      { $lookup: {
-        from: 'streaks',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'streak'
-      }},
-      { $unwind: '$streak' },
-      { $lookup: {
-        from: 'users',
-        localField: 'streak.userId',
-        foreignField: '_id',
-        as: 'user'
-      }},
-      { $unwind: '$user' },
-      { $project: {
-        streakId: '$_id',
-        shareCount: 1,
-        'user.displayName': 1,
-        'user.username': 1,
-        'streak.currentStreak': 1
-      }}
-    ]);
-
-    return result;
-  }
-
-  async getPredictions() {
-    // Simple prediction model - in production, use ML models
-    const currentUsers = await User.countDocuments();
-    const growthRate = 0.05; // 5% weekly growth (adjust based on historical data)
-    const weeks = 12; // Predict 12 weeks ahead
-
-    return {
-      predictedUsers: Math.round(currentUsers * Math.pow(1 + growthRate, weeks)),
-      predictedRevenue: await this.predictRevenue(growthRate, weeks),
-      growthOpportunities: await this.identifyGrowthOpportunities()
-    };
-  }
-
-  async predictRevenue(growthRate, weeks) {
-    const currentMRR = await this.calculateMRR();
-    const avgRevenuePerUser = await this.getAverageRevenuePerUser();
-    const currentUsers = await User.countDocuments();
-    
-    const predictedUsers = Math.round(currentUsers * Math.pow(1 + growthRate, weeks));
-    const newUsers = predictedUsers - currentUsers;
-    
-    return currentMRR + (newUsers * avgRevenuePerUser);
-  }
-
-  async identifyGrowthOpportunities() {
-    const opportunities = [];
-    
-    // Check for low-hanging fruit
-    const verificationRate = await this.getVerificationRate(this.getDateFilter('week'));
-    if (verificationRate < 80) {
-      opportunities.push({
-        area: 'verification',
-        issue: 'Low verification rate',
-        impact: 'High',
-        recommendation: 'Implement reminder system and gamification'
-      });
-    }
-
-    const shameRate = await this.getShameAcceptanceRate(this.getDateFilter('week'));
-    if (shameRate > 30) {
-      opportunities.push({
-        area: 'shame',
-        issue: 'High shame acceptance',
-        impact: 'Medium',
-        recommendation: 'Add more incentives for verification'
-      });
-    }
-
-    const churnRate = await this.getChurnRate(this.getDateFilter('month'));
-    if (churnRate > 5) {
-      opportunities.push({
-        area: 'retention',
-        issue: 'High churn rate',
-        impact: 'Critical',
-        recommendation: 'Improve onboarding and add win-back campaigns'
-      });
-    }
-
-    return opportunities;
-  }
-
-  getDateFilter(timeframe) {
-    const now = new Date();
-    let startDate;
-
-    switch (timeframe) {
-      case 'day':
-        startDate = new Date(now.setDate(now.getDate() - 1));
-        break;
-      case 'week':
-        startDate = new Date(now.setDate(now.getDate() - 7));
-        break;
-      case 'month':
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
-        break;
-      case 'quarter':
-        startDate = new Date(now.setMonth(now.getMonth() - 3));
-        break;
-      case 'year':
-        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
-        break;
-      default:
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
-    }
-
-    return { $gte: startDate };
-  }
-
-  async trackEvent(userId, eventType, metadata = {}) {
-    const Event = require('../models/AnalyticsEvent');
-    
-    await Event.create({
-      userId,
-      eventType,
-      metadata,
-      timestamp: new Date(),
-      userAgent: metadata.userAgent,
-      ipAddress: metadata.ipAddress
-    });
-
-    // Update user's last active timestamp
-    await User.findByIdAndUpdate(userId, {
-      'stats.lastActive': new Date()
-    });
-  }
-
-  async exportAnalytics(format = 'json', timeframe = 'month') {
-    const analytics = await this.getPlatformAnalytics(timeframe);
-    
-    switch (format) {
-      case 'csv':
-        return this.convertToCSV(analytics);
-      case 'excel':
-        return this.convertToExcel(analytics);
-      case 'pdf':
-        return this.convertToPDF(analytics);
-      default:
-        return analytics;
-    }
-  }
-
-  convertToCSV(data) {
-    // Simple CSV conversion - implement based on your needs
-    const lines = [];
-    
-    // Add headers
-    lines.push('Category,Metric,Value');
-    
-    // Flatten the data structure
-    this.flattenObject(data, lines);
-    
-    return lines.join('\n');
-  }
-
-  flattenObject(obj, lines, prefix = '') {
-    for (const [key, value] of Object.entries(obj)) {
-      if (typeof value === 'object' && value !== null) {
-        this.flattenObject(value, lines, prefix + key + '.');
-      } else {
-        lines.push(`${prefix}${key},${value}`);
+      {
+        $project: {
+          completedDays: '$progress.completedDays'
+        }
       }
+    ]);
+
+    return days[0]?.completedDays || 0;
+  }
+
+  // Update daily challenge progress
+  async updateDailyProgress(userEmail, challengeId, progressData) {
+    try {
+      const user = await User.findOne({ email: userEmail });
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const userChallenge = await UserChallenge.findOne({
+        userId: user._id,
+        challengeId: challengeId
+      });
+
+      if (!userChallenge) {
+        throw new Error('Challenge not found or not joined');
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Check if already updated today
+      if (userChallenge.lastUpdated && 
+          userChallenge.lastUpdated.toISOString().split('T')[0] === today) {
+        return {
+          success: false,
+          message: 'Already updated progress for today'
+        };
+      }
+
+      // Update progress
+      userChallenge.progress.completedDays = (userChallenge.progress.completedDays || 0) + 1;
+      userChallenge.progress.lastCompleted = new Date();
+      userChallenge.progress.currentDay = userChallenge.progress.currentDay + 1;
+      userChallenge.lastUpdated = new Date();
+      
+      // Update streak
+      if (progressData.completed) {
+        userChallenge.progress.streak = (userChallenge.progress.streak || 0) + 1;
+      } else {
+        userChallenge.progress.streak = 0;
+      }
+
+      // Check if challenge is completed
+      const challenge = await Challenge.findById(challengeId);
+      if (userChallenge.progress.currentDay >= challenge.duration) {
+        userChallenge.status = 'completed';
+        userChallenge.completedAt = new Date();
+        
+        // Award achievement
+        await this.awardChallengeCompletion(user._id, challengeId, challenge.name);
+      }
+
+      await userChallenge.save();
+
+      // Clear cache
+      await this.clearUserChallengesCache(userEmail);
+
+      // Update user stats
+      await User.findByIdAndUpdate(user._id, {
+        $inc: { 'stats.totalChallengeDaysCompleted': 1 },
+        $push: {
+          'activity': {
+            type: 'challenge_progress',
+            challengeId: challengeId,
+            challengeName: challenge.name,
+            progress: userChallenge.progress.currentDay,
+            total: challenge.duration,
+            timestamp: new Date()
+          }
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Progress updated successfully',
+        data: userChallenge
+      };
+    } catch (error) {
+      console.error('Error updating daily progress:', error);
+      throw error;
+    }
+  }
+
+  // Award challenge completion
+  async awardChallengeCompletion(userId, challengeId, challengeName) {
+    try {
+      // Update user achievements
+      await User.findByIdAndUpdate(userId, {
+        $push: {
+          achievements: {
+            type: 'challenge_completed',
+            challengeId: challengeId,
+            challengeName: challengeName,
+            earnedAt: new Date(),
+            xp: 100
+          }
+        },
+        $inc: { 
+          'stats.totalChallengesCompleted': 1,
+          'stats.xp': 100
+        }
+      });
+
+      // Send notification
+      await NotificationService.sendChallengeCompletionNotification(
+        userId,
+        challengeName
+      );
+
+      // Check for milestone achievements
+      await this.checkChallengeMilestones(userId);
+    } catch (error) {
+      console.error('Error awarding completion:', error);
+    }
+  }
+
+  // Check challenge milestones
+  async checkChallengeMilestones(userId) {
+    const user = await User.findById(userId);
+    const totalCompleted = user.stats.totalChallengesCompleted || 0;
+
+    const milestones = [
+      { threshold: 1, achievement: 'first_challenge_completed', xp: 50 },
+      { threshold: 5, achievement: 'challenge_master', xp: 100 },
+      { threshold: 10, achievement: 'challenge_expert', xp: 200 },
+      { threshold: 25, achievement: 'challenge_legend', xp: 500 }
+    ];
+
+    for (const milestone of milestones) {
+      if (totalCompleted === milestone.threshold) {
+        await User.findByIdAndUpdate(userId, {
+          $push: {
+            achievements: {
+              type: milestone.achievement,
+              earnedAt: new Date(),
+              xp: milestone.xp
+            }
+          },
+          $inc: { 'stats.xp': milestone.xp }
+        });
+      }
+    }
+  }
+
+  // Create a new challenge (admin or user-created)
+  async createChallenge(challengeData, creatorEmail) {
+    try {
+      const user = await User.findOne({ email: creatorEmail });
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const challenge = new Challenge({
+        ...challengeData,
+        createdBy: user._id,
+        participants: 0,
+        isActive: true,
+        isPublic: challengeData.isPublic !== undefined ? challengeData.isPublic : true
+      });
+
+      await challenge.save();
+
+      // Clear challenges cache
+      await redisClient.del('challenges:available:*');
+
+      // If creator auto-joins
+      if (challengeData.autoJoinCreator) {
+        await this.joinChallenge(challenge._id, creatorEmail);
+      }
+
+      return {
+        success: true,
+        message: 'Challenge created successfully',
+        data: challenge
+      };
+    } catch (error) {
+      console.error('Error creating challenge:', error);
+      throw error;
+    }
+  }
+
+  // Get challenge leaderboard
+  async getChallengeLeaderboard(challengeId, limit = 20) {
+    const cacheKey = `challenge:leaderboard:${challengeId}:${limit}`;
+    
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (err) {
+      console.warn('Redis cache miss:', err);
+    }
+
+    try {
+      const leaderboard = await UserChallenge.aggregate([
+        { $match: { challengeId: mongoose.Types.ObjectId(challengeId) } },
+        { $sort: { 'progress.completedDays': -1, 'progress.streak': -1 } },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        { $unwind: '$user' },
+        {
+          $project: {
+            userId: '$user._id',
+            username: '$user.username',
+            displayName: '$user.displayName',
+            avatar: '$user.avatar',
+            completedDays: '$progress.completedDays',
+            currentStreak: '$progress.streak',
+            currentDay: '$progress.currentDay',
+            joinedAt: '$joinedAt',
+            status: '$status'
+          }
+        }
+      ]);
+
+      try {
+        await redisClient.setEx(cacheKey, 60, JSON.stringify(leaderboard)); // 1 minute cache for leaderboard
+      } catch (err) {
+        console.warn('Redis cache set failed:', err);
+      }
+
+      return leaderboard;
+    } catch (error) {
+      console.error('Error getting leaderboard:', error);
+      throw error;
+    }
+  }
+
+  // Clear user challenges cache
+  async clearUserChallengesCache(userEmail) {
+    try {
+      const pattern = `challenges:*${userEmail}*`;
+      const keys = await redisClient.keys(pattern);
+      
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+      }
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+    }
+  }
+
+  // Get challenge statistics
+  async getChallengeStats(challengeId) {
+    try {
+      const challenge = await Challenge.findById(challengeId);
+      if (!challenge) {
+        throw new Error('Challenge not found');
+      }
+
+      const stats = await UserChallenge.aggregate([
+        { $match: { challengeId: mongoose.Types.ObjectId(challengeId) } },
+        {
+          $group: {
+            _id: null,
+            totalParticipants: { $sum: 1 },
+            activeParticipants: {
+              $sum: { $cond: [{ $in: ['$status', ['active', 'in_progress']] }, 1, 0] }
+            },
+            completedParticipants: {
+              $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+            },
+            avgProgress: { $avg: '$progress.currentDay' },
+            avgCompletionRate: { 
+              $avg: { 
+                $divide: ['$progress.completedDays', challenge.duration]
+              }
+            }
+          }
+        }
+      ]);
+
+      return {
+        challengeId,
+        challengeName: challenge.name,
+        ...stats[0],
+        duration: challenge.duration,
+        difficulty: challenge.difficulty,
+        category: challenge.category
+      };
+    } catch (error) {
+      console.error('Error getting challenge stats:', error);
+      throw error;
+    }
+  }
+
+  // Get trending challenges
+  async getTrendingChallenges(limit = 10) {
+    const cacheKey = `challenges:trending:${limit}`;
+    
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (err) {
+      console.warn('Redis cache miss:', err);
+    }
+
+    try {
+      const trending = await Challenge.aggregate([
+        { $match: { isActive: true, isPublic: true } },
+        { $sort: { 
+          participants: -1,
+          'metrics.dailyJoins': -1 
+        }},
+        { $limit: limit },
+        {
+          $project: {
+            name: 1,
+            description: 1,
+            category: 1,
+            difficulty: 1,
+            duration: 1,
+            participants: 1,
+            icon: 1,
+            metrics: 1,
+            completionRate: {
+              $cond: [
+                { $gt: ['$participants', 0] },
+                { $divide: ['$metrics.completions', '$participants'] },
+                0
+              ]
+            }
+          }
+        }
+      ]);
+
+      try {
+        await redisClient.setEx(cacheKey, 300, JSON.stringify(trending));
+      } catch (err) {
+        console.warn('Redis cache set failed:', err);
+      }
+
+      return trending;
+    } catch (error) {
+      console.error('Error getting trending challenges:', error);
+      throw error;
     }
   }
 }
 
-module.exports = new AnalyticsService();
+module.exports = new ChallengeManagementService();

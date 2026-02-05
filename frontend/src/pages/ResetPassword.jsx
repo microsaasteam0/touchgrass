@@ -108,7 +108,6 @@ const ResetPassword = () => {
       }, 2000);
       
     } catch (error) {
-      console.error('Reset error:', error);
       setError(error.message || 'Failed to reset password');
     } finally {
       setLoading(false);

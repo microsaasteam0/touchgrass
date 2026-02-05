@@ -241,7 +241,6 @@ const ShareModal = ({ isOpen, onClose, streakData, user }) => {
       }
     };
 
-    console.log('Sharing:', shareData);
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -289,7 +288,6 @@ const ShareModal = ({ isOpen, onClose, streakData, user }) => {
         setCopied(false);
       }, 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
     }
   };
 
@@ -304,7 +302,6 @@ const ShareModal = ({ isOpen, onClose, streakData, user }) => {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Failed to download image:', error);
     }
   };
 
