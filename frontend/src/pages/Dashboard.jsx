@@ -4835,16 +4835,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { 
-  Bell, 
-  Settings, 
-  Calendar, 
-  Flame, 
-  Target, 
-  Trophy, 
-  Users, 
-  TrendingUp, 
+import {
+  Bell,
+  Settings,
+  Calendar,
+  Flame,
+  Target,
+  Trophy,
+  Users,
+  TrendingUp,
   Clock,
   Share2,
   Camera,
@@ -4879,10 +4880,12 @@ import {
 const Dashboard = ({ onNavigate }) => {
   // Authentication & User State
   const navigate = useNavigate();
+  const { user, loading: authLoading, initialized } = useAuth();
   const [showAchievement, setShowAchievement] = useState(false);
   const [showSocialShareModal, setShowSocialShareModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [streakData, setStreakData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -4897,6 +4900,9 @@ const Dashboard = ({ onNavigate }) => {
     country: ''
   });
   const [showCopyToast, setShowCopyToast] = useState(false);
+  const [isTodayVerified, setIsTodayVerified] = useState(false);
+
+
 
   // Helper function to extract name from email
   const extractNameFromEmail = useCallback((email) => {
@@ -5218,25 +5224,24 @@ const Dashboard = ({ onNavigate }) => {
 
   // Initialize dashboard data
   const initializeDashboard = useCallback(async () => {
+    if (!user) {
+      setUserData(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
-      const user = loadUserData();
-      
-      if (!user) {
-        setUserData(null);
-        setIsLoading(false);
-        return;
-      }
-      
+      // Use the user from AuthContext instead of loading from localStorage
       setUserData(user);
-      
-      const streakData = loadStreakData(user.username);
-      
+
+      const streakData = loadStreakData(user.email?.split('@')[0] || user.username || 'user');
+
       const todayVerified = checkTodayVerified(streakData);
       if (streakData) {
         streakData.todayVerified = todayVerified;
-        saveStreakData(user.username, streakData);
+        saveStreakData(user.email?.split('@')[0] || user.username || 'user', streakData);
       }
       
       const joinDate = new Date(user.createdAt || new Date());
@@ -5532,26 +5537,26 @@ const Dashboard = ({ onNavigate }) => {
 
   // Handle verification
   const handleVerify = useCallback(() => {
-    if (!userData) {
+    if (!user) {
       toast.error('Please login to verify');
       navigateTo('auth');
       return;
     }
-    
+
     navigateTo('verify');
-  }, [userData, navigateTo]);
+  }, [user, navigateTo]);
 
   // Handle verification completion
   const completeVerification = useCallback((verificationData) => {
     if (!userData) return false;
-    
+
     const streakKey = `touchgrass_streak_${userData.username}`;
     const storedStreak = localStorage.getItem(streakKey);
-    
+
     if (storedStreak) {
       const streak = JSON.parse(storedStreak);
       const today = new Date().toDateString();
-      
+
       const alreadyVerified = streak.history?.some(entry => {
         if (!entry.date) return false;
         try {
@@ -5561,7 +5566,7 @@ const Dashboard = ({ onNavigate }) => {
           return false;
         }
       });
-      
+
       if (!alreadyVerified) {
         const newEntry = {
           date: new Date().toISOString(),
@@ -5571,7 +5576,7 @@ const Dashboard = ({ onNavigate }) => {
           location: verificationData.location || 'Unknown',
           proof: verificationData.proof || null
         };
-        
+
         const updatedStreak = {
           ...streak,
           currentStreak: streak.currentStreak + 1,
@@ -5582,20 +5587,21 @@ const Dashboard = ({ onNavigate }) => {
           lastVerification: new Date().toISOString(),
           history: [...(streak.history || []), newEntry]
         };
-        
+
         saveStreakData(userData.username, updatedStreak);
-        
+
         // Check for new achievements
         const currentStreak = updatedStreak.currentStreak;
         if (currentStreak === 3 || currentStreak === 7 || currentStreak === 30 || currentStreak === 100) {
           setShowAchievement(true);
           setTimeout(() => setShowAchievement(false), 3000);
         }
-        
+
         toast.success(`🎉 Day ${updatedStreak.currentStreak} verified! Streak +1!`);
-        
+
+        setIsTodayVerified(true);
         initializeDashboard();
-        
+
         return true;
       } else {
         toast.error('You have already verified your streak today!');
@@ -5607,27 +5613,27 @@ const Dashboard = ({ onNavigate }) => {
 
   // Handle social share
   const handleSocialShare = useCallback((platform) => {
-    if (!userData) {
+    if (!user) {
       toast.error('Please login to share');
       return;
     }
-    
-    const streakData = loadStreakData(userData.username);
-    
+
+    const streakData = loadStreakData(user.email?.split('@')[0] || user.username || 'user');
+
     const updatedStreak = {
       ...streakData,
       shareCount: streakData.shareCount + 1,
       viralScore: streakData.viralScore + Math.floor(Math.random() * 10) + 1
     };
-    
-    saveStreakData(userData.username, updatedStreak);
-    
+
+    saveStreakData(user.email?.split('@')[0] || user.username || 'user', updatedStreak);
+
     const baseUrl = window.location.origin;
-    const profileUrl = `${baseUrl}/profile/${userData.username}`;
-    
+    const profileUrl = `${baseUrl}/profile/${user.email?.split('@')[0] || user.username || 'user'}`;
+
     const shareTexts = {
       twitter: `🔥 Day ${streakData.currentStreak} of my #TouchGrass streak! Building discipline one day at a time. Join me: ${profileUrl} #Accountability #Streak #MentalHealth`,
-      linkedin: `${userData.displayName} has maintained a ${streakData.currentStreak}-day outdoor streak on TouchGrass\n\nBuilding professional discipline through daily habits. Check it out: ${profileUrl}\n\n#ProfessionalGrowth #Wellness #Discipline`,
+      linkedin: `${user.displayName || user.email?.split('@')[0] || 'User'} has maintained a ${streakData.currentStreak}-day outdoor streak on TouchGrass\n\nBuilding professional discipline through daily habits. Check it out: ${profileUrl}\n\n#ProfessionalGrowth #Wellness #Discipline`,
       facebook: `I've touched grass for ${streakData.currentStreak} days in a row! Join me in building better habits: ${profileUrl}`,
       instagram: `Day ${streakData.currentStreak} of my #TouchGrass journey 🌱\n\nBuilding real-world discipline one day at a time.\n\nJoin me: ${profileUrl}\n\n#Streak #Accountability #MentalHealth #Outdoor`,
       whatsapp: `Check out my ${streakData.currentStreak}-day TouchGrass streak! ${profileUrl}`
@@ -5672,7 +5678,7 @@ const Dashboard = ({ onNavigate }) => {
 5. **Use hashtags**: #TouchGrass #Streak #Accountability #MentalHealth
 
 You can also save this image and share it directly!`;
-      
+
       toast.custom((t) => (
         <div className="instagram-toast">
           <div className="toast-header">
@@ -5721,9 +5727,9 @@ You can also save this image and share it directly!`;
     toast.success(`Shared to ${config.name}! Social score +${updatedStreak.viralScore - streakData.viralScore}`, {
       icon: '🚀'
     });
-    
+
     initializeDashboard();
-  }, [userData, loadStreakData, saveStreakData, initializeDashboard]);
+  }, [user, loadStreakData, saveStreakData, initializeDashboard]);
 
   // Copy profile link with toast
   const copyProfileLink = useCallback(() => {
@@ -5731,22 +5737,22 @@ You can also save this image and share it directly!`;
       toast.error('Please login to copy link');
       return;
     }
-    
+
     const baseUrl = window.location.origin;
     const profileUrl = `${baseUrl}/profile/${userData.username}`;
-    
+
     navigator.clipboard.writeText(profileUrl)
       .then(() => {
         setShowCopyToast(true);
         setTimeout(() => setShowCopyToast(false), 2000);
-        
+
         const streakData = loadStreakData(userData.username);
         const updatedStreak = {
           ...streakData,
           shareCount: streakData.shareCount + 1,
           viralScore: streakData.viralScore + 1
         };
-        
+
         saveStreakData(userData.username, updatedStreak);
         initializeDashboard();
       })
@@ -5758,7 +5764,7 @@ You can also save this image and share it directly!`;
   // Handle profile edit
   const handleProfileEdit = useCallback(() => {
     if (!userData) return;
-    
+
     setProfileEdit({
       displayName: userData.displayName || '',
       bio: userData.bio || '',
@@ -5767,48 +5773,398 @@ You can also save this image and share it directly!`;
     });
   }, [userData]);
 
-  // Quick actions
-  const quickActions = [
-    {
-      id: 1,
-      label: "Verify",
-      icon: <Camera size={24} />,
-      action: handleVerify
-    },
-    {
-      id: 2,
-      label: "Challenges",
-      icon: <Target size={24} />,
-      action: () => navigateTo('challenges')
-    },
-    {
-      id: 3,
-      label: "Share",
-      icon: <Share2 size={24} />,
-      action: () => setShowSocialShareModal(true)
-    },
-    {
-      id: 4,
-      label: "Profile",
-      icon: <MessageCircle size={24} />,
-      action: () => navigateTo('profile')
-    }
-  ];
+
 
   // ========== EFFECTS ==========
 
-  // Initialize dashboard on mount
+  // Quick actions
+  // const quickActions = [
+  //   {
+  //     id: 1,
+  //     label: "Verify",
+  //     icon: <Camera size={24} />,
+  //     action: handleVerify
+  //   },
+  //   {
+  //     id: 2,
+  //     label: "Challenges",
+  //     icon: <Target size={24} />,
+  //     action: () => navigateTo('challenges')
+  //   },
+  //   {
+  //     id: 3,
+  //     label: "Share",
+  //     icon: <Share2 size={24} />,
+  //     action: () => setShowSocialShareModal(true)
+  //   },
+  //   {
+  //     id: 4,
+  //     label: "Chat",
+  //     icon: <MessageCircle size={24} />,
+  //     action: () => navigateTo('chat')
+  //   }
+  // ];
+
+  // Initialize dashboard on mount and when user changes
   useEffect(() => {
-    initializeDashboard();
-    
+    if (user) {
+      // Initialize dashboard data directly
+      const initializeDashboardData = async () => {
+        setIsLoading(true);
+
+        try {
+          // Create proper userData from Supabase user with robust fallbacks
+          const email = user.email || '';
+          const username = email.split('@')[0] || 'user';
+
+          // Priority for displayName: full_name from metadata > user's name > email username > 'User'
+          let displayName = 'User'; // Default fallback
+
+          if (user.user_metadata?.full_name &&
+              user.user_metadata.full_name !== 'undefined' &&
+              user.user_metadata.full_name.trim() !== '') {
+            displayName = user.user_metadata.full_name.trim();
+          } else if (user.user_metadata?.name &&
+                     user.user_metadata.name !== 'undefined' &&
+                     user.user_metadata.name.trim() !== '') {
+            displayName = user.user_metadata.name.trim();
+          } else if (username && username !== 'undefined') {
+            // Capitalize first letter of username
+            displayName = username.charAt(0).toUpperCase() + username.slice(1);
+          }
+
+          // Priority for avatar: avatar_url from metadata > default dicebear avatar
+          let avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
+
+          if (user.user_metadata?.avatar_url &&
+              user.user_metadata.avatar_url !== 'undefined' &&
+              user.user_metadata.avatar_url.trim() !== '' &&
+              user.user_metadata.avatar_url.startsWith('http')) {
+            avatar = user.user_metadata.avatar_url.trim();
+          } else if (user.user_metadata?.picture &&
+                     user.user_metadata.picture !== 'undefined' &&
+                     user.user_metadata.picture.trim() !== '' &&
+                     user.user_metadata.picture.startsWith('http')) {
+            avatar = user.user_metadata.picture.trim();
+          }
+
+          const userData = {
+            id: user.id,
+            email: email,
+            username: username,
+            displayName: displayName,
+            avatar: avatar,
+            location: { city: 'Online', country: 'Internet' },
+            bio: 'Building daily discipline through outdoor accountability.',
+            createdAt: user.created_at,
+            lastActive: new Date().toISOString()
+          };
+
+          setUserData(userData);
+
+          const loadedStreakData = loadStreakData(userData.username);
+
+          const todayVerified = checkTodayVerified(loadedStreakData);
+          setIsTodayVerified(todayVerified);
+          if (loadedStreakData) {
+            loadedStreakData.todayVerified = todayVerified;
+            saveStreakData(userData.username, loadedStreakData);
+          }
+          setStreakData(loadedStreakData);
+
+          const joinDate = new Date(user.createdAt || new Date());
+          const now = new Date();
+          const daysSinceJoin = Math.max(1, Math.floor((now - joinDate) / (1000 * 60 * 60 * 24)));
+
+          const consistency = streakData?.totalDays > 0
+            ? Math.min(100, Math.round((streakData.totalDays / daysSinceJoin) * 100))
+            : 0;
+
+          const calculatedStats = [
+            {
+              id: 1,
+              title: "Current Streak",
+              value: streakData?.currentStreak || 0,
+              change: streakData?.todayVerified ? "+1" : "0",
+              description: "Consecutive verified days",
+              icon: <Flame size={24} />
+            },
+            {
+              id: 2,
+              title: "Total Time Outside",
+              value: `${Math.floor((streakData?.totalOutdoorTime || 0) / 60)}h`,
+              change: "+12%",
+              description: "Time spent touching grass",
+              icon: <Clock size={24} />
+            },
+            {
+              id: 3,
+              title: "Consistency",
+              value: `${consistency}%`,
+              change: consistency > 50 ? "+5%" : "0%",
+              description: "Verification rate",
+              icon: <Target size={24} />
+            },
+            {
+              id: 4,
+              title: "Challenge Wins",
+              value: streakData?.challengeWins || 0,
+              change: "+5",
+              description: "Challenges completed",
+              icon: <Trophy size={24} />
+            },
+            {
+              id: 5,
+              title: "Social Score",
+              value: streakData?.viralScore || 0,
+              change: "+24",
+              description: "Impact on community",
+              icon: <TrendingUp size={24} />
+            },
+            {
+              id: 6,
+              title: "Global Rank",
+              value: `#${Math.floor(Math.random() * 1000) + 1}`,
+              change: (streakData?.currentStreak || 0) > 0 ? "↑12" : "0",
+              description: "Out of 50k users",
+              icon: <Users size={24} />
+            }
+          ];
+
+          const recentActivities = [];
+
+          if (streakData?.todayVerified) {
+            recentActivities.push({
+              id: 1,
+              action: "✅ Verified today's outdoor time",
+              time: 'Just now',
+              icon: <CheckCircle2 size={20} />,
+              meta: 'Verified Today'
+            });
+          }
+
+          if (streakData?.history && streakData.history.length > 0) {
+            streakData.history.slice().reverse().forEach((entry, index) => {
+              const timeText = timeAgo(entry.date);
+              recentActivities.push({
+                id: recentActivities.length + 1,
+                action: `Verified ${entry.activity || 'outdoor time'}`,
+                time: timeText,
+                icon: <CheckCircle2 size={20} />,
+                meta: `+${entry.duration || 30}min`
+              });
+            });
+          }
+
+          if (streakData?.shareCount > 0) {
+            recentActivities.push({
+              id: recentActivities.length + 1,
+              action: 'Shared achievement on social media',
+              time: '4 hours ago',
+              icon: <Share2 size={20} />,
+              meta: `+${streakData.shareCount} shares`
+            });
+          }
+
+          // Add challenge completion activities
+          if (streakData?.challengeWins > 0) {
+            for (let i = 0; i < Math.min(streakData.challengeWins, 3); i++) {
+              recentActivities.push({
+                id: recentActivities.length + 1,
+                action: `Completed ${['7-Day Sprint', 'Monthly Warrior', 'Social Butterfly'][i % 3]}`,
+                time: `${i + 1} days ago`,
+                icon: <Trophy size={20} />,
+                meta: 'Challenge Won'
+              });
+            }
+          }
+
+          const socialPlatforms = [];
+          if (streakData?.shareCount > 0) {
+            socialPlatforms.push(
+              {
+                id: 1,
+                platform: "Twitter",
+                icon: <Twitter size={20} />,
+                color: "rgba(29, 161, 242, 0.2)",
+                metrics: `${Math.min(streakData.shareCount, 24)} Shares • 1.2K Views`
+              },
+              {
+                id: 2,
+                platform: "LinkedIn",
+                icon: <Linkedin size={20} />,
+                color: "rgba(0, 119, 181, 0.2)",
+                metrics: `${Math.min(streakData.shareCount, 18)} Shares • 420 Views`
+              },
+              {
+                id: 3,
+                platform: "Instagram",
+                icon: <Instagram size={20} />,
+                color: "rgba(225, 48, 108, 0.2)",
+                metrics: `${Math.min(streakData.shareCount, 12)} Shares • 780 Likes`
+              }
+            );
+          }
+
+          const userChallenges = [];
+          if (streakData?.currentStreak >= 7) {
+            userChallenges.push({
+              id: 1,
+              name: "7-Day Sprint",
+              progress: Math.min(100, Math.round((streakData.currentStreak / 7) * 100)),
+              current: streakData.currentStreak,
+              total: 7,
+              icon: "🔥"
+            });
+          }
+          if (streakData?.totalDays >= 30) {
+            userChallenges.push({
+              id: 2,
+              name: "Monthly Warrior",
+              progress: Math.min(100, Math.round((streakData.totalDays / 30) * 100)),
+              current: streakData.totalDays,
+              total: 30,
+              icon: "🏆"
+            });
+          }
+          if (streakData?.shareCount >= 10) {
+            userChallenges.push({
+              id: 3,
+              name: "Social Butterfly",
+              progress: Math.min(100, Math.round((streakData.shareCount / 10) * 100)),
+              current: streakData.shareCount,
+              total: 10,
+              icon: "🦋"
+            });
+          }
+
+          const userAchievements = [];
+          // Add streak achievements
+          if (streakData?.currentStreak >= 7) {
+            userAchievements.push({
+              id: 1,
+              name: "Weekly Warrior",
+              icon: "🔥",
+              earned: "Today",
+              description: "7 consecutive days",
+              type: "streak"
+            });
+          }
+          if (streakData?.currentStreak >= 3) {
+            userAchievements.push({
+              id: 2,
+              name: "Hot Start",
+              icon: "⚡",
+              earned: streakData.currentStreak >= 7 ? "1 week ago" : "Yesterday",
+              description: "3-day streak",
+              type: "streak"
+            });
+          }
+
+          // Add challenge achievements
+          if (streakData?.challengeWins >= 1) {
+            userAchievements.push({
+              id: 3,
+              name: "First Challenge",
+              icon: "🎯",
+              earned: "Recently",
+              description: "Completed a challenge",
+              type: "challenge"
+            });
+          }
+          if (streakData?.challengeWins >= 3) {
+            userAchievements.push({
+              id: 4,
+              name: "Challenge Master",
+              icon: "🏅",
+              earned: "This month",
+              description: "3 challenges won",
+              type: "challenge"
+            });
+          }
+
+          // Add social achievements
+          if (streakData?.shareCount >= 10) {
+            userAchievements.push({
+              id: 5,
+              name: "Social Butterfly",
+              icon: "🦋",
+              earned: "2 days ago",
+              description: "shared their streaks",
+              type: "social"
+            });
+          }
+          if (streakData?.shareCount >= 1) {
+            userAchievements.push({
+              id: 6,
+              name: "First Share",
+              icon: "📢",
+              earned: "Recently",
+              description: "Shared first post",
+              type: "social"
+            });
+          }
+
+          // Add milestone achievements
+          if (streakData?.totalDays >= 30) {
+            userAchievements.push({
+              id: 7,
+              name: "Monthly Master",
+              icon: "🌟",
+              earned: "This month",
+              description: "30-day streak",
+              type: "milestone"
+            });
+          }
+          if (streakData?.totalDays >= 100) {
+            userAchievements.push({
+              id: 8,
+              name: "Century Club",
+              icon: "💯",
+              earned: "Achieved",
+              description: "100 total days",
+              type: "milestone"
+            });
+          }
+          if (streakData?.totalOutdoorTime >= 1800) { // 30 hours
+            userAchievements.push({
+              id: 9,
+              name: "Nature Lover",
+              icon: "🌿",
+              earned: "Recently",
+              description: "30+ hours outside",
+              type: "milestone"
+            });
+          }
+
+          setStats(calculatedStats);
+          setActivities(recentActivities);
+          setSocialStats(socialPlatforms);
+          setChallenges(userChallenges);
+          setAchievements(userAchievements);
+
+        } catch (error) {
+          console.error('Failed to load dashboard data:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      initializeDashboardData();
+    } else {
+      // User is not authenticated, stop loading
+      setIsLoading(false);
+      setUserData(null);
+    }
+
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
     }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [initializeDashboard, calculateTimeLeft]);
 
-  // Listen for verification completion
+    return () => clearInterval(timer);
+  }, [user, loadStreakData, checkTodayVerified, saveStreakData, timeAgo, calculateTimeLeft]);
+
+// Listen for verification completion
   useEffect(() => {
     const handleVerificationComplete = (event) => {
       if (event.detail && event.detail.type === 'verification-complete') {
@@ -5847,6 +6203,34 @@ You can also save this image and share it directly!`;
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [initializeDashboard]);
+
+  // Quick actions
+  const quickActions = [
+    {
+      id: 1,
+      label: "Verify",
+      icon: <Camera size={24} />,
+      action: handleVerify
+    },
+    {
+      id: 2,
+      label: "Challenges",
+      icon: <Target size={24} />,
+      action: () => navigateTo('challenges')
+    },
+    {
+      id: 3,
+      label: "Share",
+      icon: <Share2 size={24} />,
+      action: () => setShowSocialShareModal(true)
+    },
+    {
+      id: 4,
+      label: "Profile",
+      icon: <MessageCircle size={24} />,
+      action: () => navigateTo('profile')
+    }
+  ];
 
   // ========== CSS STYLES ==========
   const styles = `
@@ -8730,10 +9114,7 @@ if (isLoading && !userData) {
   );
 }
 
-const streakData = userData ? loadStreakData(userData.username) : null;
-const isTodayVerified = userData ? checkTodayVerified(streakData) : false;
-
-return (
+  return (
   <div className="dashboard-page">
     <style>{styles}</style>
     
@@ -9133,26 +9514,20 @@ return (
           </div>
           
           <div className="quick-actions-grid">
-            {userData ? (
-              quickActions.map(action => (
-                <button
-                  key={action.id}
-                  className="quick-action-button glass"
-                  onClick={action.action}
-                  disabled={action.id === 1 && isTodayVerified}
-                >
-                  <div className="quick-action-icon">
-                    {action.icon}
-                  </div>
-                  <span className="quick-action-label">{action.label}</span>
-                  {action.id === 1 && isTodayVerified && (
-                    <div className="verified-checkmark">
-                      <CheckCircle2 size={12} />
+              {userData ? (
+                quickActions.map(action => (
+                  <button
+                    key={action.id}
+                    className="quick-action-button glass"
+                    onClick={action.action}
+                  >
+                    <div className="quick-action-icon">
+                      {action.icon}
                     </div>
-                  )}
-                </button>
-              ))
-            ) : (
+                    <span className="quick-action-label">{action.label}</span>
+                  </button>
+                ))
+              ) : (
               <>
                 <button
                   className="quick-action-button glass"

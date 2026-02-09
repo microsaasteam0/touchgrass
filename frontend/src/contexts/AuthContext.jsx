@@ -359,7 +359,7 @@
 //   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 // };
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { supabase } from '../lib/supabase'; // <- FIXED: Changed to relative path
@@ -369,6 +369,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const navigate = useNavigate();
@@ -441,34 +442,31 @@ export const AuthProvider = ({ children }) => {
     return { valid: true };
   };
 
-  // Initialize auth - FIXED VERSION
+  // Initialize auth
   useEffect(() => {
     let mounted = true;
-    
+
     const initializeAuth = async () => {
       try {
-        
         // Get session
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
-          // Continue anyway
+          console.error('Session error:', error);
         }
-        
-        
+
         if (mounted) {
-        if (session?.user) {
-          setUser(session.user);
-            
-            // CRITICAL FIX: Check if we should redirect
+          if (session?.user) {
+            setUser(session.user);
+
+            // Check if we should redirect to dashboard
             const currentPath = location.pathname;
-            const shouldRedirect = currentPath === '/' || 
-                                  currentPath === '/auth' || 
+            const shouldRedirect = currentPath === '/' ||
+                                  currentPath === '/auth' ||
                                   currentPath.includes('/login') ||
                                   currentPath.includes('/register');
-            
+
             if (shouldRedirect) {
-              // Use setTimeout to avoid React state update warnings
               setTimeout(() => {
                 if (mounted) {
                   navigate('/dashboard', { replace: true });
@@ -477,9 +475,20 @@ export const AuthProvider = ({ children }) => {
             }
           } else {
             setUser(null);
-            
-            // If on dashboard without session, redirect to login
-            if (location.pathname.includes('/dashboard')) {
+            setSession(null);
+
+            // If on protected page without session, redirect to login
+            const currentPath = location.pathname;
+            const isProtectedPage = currentPath.includes('/dashboard') ||
+                                   currentPath.includes('/profile') ||
+                                   currentPath.includes('/settings') ||
+                                   currentPath.includes('/chat') ||
+                                   currentPath.includes('/challenges') ||
+                                   currentPath.includes('/subscription') ||
+                                   currentPath.includes('/verify') ||
+                                   currentPath.includes('/payment');
+
+            if (isProtectedPage) {
               setTimeout(() => {
                 if (mounted) {
                   navigate('/auth?mode=login', { replace: true });
@@ -488,8 +497,13 @@ export const AuthProvider = ({ children }) => {
             }
           }
         }
-        
+
       } catch (error) {
+        console.error('Auth initialization error:', error);
+        // Even on error, set user to null and continue
+        if (mounted) {
+          setUser(null);
+        }
       } finally {
         if (mounted) {
           setLoading(false);
@@ -503,40 +517,35 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-
         if (!mounted) return;
 
         if (session?.user) {
           setUser(session.user);
-          
+          setSession(session);
+
           if (event === 'SIGNED_IN') {
-            toast.success('Welcome! 🎉', { theme: 'dark' });
-            
-            // Clear URL if needed
-            if (window.location.pathname !== '/dashboard') {
-              window.history.replaceState({}, '', '/dashboard');
-            }
-            
-            // Navigate to dashboard
+            // Navigate to dashboard after successful sign in
             setTimeout(() => {
               if (mounted && !window.location.pathname.includes('/dashboard')) {
                 navigate('/dashboard', { replace: true });
               }
-            }, 500);
+            }, 100);
           }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          
+
           // Clear auth token
           localStorage.removeItem('supabase.auth.token');
-          
+
           // Only redirect if we're on a protected page
-          if (location.pathname.includes('/dashboard')) {
+          if (location.pathname.includes('/dashboard') ||
+              location.pathname.includes('/profile') ||
+              location.pathname.includes('/settings')) {
             setTimeout(() => {
               if (mounted) {
                 navigate('/auth?mode=login', { replace: true });
               }
-            }, 300);
+            }, 100);
           }
         }
       }
@@ -546,7 +555,23 @@ export const AuthProvider = ({ children }) => {
       mounted = false;
       subscription?.unsubscribe();
     };
-  }, [navigate, location]);
+  }, [navigate, location]); // Add dependencies back for proper re-initialization
+
+  // Safety timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading && !initialized) {
+        console.warn('Auth initialization timeout - forcing completion');
+        setLoading(false);
+        setInitialized(true);
+        setUser(null); // Assume not authenticated if timeout
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [loading, initialized]);
+
+
 
   // Register with email/password - UPDATED WITH EMAIL VALIDATION
   const signup = async (email, password) => {
@@ -707,6 +732,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    session,
     loading,
     initialized,
     isAuthenticated: !!user,

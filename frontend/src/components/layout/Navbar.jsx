@@ -92,6 +92,7 @@ const Navbar = () => {
     { path: '/', label: 'Home', icon: <Home size={18} /> },
     { path: '/dashboard', label: 'Dashboard', icon: <BarChart size={18} /> },
     { path: '/verify', label: 'Verify', icon: <CheckCircle size={18} /> },
+    { path: '/profile', label: 'Profile', icon: <User size={18} /> },
     { path: '/leaderboard', label: 'Leaderboard', icon: <Trophy size={18} /> },
     { path: '/chat', label: 'Chat', icon: <MessageSquare size={18} /> },
     { path: '/challenges', label: 'Challenges', icon: <Target size={18} /> }

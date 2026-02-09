@@ -3,6 +3,7 @@
 ## Current Status
 - Backend: Fully implemented with Challenge, UserChallenge, ChallengeProgress models and API routes
 - Frontend: Has challengeService.js but Challenges.jsx uses mock data and localStorage
+- Database: ✅ Seeded with 10 built-in challenges
 
 ## Implementation Plan
 
@@ -12,6 +13,7 @@
 - [x] Added loading states and error handling
 - [x] Implemented proper authentication checks
 - [x] Updated routes.jsx to use new component
+- [x] Seeded database with 10 built-in challenges
 
 ### Phase 2: Challenge Joining/Leaving
 - [ ] Update join challenge functionality to use API

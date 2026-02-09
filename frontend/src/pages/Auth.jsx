@@ -2356,7 +2356,7 @@ const Auth = () => {
 
   return (
     <div className="auth-page">
-      <style jsx>{styles}</style>
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
       
       {/* Cute Background Effects */}
       <div className="auth-bg-grid"></div>

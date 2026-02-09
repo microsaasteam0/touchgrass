@@ -2396,6 +2396,39 @@ import {
   ChevronLeft
 } from 'lucide-react';
 
+// Import compression library for localStorage optimization
+import LZString from 'lz-string';
+
+// Helper functions for compressed localStorage
+const compressedSetItem = (key, value) => {
+  try {
+    const jsonString = JSON.stringify(value);
+    const compressed = LZString.compressToUTF16(jsonString);
+    localStorage.setItem(key, compressed);
+  } catch (error) {
+    console.error('Failed to compress and store data:', error);
+    // Fallback to uncompressed storage if compression fails
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+};
+
+const compressedGetItem = (key, defaultValue = null) => {
+  try {
+    const compressed = localStorage.getItem(key);
+    if (!compressed) return defaultValue;
+    const decompressed = LZString.decompressFromUTF16(compressed);
+    return JSON.parse(decompressed);
+  } catch (error) {
+    console.error('Failed to decompress data:', error);
+    // Fallback to direct parsing if decompression fails
+    try {
+      return JSON.parse(localStorage.getItem(key) || JSON.stringify(defaultValue));
+    } catch (fallbackError) {
+      return defaultValue;
+    }
+  }
+};
+
 // Cloudinary configuration
 const CLOUDINARY_CONFIG = {
   cloudName: 'your-cloud-name',
@@ -2916,7 +2949,7 @@ const VerificationWall = () => {
   }, []);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('touchgrass_user') || 'null');
+    const user = compressedGetItem('touchgrass_user', null);
     if (user) {
       setUserData(user);
       loadFollowing(user.username);

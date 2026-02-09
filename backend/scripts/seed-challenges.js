@@ -243,6 +243,246 @@ const builtInChallenges = [
       tags: ["mindfulness", "observation", "consistency", "nature"],
       themeColor: "#0891B2"
     }
+  },
+  {
+    id: 11,
+    name: "Daily Meditation",
+    type: "mindfulness",
+    description: "Meditate for 10 minutes daily to center your mind.",
+    duration: "daily",
+    rules: [
+      "10 minutes minimum",
+      "Find a quiet space",
+      "Focus on breath or guided meditation",
+      "Be consistent with timing"
+    ],
+    difficulty: "easy",
+    icon: "🧘",
+    participants: 70,
+    category: "mindfulness",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["meditation", "mindfulness", "calm"],
+      themeColor: "#8B5CF6"
+    }
+  },
+  {
+    id: 12,
+    name: "Healthy Eating",
+    type: "health",
+    description: "Eat at least 5 different vegetables daily.",
+    duration: "daily",
+    rules: [
+      "5 different vegetables minimum",
+      "Include in meals or snacks",
+      "Try new vegetables",
+      "Track variety"
+    ],
+    difficulty: "easy",
+    icon: "🥦",
+    participants: 48,
+    category: "health",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["nutrition", "health", "vegetables"],
+      themeColor: "#10B981"
+    }
+  },
+  {
+    id: 13,
+    name: "Daily Exercise",
+    type: "fitness",
+    description: "Exercise for 30 minutes daily, any activity you enjoy.",
+    duration: "daily",
+    rules: [
+      "30 minutes minimum",
+      "Any form of exercise",
+      "Track your activity",
+      "Vary activities to stay engaged"
+    ],
+    difficulty: "medium",
+    icon: "💪",
+    participants: 62,
+    category: "fitness",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["exercise", "fitness", "health"],
+      themeColor: "#F97316"
+    }
+  },
+  {
+    id: 14,
+    name: "Reading Challenge",
+    type: "growth",
+    description: "Read at least 20 pages from a book daily.",
+    duration: "daily",
+    rules: [
+      "20 pages minimum",
+      "Fiction or non-fiction",
+      "Take brief notes on key points",
+      "Discuss with others if possible"
+    ],
+    difficulty: "easy",
+    icon: "📖",
+    participants: 52,
+    category: "growth",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["reading", "books", "knowledge"],
+      themeColor: "#6366F1"
+    }
+  },
+  {
+    id: 15,
+    name: "Hydration Hero",
+    type: "health",
+    description: "Drink 8 glasses of water daily.",
+    duration: "daily",
+    rules: [
+      "8 glasses (about 2 liters)",
+      "Track throughout the day",
+      "Carry a reusable water bottle",
+      "Notice energy level improvements"
+    ],
+    difficulty: "easy",
+    icon: "💧",
+    participants: 58,
+    category: "health",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["hydration", "water", "health"],
+      themeColor: "#06B6D4"
+    }
+  },
+  {
+    id: 16,
+    name: "Sleep Schedule",
+    type: "health",
+    description: "Maintain a consistent sleep schedule of 8 hours nightly.",
+    duration: "daily",
+    rules: [
+      "8 hours of sleep",
+      "Consistent bedtime and wake time",
+      "Create a bedtime routine",
+      "Track sleep quality"
+    ],
+    difficulty: "medium",
+    icon: "😴",
+    participants: 43,
+    category: "health",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["sleep", "rest", "health"],
+      themeColor: "#1F2937"
+    }
+  },
+  {
+    id: 17,
+    name: "Social Connection",
+    type: "social",
+    description: "Call or meet with one friend or family member daily.",
+    duration: "daily",
+    rules: [
+      "One meaningful connection",
+      "Call, meet, or video chat",
+      "Focus on quality conversation",
+      "Alternate people to stay connected"
+    ],
+    difficulty: "easy",
+    icon: "📞",
+    participants: 49,
+    category: "social",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["social", "connection", "relationships"],
+      themeColor: "#EC4899"
+    }
+  },
+  {
+    id: 18,
+    name: "Creative Writing",
+    type: "creativity",
+    description: "Write 500 words daily - stories, thoughts, or reflections.",
+    duration: "daily",
+    rules: [
+      "500 words minimum",
+      "Any form of writing",
+      "Set a timer if needed",
+      "Review and edit weekly"
+    ],
+    difficulty: "medium",
+    icon: "✍️",
+    participants: 36,
+    category: "creativity",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["writing", "creativity", "expression"],
+      themeColor: "#7C3AED"
+    }
+  },
+  {
+    id: 19,
+    name: "Gardening Time",
+    type: "exploration",
+    description: "Spend 15 minutes tending to plants or gardening daily.",
+    duration: "daily",
+    rules: [
+      "15 minutes minimum",
+      "Water, prune, or plant",
+      "Indoor or outdoor plants",
+      "Observe growth over time"
+    ],
+    difficulty: "easy",
+    icon: "🌱",
+    participants: 41,
+    category: "exploration",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["gardening", "plants", "nature"],
+      themeColor: "#22C55E"
+    }
+  },
+  {
+    id: 20,
+    name: "Eco-Friendly Living",
+    type: "sustainability",
+    description: "Take one action daily to reduce waste and help the environment.",
+    duration: "daily",
+    rules: [
+      "One eco-friendly action",
+      "Examples: reuse, recycle, reduce plastic",
+      "Track your impact",
+      "Educate others when possible"
+    ],
+    difficulty: "easy",
+    icon: "🌍",
+    participants: 47,
+    category: "sustainability",
+    isActive: true,
+    isPublic: true,
+    metadata: {
+      isBuiltIn: true,
+      tags: ["environment", "sustainability", "eco"],
+      themeColor: "#059669"
+    }
   }
 ];
 

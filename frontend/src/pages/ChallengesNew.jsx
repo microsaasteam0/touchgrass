@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import challengeService from '../services/challengeService';
+// import ChallengeService from '../services/ChallengeService';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/layout/LoadingSpinner';
@@ -268,58 +268,29 @@ const Challenges = () => {
       setIsLoading(true);
       setError(null);
 
-      // Try to get challenges from backend first
-      try {
-        const challengesData = await challengeService.getChallenges();
-        setChallenges(challengesData.data || []);
-      } catch (challengesError) {
-        // Fallback to mock data if backend not ready
-        setChallenges([
-          {
-            _id: '1',
-            name: '30-Day Streak Marathon',
-            description: 'Maintain a perfect streak for 30 days. Winner gets premium features for 6 months.',
-            type: 'streak',
-            category: 'daily',
-            difficulty: 'hard',
-            settings: {
-              duration: { value: 30, unit: 'days' },
-              entryFee: 49.99,
-              prizePool: 32450
-            },
-            participants: [],
-            status: 'active'
-          },
-          {
-            _id: '2',
-            name: 'Weekly Warrior',
-            description: 'Perfect 7-day streak challenge. Perfect for beginners!',
-            type: 'streak',
-            category: 'weekly',
-            difficulty: 'easy',
-            settings: {
-              duration: { value: 7, unit: 'days' },
-              entryFee: 4.99,
-              prizePool: 12540
-            },
-            participants: [],
-            status: 'active'
-          }
-        ]);
-      }
+      // Get challenges from backend
+      const challengesResponse = await challengeService.getChallenges();
+      const challengesData = challengesResponse.challenges || challengesResponse.data || [];
+      setChallenges(challengesData);
 
       // Load user's joined challenges if authenticated
       if (user) {
         try {
-          const userChallengesData = await realBackend.getUserChallenges();
-          setUserChallenges(userChallengesData || []);
+          const userChallengesResponse = await challengeService.getUserChallenges();
+          const userChallengesData = userChallengesResponse.challenges || userChallengesResponse.data || [];
+          setUserChallenges(userChallengesData);
         } catch (userChallengesError) {
+          console.error('Failed to load user challenges:', userChallengesError);
           setUserChallenges([]);
         }
       }
     } catch (error) {
+      console.error('Failed to load challenges:', error);
       setError('Failed to load challenges. Please try again.');
       toast.error('Failed to load challenges');
+      // Set empty arrays as fallback
+      setChallenges([]);
+      setUserChallenges([]);
     } finally {
       setIsLoading(false);
     }
@@ -336,25 +307,19 @@ const Challenges = () => {
     try {
       setIsJoining(true);
 
-      // Get user email from auth context
-      const userEmail = user.email || 'tandelhitanshi@gmail.com'; // Replace with actual user email from context
-
-      // REAL BACKEND CALL
-
-      const result = await realBackend.joinChallenge(challengeId, userEmail);
+      // Join challenge via service
+      const result = await challengeService.joinChallenge(challengeId);
 
       // Show success message
       toast.success(`✅ Challenge joined successfully!\n\nData saved to database.`);
       setShowConfetti(true);
 
       // Refresh challenges from backend
-      const updatedChallenges = await realBackend.getUserChallenges(userEmail);
-
-      // Update state
-      setUserChallenges(updatedChallenges);
+      await loadChallenges();
 
       setTimeout(() => setShowConfetti(false), 3000);
     } catch (error) {
+      console.error('Join challenge error:', error);
       toast.error(`❌ Failed to join challenge. Please try again.\nError: ${error.message}`);
     } finally {
       setIsJoining(false);

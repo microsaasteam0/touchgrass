@@ -301,14 +301,14 @@ const QRCodeGenerator = ({ streakData, user }) => {
     URL.revokeObjectURL(url);
   };
 
-  const shareQRCode = () => {
-    if (navigator.share && qrCode) {
-      navigator.share({
-        title: 'My TouchGrass QR Code',
-        text: `Scan to view my ${streakData?.currentStreak}-day streak!`,
-        files: [new File([qrCode], 'touchgrass-qr.png', { type: 'image/png' })]
-    }
-  };
+  // const shareQRCode = () => {
+  //   if (navigator.share && qrCode) {
+  //     navigator.share({
+  //       title: 'My TouchGrass QR Code',
+  //       text: `Scan to view my ${streakData?.currentStreak}-day streak!`,
+  //       files: [new File([qrCode], 'touchgrass-qr.png', { type: 'image/png' })]
+  //   }
+  // };
 
   return (
     <div className="qr-generator-container">
