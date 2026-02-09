@@ -256,12 +256,25 @@ export const NotificationProvider = ({ children }) => {
     initializeNotifications();
   }, []);
 
+  const addNotification = (notification) => {
+    setNotifications(prev => [notification, ...prev]);
+
+    if (!notification.read) {
+      setUnreadCount(prev => prev + 1);
+    }
+
+    // Save to localStorage
+    const updatedNotifications = [notification, ...notifications];
+    localStorage.setItem('touchgrass_notifications', JSON.stringify(updatedNotifications));
+  };
+
   return (
     <NotificationContext.Provider value={{
       notifications,
       unreadCount,
       loading,
-      loadNotifications
+      loadNotifications,
+      addNotification
     }}>
       {children}
     </NotificationContext.Provider>

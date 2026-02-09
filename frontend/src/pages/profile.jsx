@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import challengeService from '../services/challengeService';
 import { useAuth } from '../contexts/AuthContext';
+import { useStreak } from '../contexts/StreakContext';
 import Logo from '../components/ui/Logo';
 import {
   Bell, Settings, Calendar, Flame, Target, Trophy, Users, TrendingUp, Clock,
@@ -1877,7 +1878,7 @@ const Profile = ({ onNavigate }) => {
         });
       }
 
-      // Set stats from streak data
+      // Set stats from streak data (use same key as Dashboard)
       const streakData = loadStreakData(loadedUserData?.username || 'default');
       setStats([
         {
@@ -1918,43 +1919,43 @@ const Profile = ({ onNavigate }) => {
         }
       ]);
 
-      // Set activities conditionally based on streak data
-      const dynamicActivities = [];
+          // Set activities conditionally based on streak data
+          const recentActivities = [];
 
-      // Only show verification activity if user verified today
-      if (streakData?.todayVerified) {
-        dynamicActivities.push({
-          id: 'activity-1',
-          action: 'Completed daily verification',
-          time: 'Today',
-          icon: '✅',
-          meta: '+10 XP'
-        });
-      }
+          // Only show verification activity if user verified today
+          if (streakData?.todayVerified) {
+            recentActivities.push({
+              id: 1,
+              action: "✅ Completed daily verification",
+              time: 'Today',
+              icon: <CheckCircle2 size={20} />,
+              meta: '+10 XP'
+            });
+          }
 
-      // Only show milestone activity if user has 7+ day streak
-      if (streakData?.currentStreak >= 7) {
-        dynamicActivities.push({
-          id: 'activity-2',
-          action: 'Reached 7-day streak milestone',
-          time: 'Recently',
-          icon: '🔥',
-          meta: 'Milestone'
-        });
-      }
+          // Only show milestone activity if user has 7+ day streak
+          if (streakData?.currentStreak >= 7) {
+            recentActivities.push({
+              id: 2,
+              action: "🔥 Reached 7-day streak milestone",
+              time: 'Recently',
+              icon: <Trophy size={20} />,
+              meta: 'Milestone'
+            });
+          }
 
-      // Only show social share activity if user has shared on social media
-      if (streakData?.shareCount > 0) {
-        dynamicActivities.push({
-          id: 'activity-3',
-          action: 'Shared progress on social media',
-          time: 'Recently',
-          icon: '📱',
-          meta: 'Shared'
-        });
-      }
+          // Only show social share activity if user has shared on social media
+          if (streakData?.shareCount > 0) {
+            recentActivities.push({
+              id: 3,
+              action: "📱 Shared progress on social media",
+              time: 'Recently',
+              icon: <Share2 size={20} />,
+              meta: 'Shared'
+            });
+          }
 
-      setActivities(dynamicActivities);
+          setActivities(recentActivities);
 
       // Set social stats
       setSocialStats([
@@ -2228,15 +2229,23 @@ const Profile = ({ onNavigate }) => {
 
   // Mark challenge as completed for today
   const markChallengeCompleted = async (challengeId) => {
-    if (!user?.email) {
+    if (!userData?.email) {
       toast.error('Please login to update progress');
       return;
     }
 
     const today = new Date().toISOString().split('T')[0];
-    
+
+    // Find the challenge
+    const challengeIndex = activeUserChallenges.findIndex(c => c.id === challengeId);
+    if (challengeIndex === -1) {
+      toast.error('Challenge not found');
+      return;
+    }
+
+    const challenge = activeUserChallenges[challengeIndex];
+
     // Check if already completed today
-    const challenge = activeUserChallenges.find(c => c.id === challengeId);
     if (challenge?.dailyProgress?.[today]?.completed) {
       toast.info('Already completed today!');
       return;
@@ -2251,44 +2260,61 @@ const Profile = ({ onNavigate }) => {
         timestamp: new Date().toISOString()
       };
 
-      // Update progress
+      // Update the challenge in state first
+      const updatedChallenge = { ...challenge };
+      if (!updatedChallenge.dailyProgress) {
+        updatedChallenge.dailyProgress = {};
+      }
+      updatedChallenge.dailyProgress[today] = progressData;
+
+      const daysCompleted = Object.keys(updatedChallenge.dailyProgress)
+        .filter(date => updatedChallenge.dailyProgress[date].completed).length;
+
+      const duration = challenge.duration || 7;
+      const progress = Math.min(100, (daysCompleted / duration) * 100);
+
+      updatedChallenge.completedDays = daysCompleted;
+      updatedChallenge.progress = progress;
+      updatedChallenge.lastUpdated = new Date().toISOString();
+
+      if (progressData.completed) {
+        updatedChallenge.streak = (updatedChallenge.streak || 0) + 1;
+        updatedChallenge.totalDays = (updatedChallenge.totalDays || 0) + 1;
+        updatedChallenge.xpEarned = (updatedChallenge.xpEarned || 0) + (updatedChallenge.xpReward || 10) / duration;
+      }
+
+      // Update state immediately
+      setActiveUserChallenges(prev =>
+        prev.map(c => c.id === challengeId ? updatedChallenge : c)
+      );
+
+      // Then call the service
       const result = await challengeService.updateProgress(challengeId, progressData);
-      
+
       if (result.success) {
-        // Update local state
-        setActiveUserChallenges(prev =>
-          prev.map(challenge => {
-            if (challenge.id === challengeId) {
-              const updatedProgress = { ...challenge };
-              
-              // Initialize dailyProgress if not exists
-              if (!updatedProgress.dailyProgress) {
-                updatedProgress.dailyProgress = {};
-              }
-              
-              // Update today's progress
-              updatedProgress.dailyProgress[today] = progressData;
-              
-              // Calculate completed days
-              const completedDays = Object.keys(updatedProgress.dailyProgress)
-                .filter(date => updatedProgress.dailyProgress[date].completed).length;
-              
-              // Calculate progress percentage
-              const duration = challenge.duration || 7;
-              const progress = Math.min(100, (completedDays / duration) * 100);
-              
-              updatedProgress.completedDays = completedDays;
-              updatedProgress.progress = progress;
-              updatedProgress.lastUpdated = new Date().toISOString();
-              
-              return updatedProgress;
-            }
-            return challenge;
-          })
-        );
-        
         toast.success('Daily progress updated!');
       } else {
+        // Revert the state update if service failed
+        setActiveUserChallenges(prev =>
+          prev.map(c => {
+            if (c.id === challengeId) {
+              const revertedChallenge = { ...c };
+              if (revertedChallenge.dailyProgress?.[today]) {
+                delete revertedChallenge.dailyProgress[today];
+                const daysCompleted = Object.keys(revertedChallenge.dailyProgress)
+                  .filter(date => revertedChallenge.dailyProgress[date].completed).length;
+                const progress = Math.min(100, (daysCompleted / duration) * 100);
+                revertedChallenge.completedDays = daysCompleted;
+                revertedChallenge.progress = progress;
+                revertedChallenge.streak = (revertedChallenge.streak || 0) - 1;
+                revertedChallenge.totalDays = (revertedChallenge.totalDays || 0) - 1;
+                revertedChallenge.xpEarned = (revertedChallenge.xpEarned || 0) - (revertedChallenge.xpReward || 10) / duration;
+              }
+              return revertedChallenge;
+            }
+            return c;
+          })
+        );
         toast.error(result.message || 'Failed to update progress');
       }
     } catch (error) {
@@ -2298,7 +2324,7 @@ const Profile = ({ onNavigate }) => {
   };
 
   // Handle create challenge
-  const handleCreateChallenge = () => {
+  const handleCreateChallenge = async () => {
     if (!userData) {
       toast.error('Please login to create a challenge');
       return;
@@ -2309,42 +2335,42 @@ const Profile = ({ onNavigate }) => {
       return;
     }
 
-    const challenge = {
-      id: Date.now().toString(),
-      name: newChallenge.name,
-      type: newChallenge.type,
-      description: newChallenge.description,
-      duration: newChallenge.duration,
-      rules: newChallenge.rules.filter(rule => rule.trim()),
-      difficulty: newChallenge.difficulty,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      createdBy: userData.username,
-      participants: 1,
-      icon: '🎯',
-      category: newChallenge.type,
-      joinedAt: new Date().toISOString(),
-      progress: 0,
-      status: 'active',
-      dailyProgress: {},
-      completedDays: 0
-    };
+    try {
+      const challengeData = {
+        name: newChallenge.name,
+        type: newChallenge.type,
+        description: newChallenge.description,
+        duration: newChallenge.duration,
+        rules: newChallenge.rules.filter(rule => rule.trim()),
+        difficulty: newChallenge.difficulty
+      };
 
-    // Add to active challenges
-    setActiveUserChallenges(prev => [...prev, challenge]);
-    
-    // Reset form
-    setNewChallenge({
-      name: '',
-      description: '',
-      duration: 7,
-      type: 'mindset',
-      difficulty: 'medium',
-      rules: ['']
-    });
+      // Create challenge through service
+      const result = await challengeService.createChallenge(challengeData);
 
-    setShowCreateChallenge(false);
-    toast.success('Challenge created successfully!');
+      if (result.success) {
+        // Add to active challenges state
+        setActiveUserChallenges(prev => [...prev, result.challenge]);
+
+        // Reset form
+        setNewChallenge({
+          name: '',
+          description: '',
+          duration: 7,
+          type: 'mindset',
+          difficulty: 'medium',
+          rules: ['']
+        });
+
+        setShowCreateChallenge(false);
+        toast.success('Challenge created successfully!');
+      } else {
+        toast.error(result.message || 'Failed to create challenge');
+      }
+    } catch (error) {
+      console.error('Error creating challenge:', error);
+      toast.error('Failed to create challenge. Please try again.');
+    }
   };
 
   // Handle share profile
@@ -2541,6 +2567,21 @@ const Profile = ({ onNavigate }) => {
 
     return () => clearInterval(timer);
   }, [initializeProfile, loadChallenges]);
+
+  // Listen for localStorage changes to update streak data
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key && e.key.startsWith('touchgrass_streak_')) {
+        initializeProfile();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   if (isLoading && !userData) {
     return (

@@ -2347,6 +2347,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { useNotifications } from '../contexts/NotificationContext';
 import {
   Home,
   Camera,
@@ -2415,17 +2416,32 @@ const compressedSetItem = (key, value) => {
 const compressedGetItem = (key, defaultValue = null) => {
   try {
     const compressed = localStorage.getItem(key);
-    if (!compressed) return defaultValue;
+    if (!compressed || compressed === '@@@') return defaultValue;
+
+    // Check if data looks like compressed data (not plain JSON)
+    if (compressed.startsWith('{') || compressed.startsWith('[')) {
+      // Data is already uncompressed JSON
+      return JSON.parse(compressed);
+    }
+
     const decompressed = LZString.decompressFromUTF16(compressed);
+    if (!decompressed) {
+      console.warn('Decompression returned null, using default value');
+      return defaultValue;
+    }
     return JSON.parse(decompressed);
   } catch (error) {
     console.error('Failed to decompress data:', error);
     // Fallback to direct parsing if decompression fails
     try {
-      return JSON.parse(localStorage.getItem(key) || JSON.stringify(defaultValue));
+      const rawData = localStorage.getItem(key);
+      if (rawData && rawData !== '@@@') {
+        return JSON.parse(rawData);
+      }
     } catch (fallbackError) {
-      return defaultValue;
+      console.error('Fallback parsing also failed:', fallbackError);
     }
+    return defaultValue;
   }
 };
 
@@ -3146,35 +3162,57 @@ const VerificationWall = () => {
             reason,
             timestamp: new Date().toISOString()
           };
-          
+
           const updatedReports = [...(post.reports || []), newReport];
           const newReportCount = updatedReports.length;
-          
-          const shouldBlock = newReportCount >= 3;
-          
-          const updatedPost = {
-            ...post,
-            reportCount: newReportCount,
-            reports: updatedReports,
-            isBlocked: shouldBlock,
-            isReported: true
-          };
-          
-          if (shouldBlock) {
-            toast.error(`⚠️ Post blocked due to ${newReportCount} reports.`, {
-              duration: 5000,
-            });
+
+          const shouldDelete = newReportCount >= 3;
+
+          if (shouldDelete) {
+            // Send notification to post owner
+            if (post.userId === userData.username) {
+              // If reporting own post, just show toast
+              toast.error(`⚠️ Your post has been removed due to ${newReportCount} reports. Please upload better outdoor photos.`, {
+                duration: 8000,
+              });
+            } else {
+              // Add notification for post owner
+              const notification = {
+                id: `report_${postId}_${Date.now()}`,
+                type: 'warning',
+                title: 'Post Removed',
+                message: 'Your post has received 3+ reports and has been removed. Please upload better outdoor photos to maintain community standards.',
+                read: false,
+                createdAt: new Date().toISOString(),
+                icon: '⚠️',
+                priority: 'high'
+              };
+
+              // Add to notifications context
+              addNotification(notification);
+
+              toast.success('Report submitted. Post removed due to multiple reports. 🛡️');
+            }
+
+            // Return null to filter out the post
+            return null;
           } else {
+            const updatedPost = {
+              ...post,
+              reportCount: newReportCount,
+              reports: updatedReports,
+              isReported: true
+            };
+
             toast.success('Report submitted. Thank you! 🛡️');
+            return updatedPost;
           }
-          
-          return updatedPost;
         }
         return post;
-      });
+      }).filter(post => post !== null); // Remove deleted posts
 
       localStorage.setItem('touchgrass_verification_posts', JSON.stringify(updatedPosts));
-      
+
       return updatedPosts;
     });
 
