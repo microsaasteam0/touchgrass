@@ -1870,10 +1870,10 @@ const Profile = ({ onNavigate }) => {
         setUserData(loadedUserData);
         
         setProfileEdit({
-          displayName: loadedUserData.displayName || '',
-          bio: loadedUserData.bio || '',
-          city: loadedUserData.location?.city || '',
-          country: loadedUserData.location?.country || ''
+          displayName: '',
+          bio: '',
+          city: '',
+          country: ''
         });
       }
 
