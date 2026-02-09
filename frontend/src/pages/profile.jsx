@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import challengeService from '../services/challengeService';
+import getFallbackChallenges from '../services/challengeService';
 import { useAuth } from '../contexts/AuthContext';
 import { useStreak } from '../contexts/StreakContext';
 import Logo from '../components/ui/Logo';

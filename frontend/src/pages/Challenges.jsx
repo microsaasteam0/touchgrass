@@ -1012,7 +1012,7 @@ import { useAuth } from '../contexts/AuthContext';
 import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import RealChallengeService from '../services/ChallengeService';
+import getFallbackChallenges from '../services/ChallengeService';
 import AuthContext from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
