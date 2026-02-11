@@ -3099,7 +3099,7 @@ const VerificationWall = () => {
         return post;
       });
 
-      localStorage.setItem('touchgrass_verification_posts', JSON.stringify(updatedPosts));
+     
       
       return updatedPosts;
     });

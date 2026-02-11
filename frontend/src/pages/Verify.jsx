@@ -3200,6 +3200,11 @@ const Verify = () => {
   const [userData, setUserData] = useState(null);
   const [showActivitySelector, setShowActivitySelector] = useState(false);
   const [isPostedToWall, setIsPostedToWall] = useState(false);
+
+  // Add these state variables near other useState declarations
+  const [hasVerifiedToday, setHasVerifiedToday] = useState(false);
+  const [lastVerificationDate, setLastVerificationDate] = useState(null);
+  const [cooldownMessage, setCooldownMessage] = useState('');
   
   const cameraRef = useRef(null);
   const videoRecorderRef = useRef(null);
@@ -3239,15 +3244,82 @@ const Verify = () => {
     { value: 'other', label: 'Other', emoji: '✨', color: '#64748b', description: 'Other outdoor activity' }
   ];
 
+  // Add this function to check daily verification limit
+  const checkDailyVerificationLimit = () => {
+    try {
+      const user = loadUserData();
+      if (!user) return false;
+
+      const streakKey = `touchgrass_streak_${user.username}`;
+      const storedStreak = localStorage.getItem(streakKey);
+
+      if (storedStreak) {
+        const streak = JSON.parse(storedStreak);
+
+        // Check if user has already verified today
+        if (streak.todayVerified) {
+          return true;
+        }
+
+        // Check last verification date
+        if (streak.lastVerification) {
+          const lastVerifiedDate = new Date(streak.lastVerification);
+          const today = new Date();
+
+          // Check if last verification was today (same calendar day)
+          if (
+            lastVerifiedDate.getDate() === today.getDate() &&
+            lastVerifiedDate.getMonth() === today.getMonth() &&
+            lastVerifiedDate.getFullYear() === today.getFullYear()
+          ) {
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking verification limit:', error);
+      return false;
+    }
+  };
+
+  // Add this function to format time until next day
+  const getTimeUntilNextDay = () => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    const diff = tomorrow - now;
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   // Load user data
   useEffect(() => {
     loadUserData();
     loadStreakData();
     setupDragAndDrop();
     calculateTimeLeft();
-    
-    const timer = setInterval(calculateTimeLeft, 1000);
-    
+
+    // Check if user has already verified today
+    const alreadyVerified = checkDailyVerificationLimit();
+    setHasVerifiedToday(alreadyVerified);
+
+    if (alreadyVerified) {
+      setCooldownMessage(getTimeUntilNextDay());
+    }
+
+    const timer = setInterval(() => {
+      calculateTimeLeft();
+      if (hasVerifiedToday) {
+        setCooldownMessage(getTimeUntilNextDay());
+      }
+    }, 1000);
+
     return () => {
       cleanupMediaStreams();
       if (recordingTimerRef.current) {
@@ -3607,6 +3679,12 @@ const Verify = () => {
 
   // MAIN VERIFICATION SUBMISSION
   const submitVerification = async (method) => {
+    // Check if user has already verified today
+    if (checkDailyVerificationLimit()) {
+      toast.error('You have already verified today. Come back tomorrow!');
+      return;
+    }
+
     if (method === 'photo' && !photo && !video) {
       toast.error('Please upload a photo or video first');
       return;
@@ -3627,10 +3705,20 @@ const Verify = () => {
     setTimeout(() => {
       try {
         const user = userData;
-        
         const streakKey = `touchgrass_streak_${user.username}`;
         const currentStreak = JSON.parse(localStorage.getItem(streakKey) || '{}');
-        
+
+        // Check again to prevent race conditions
+        if (currentStreak.todayVerified) {
+          toast.error('You have already verified today!');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Mark as verified for today
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0];
+
         // Update streak data
         const updatedStreak = {
           ...currentStreak,
@@ -3639,24 +3727,28 @@ const Verify = () => {
           totalDays: (currentStreak.totalDays || 0) + 1,
           totalOutdoorTime: (currentStreak.totalOutdoorTime || 0) + (method === 'photo' ? duration : 0),
           todayVerified: true,
-          lastVerification: new Date().toISOString()
+          lastVerification: new Date().toISOString(),
+          lastVerificationDate: todayString
         };
-        
+
         if (!updatedStreak.history) {
           updatedStreak.history = [];
         }
-        
+
         updatedStreak.history.push({
-          date: new Date().toISOString(),
+          date: todayString,
           verified: true,
           verificationMethod: method,
           duration: method === 'photo' ? duration : 0,
           notes: method === 'shame' ? shameMessage : '',
           timestamp: new Date().toISOString()
         });
-        
+
         localStorage.setItem(streakKey, JSON.stringify(updatedStreak));
-        
+
+        // Update state to reflect daily verification limit
+        setHasVerifiedToday(true);
+
         // AUTO-POST TO VERIFICATION WALL FOR PHOTO VERIFICATIONS
         if (method === 'photo' && (photo || video)) {
           const postData = {
@@ -3684,13 +3776,13 @@ const Verify = () => {
             setIsSubmitting(false);
             // Navigate immediately to see the post
             setTimeout(() => navigate('/verification-wall'), 500);
-            return; // Exit early, don't show success modal
+            return;
           }
         }
 
         setIsSubmitting(false);
         setShowSuccess(true);
-        
+
         if (method === 'photo') {
           toast.success(`🌱 Success! Day ${updatedStreak.currentStreak} verified`, {
             duration: 2000
@@ -3700,7 +3792,7 @@ const Verify = () => {
             duration: 2000
           });
         }
-        
+
       } catch (error) {
         toast.error('Failed to submit verification');
         setIsSubmitting(false);
@@ -4560,6 +4652,58 @@ const Verify = () => {
       background: rgba(255, 255, 255, 0.02);
     }
 
+    /* Add these styles for the new components */
+    .cooldown-message {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      text-align: center;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .cooldown-message h3 {
+      color: #22c55e;
+      margin-bottom: 0.5rem;
+    }
+
+    .cooldown-time {
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: #22c55e;
+      margin: 0.5rem 0;
+      font-family: monospace;
+    }
+
+    .already-verified-message {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 2rem;
+      padding: 3rem;
+      text-align: center;
+      margin: 2rem 0;
+    }
+
+    .verification-limit-info {
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.2);
+      border-radius: 1rem;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-size: 0.875rem;
+      color: #00E5FF;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Animation for the countdown */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+
     .wall-preview-header {
       display: flex;
       align-items: center;
@@ -4692,17 +4836,26 @@ const Verify = () => {
                 Have You Touched Grass Today?
               </h1>
               <p className="verify-subtitle">
-                Your {streakData.current}-day streak is on the line. 
+                Your {streakData.current}-day streak is on the line.
                 Prove your discipline or face the consequences.
               </p>
             </div>
+
+            {/* Daily Verification Limit Message */}
+            {hasVerifiedToday && (
+              <div className="time-left glass" style={{ marginBottom: '2rem' }}>
+                <p className="time-left-text">
+                  ⏰ You have already verified today! Next verification available in: {cooldownMessage}
+                </p>
+              </div>
+            )}
             
             <div className="verification-options">
-              <motion.div 
-                className="verification-option"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setVerificationMethod('photo')}
+              <motion.div
+                className={`verification-option ${hasVerifiedToday ? 'opacity-50 cursor-not-allowed' : ''}`}
+                whileHover={hasVerifiedToday ? {} : { scale: 1.02 }}
+                whileTap={hasVerifiedToday ? {} : { scale: 0.98 }}
+                onClick={() => !hasVerifiedToday && setVerificationMethod('photo')}
               >
                 <div className="option-content glass option-yes">
                   <span className="option-icon">🌱</span>
@@ -4713,14 +4866,19 @@ const Verify = () => {
                   <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#22c55e' }}>
                     📸 Automatically posts to Verification Wall
                   </p>
+                  {hasVerifiedToday && (
+                    <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#ef4444' }}>
+                      ⏰ Already verified today
+                    </p>
+                  )}
                 </div>
               </motion.div>
-              
-              <motion.div 
-                className="verification-option"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setVerificationMethod('shame')}
+
+              <motion.div
+                className={`verification-option ${hasVerifiedToday ? 'opacity-50 cursor-not-allowed' : ''}`}
+                whileHover={hasVerifiedToday ? {} : { scale: 1.02 }}
+                whileTap={hasVerifiedToday ? {} : { scale: 0.98 }}
+                onClick={() => !hasVerifiedToday && setVerificationMethod('shame')}
               >
                 <div className="option-content glass option-no">
                   <span className="option-icon">❌</span>
@@ -4731,6 +4889,11 @@ const Verify = () => {
                   <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#ef4444' }}>
                     😈 Public confession on your profile
                   </p>
+                  {hasVerifiedToday && (
+                    <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#ef4444' }}>
+                      ⏰ Already verified today
+                    </p>
+                  )}
                 </div>
               </motion.div>
             </div>

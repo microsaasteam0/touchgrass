@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import getFallbackChallenges from '../services/challengeService';
+import challengeService from '../services/challengeService';
 import { useAuth } from '../contexts/AuthContext';
 import { useStreak } from '../contexts/StreakContext';
+// import { businessChallenges } from '../data/businessChallenges';
 import Logo from '../components/ui/Logo';
 import {
   Bell, Settings, Calendar, Flame, Target, Trophy, Users, TrendingUp, Clock,
@@ -40,6 +41,8 @@ const Profile = ({ onNavigate }) => {
   const [socialStats, setSocialStats] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [timeLeft, setTimeLeft] = useState('');
+  const [hasVerifiedToday, setHasVerifiedToday] = useState(false);
+  const [nextVerificationTime, setNextVerificationTime] = useState('');
   
   // Challenge states
   const [availableChallenges, setAvailableChallenges] = useState([]);
@@ -65,6 +68,94 @@ const Profile = ({ onNavigate }) => {
     difficulty: 'medium',
     rules: ['']
   });
+
+  // Check daily verification limit
+  const checkDailyVerificationLimit = () => {
+    try {
+      const user = userData;
+      if (!user) return false;
+
+      const streakKey = `touchgrass_streak_${user.username}`;
+      const storedStreak = localStorage.getItem(streakKey);
+
+      if (storedStreak) {
+        const streak = JSON.parse(storedStreak);
+
+        // Check if user has already verified today
+        if (streak.todayVerified) {
+          return true;
+        }
+
+        // Check last verification date
+        if (streak.lastVerification) {
+          const lastVerifiedDate = new Date(streak.lastVerification);
+          const today = new Date();
+
+          // Check if last verification was today (same calendar day)
+          if (
+            lastVerifiedDate.getDate() === today.getDate() &&
+            lastVerifiedDate.getMonth() === today.getMonth() &&
+            lastVerifiedDate.getFullYear() === today.getFullYear()
+          ) {
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking verification limit:', error);
+      return false;
+    }
+  };
+
+  // Get time until next day
+  const getTimeUntilNextDay = () => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    const diff = tomorrow - now;
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Add this helper function in Profile component
+  const checkTodayVerification = () => {
+    try {
+      if (!userData?.username) return false;
+
+      const streakKey = `touchgrass_streak_${userData.username}`;
+      const storedStreak = localStorage.getItem(streakKey);
+
+      if (storedStreak) {
+        const streak = JSON.parse(storedStreak);
+
+        // Check todayVerified flag
+        if (streak.todayVerified) {
+          return true;
+        }
+
+        // Check if last verification was today
+        if (streak.lastVerification) {
+          const lastVerifiedDate = new Date(streak.lastVerification);
+          const today = new Date();
+
+          return (
+            lastVerifiedDate.getDate() === today.getDate() &&
+            lastVerifiedDate.getMonth() === today.getMonth() &&
+            lastVerifiedDate.getFullYear() === today.getFullYear()
+          );
+        }
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
+  };
 
   // CSS Styles
   const styles = `
@@ -1919,43 +2010,94 @@ const Profile = ({ onNavigate }) => {
         }
       ]);
 
-          // Set activities conditionally based on streak data
-          const recentActivities = [];
+    // Check if user has verified today
+    const verifiedToday = checkTodayVerification();
 
-          // Only show verification activity if user verified today
-          if (streakData?.todayVerified) {
-            recentActivities.push({
-              id: 1,
-              action: "✅ Completed daily verification",
-              time: 'Today',
-              icon: <CheckCircle2 size={20} />,
-              meta: '+10 XP'
-            });
-          }
+    // Set stats from streak data
+    setStats([
+      {
+        id: 'current-streak',
+        value: streakData?.currentStreak || 0,
+        icon: '🔥',
+        title: 'Current Streak',
+        description: 'Days in a row',
+        change: streakData?.currentStreak > 0 ? 'Active' : 'Start Now',
+        label: 'Current Streak'
+      },
+      {
+        id: 'longest-streak',
+        value: streakData?.longestStreak || 0,
+        icon: '🏆',
+        title: 'Longest Streak',
+        description: 'Best streak ever',
+        change: 'Personal Best',
+        label: 'Longest Streak'
+      },
+      {
+        id: 'total-days',
+        value: streakData?.totalDays || 0,
+        icon: '📅',
+        title: 'Total Days',
+        description: 'Total outdoor days',
+        change: 'Lifetime Total',
+        label: 'Total Days'
+      },
+      {
+        id: 'outdoor-time',
+        value: `${streakData?.totalOutdoorTime || 0}h`,
+        icon: '🌳',
+        title: 'Outdoor Time',
+        description: 'Hours spent outdoors',
+        change: 'Total Hours',
+        label: 'Outdoor Time'
+      }
+    ]);
 
-          // Only show milestone activity if user has 7+ day streak
-          if (streakData?.currentStreak >= 7) {
-            recentActivities.push({
-              id: 2,
-              action: "🔥 Reached 7-day streak milestone",
-              time: 'Recently',
-              icon: <Trophy size={20} />,
-              meta: 'Milestone'
-            });
-          }
+    // Set activities conditionally
+    const recentActivities = [];
 
-          // Only show social share activity if user has shared on social media
-          if (streakData?.shareCount > 0) {
-            recentActivities.push({
-              id: 3,
-              action: "📱 Shared progress on social media",
-              time: 'Recently',
-              icon: <Share2 size={20} />,
-              meta: 'Shared'
-            });
-          }
+    // Show verification status
+    if (verifiedToday) {
+      recentActivities.push({
+        id: 1,
+        action: "✅ Completed daily verification",
+        time: 'Today',
+        icon: <CheckCircle2 size={20} />,
+        meta: '+10 XP'
+      });
+    } else {
+      recentActivities.push({
+        id: 1,
+        action: "⏰ Next verification available in " + getTimeUntilNextDay(),
+        time: 'Today',
+        icon: <Clock size={20} />,
+        meta: 'Pending'
+      });
+    }
 
-          setActivities(recentActivities);
+    // Only show milestone activity if user has 7+ day streak
+    if (streakData?.currentStreak >= 7) {
+      recentActivities.push({
+        id: 2,
+        action: "🔥 Reached 7-day streak milestone",
+        time: 'Recently',
+        icon: <Trophy size={20} />,
+        meta: 'Milestone'
+      });
+    }
+
+    // Only show social share activity if user has shared on social media
+    if (streakData?.shareCount > 0) {
+      recentActivities.push({
+        id: 3,
+        action: "📱 Shared progress on social media",
+        time: 'Recently',
+        icon: <Share2 size={20} />,
+        meta: 'Shared'
+      });
+    }
+
+    setActivities(recentActivities);
 
       // Set social stats
       setSocialStats([
@@ -2563,6 +2705,14 @@ const Profile = ({ onNavigate }) => {
 
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
+      // Update verification status every second
+      if (userData) {
+        const verifiedToday = checkDailyVerificationLimit();
+        setHasVerifiedToday(verifiedToday);
+        if (!verifiedToday) {
+          setNextVerificationTime(getTimeUntilNextDay());
+        }
+      }
     }, 1000);
 
     return () => clearInterval(timer);

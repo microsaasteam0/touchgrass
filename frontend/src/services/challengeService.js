@@ -45,37 +45,26 @@
 //   return null;
 // };
 
-// class RealChallengeService {
+// class ChallengeService {
 //   // Get all available challenges from backend
 //   static async getAvailableChallenges(userEmail) {
 //     try {
-//       // First try to get built-in challenges
-//       const builtInResponse = await fetch(`${API_URL}/challenges/built-in`, {
+//       const token = getAuthToken();
+//       const response = await fetch(`${API_URL}/challenges`, {
 //         headers: {
 //           'Content-Type': 'application/json',
+//           'Authorization': token ? `Bearer ${token}` : undefined,
 //           'X-User-Email': userEmail || undefined
 //         }
 //       });
 
-//       if (builtInResponse.ok) {
-//         const builtInData = await builtInResponse.json();
-//         if (builtInData.success && builtInData.data && Array.isArray(builtInData.data) && builtInData.data.length > 0) {
-//           return builtInData.data.map(challenge => RealChallengeService.transformChallenge(challenge));
-//         }
+//       if (!response.ok) {
+//         throw new Error(`HTTP error! status: ${response.status}`);
 //       }
 
-//       // Fallback to regular challenges endpoint
-//       const response = await fetch(`${API_URL}/challenges`, {
-//         headers: {
-//           'Content-Type': 'application/json'
-//         }
-//       });
-
-//       if (response.ok) {
-//         const data = await response.json();
-//         if (data.success && data.data && Array.isArray(data.data)) {
-//           return data.data.map(challenge => RealChallengeService.transformChallenge(challenge));
-//         }
+//       const data = await response.json();
+//       if (data.success && data.challenges) {
+//         return data.challenges.map(challenge => this.transformChallenge(challenge));
 //       }
 
 //       return [];
@@ -85,71 +74,82 @@
 //     }
 //   }
 
-//   // Get user's active challenges
-//   static async getUserActiveChallenges(userEmail) {
+//   // Get user's joined challenges from backend
+//   static async getUserChallenges() {
 //     try {
-//       const response = await fetch(`${API_URL}/challenges/user/${userEmail}`, {
+//       const userEmail = getUserEmail();
+//       if (!userEmail) {
+//         return { success: false, challenges: [] };
+//       }
+
+//       const token = getAuthToken();
+//       const response = await fetch(`${API_URL}/challenges/user/${userEmail}/challenges`, {
 //         headers: {
 //           'Content-Type': 'application/json',
+//           'Authorization': token ? `Bearer ${token}` : undefined,
 //           'X-User-Email': userEmail
 //         }
 //       });
 
-//       if (response.ok) {
-//         const data = await response.json();
-//         if (data.success && data.data && Array.isArray(data.data)) {
-//           return data.data.map(challenge => RealChallengeService.transformChallenge(challenge));
-//         }
+//       if (!response.ok) {
+//         throw new Error(`HTTP error! status: ${response.status}`);
 //       }
 
-//       return [];
+//       const data = await response.json();
+//       if (data.success && data.data) {
+//         return {
+//           success: true,
+//           challenges: data.data.map(challenge => this.transformChallenge(challenge))
+//         };
+//       }
+
+//       return { success: false, challenges: [] };
 //     } catch (error) {
 //       console.error('Error fetching user challenges:', error);
-//       return [];
+//       return { success: false, challenges: [] };
 //     }
 //   }
 
-//   // Get user's joined challenges
-//   static async getUserChallenges() {
-//     const token = getAuthToken();
-
-//     if (!token) {
-//       return { success: true, challenges: [] };
-//     }
-
-//     const response = await fetch(`${API_URL}/user/challenges`, {
-//       headers: {
-//         'Authorization': `Bearer ${token}`,
-//         'Content-Type': 'application/json'
-//       }
-//     });
-
-//     if (!response.ok) {
-//       throw new Error(`Failed to fetch user challenges: ${response.status}`);
-//     }
-
-//     return await response.json();
-//   }
-
-//   // Join a challenge
+//   // Join a challenge via backend
 //   static async joinChallenge(challengeId) {
-//     const token = getAuthToken();
+//     try {
+//       const userEmail = getUserEmail();
+//       if (!userEmail) {
+//         return { success: false, message: 'User not authenticated' };
+//       }
 
-//     if (!token) {
-//       throw new Error('Authentication required');
+//       const token = getAuthToken();
+//       const response = await fetch(`${API_URL}/challenges/${challengeId}/join`, {
+//         method: 'POST',
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'Authorization': token ? `Bearer ${token}` : undefined,
+//           'X-User-Email': userEmail
+//         }
+//       });
+
+//       if (!response.ok) {
+//         const errorData = await response.json();
+//         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+//       }
+
+//       const data = await response.json();
+//       return {
+//         success: true,
+//         message: data.message || 'Successfully joined challenge',
+//         challenge: this.transformChallenge(data.userChallenge)
+//       };
+//     } catch (error) {
+//       console.error('Error joining challenge:', error);
+//       return { success: false, message: error.message || 'Failed to join challenge' };
 //     }
+//   }
 
-//     const response = await fetch(`${API_URL}/challenges/${challengeId}/join`, {
-//       method: 'POST',
-//       headers: {
-//         'Authorization': `Bearer ${token}`,
-//         'Content-Type': 'application/json'
-//       },
-//       body: JSON.stringify({
-//         joinedAt: new Date().toISOString()
-//       })
-//     });
-
+//   // Update progress via backend (assuming there's a progress update endpoint)
+//   static async updateProgress(challengeId, progressData) {
+//     try {
+//       const userEmail = getUserEmail();
+//       if (!userEmail) {
 //     if (!response.ok) {
 //       const errorData = await response.json().catch(() => ({}));
 //       throw new Error(errorData.message || `Failed to join challenge: ${response.status}`);
