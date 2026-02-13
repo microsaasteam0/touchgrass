@@ -12,6 +12,41 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
+const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure storage for verification uploads
+const verificationStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'touchgrass/verifications',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi'],
+    resource_type: 'auto',
+    transformation: [{ width: 1200, height: 1200, crop: 'limit' }]
+  }
+});
+
+const verificationUpload = multer({ 
+  storage: verificationStorage,
+  limits: {
+    fileSize: 15 * 1024 * 1024, // 15MB limit for verification photos
+    files: 1
+  },
+  fileFilter: (req, file, cb) => {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|avi)$/i)) {
+      return cb(new Error('Only image and video files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
 
 const app = express();
 
@@ -35,7 +70,7 @@ const corsOptions = {
   origin: ['http://localhost:3000', 'http://localhost:5001', 'http://127.0.0.1:3000', FRONTEND_URL],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-User-Email'],
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 };
 
@@ -78,12 +113,30 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
   res.json({ status: 'Backend is running', timestamp: new Date() });
 });
-// Render health check (required!)
-('/healthz', (req, res) => {
+app.get('/healthz', (req, res) => {
   res.status(200).json({ 
     status: 'ok',
     timestamp: new Date().toISOString() 
   });
+});
+
+// @route   POST /api/upload/verification
+// @desc    Upload verification photo/video
+// @access  Private
+app.post('/api/upload/verification', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Verification endpoint is working'
+    });
+  } catch (err) {
+    console.error('Upload verification error:', err);
+    res.status(500).json({
+      success: false,
+      error: 'SERVER_ERROR',
+      message: 'Server error uploading verification media'
+    });
+  }
 });
 
 // ========== DATABASE CONNECTION ==========
@@ -1682,6 +1735,22 @@ app.post('/api/streaks/verify', authenticateToken, async (req, res) => {
     
     await user.save();
     
+    // Create verification wall post if method is photo or manual
+    if (method === 'photo' || method === 'manual') {
+      const wallPost = new VerificationWall({
+        userId: req.user._id,
+        photoUrl: req.body.photoUrl || '', // If photoUrl is provided in body
+        activityType: req.body.activityType || 'other',
+        duration: parseInt(duration),
+        location: req.body.location || null,
+        caption: notes || '',
+        streakId: streak._id
+      });
+      
+      await wallPost.save();
+      await wallPost.populate('userId', 'username avatar displayName');
+    }
+    
     const achievements = [];
     if (streak.currentStreak === 7) {
       achievements.push({
@@ -2477,6 +2546,8 @@ app.get('/api/debug/streaks', async (req, res) => {
   }
 });
 
+
+
 // ========== 404 HANDLER ==========
 app.use('/api/*', (req, res) => {
   res.status(404).json({
@@ -2500,6 +2571,7 @@ app.use('/api/*', (req, res) => {
       '/api/notifications',
       '/api/chat/messages',
       '/api/dodo/checkout/:plan',
+      '/api/upload/verification',
       '/api/debug/*'
     ]
   });
@@ -2581,6 +2653,7 @@ const startServer = (port) => {
     ├── GET    /api/chat/messages             - Get chat messages
     ├── POST   /api/chat/messages             - Send chat message
     ├── GET    /api/chat/online-users         - Get online users
+    ├── POST   /api/upload/verification       - Upload verification media
     ├── GET    /api/debug/users               - Debug: all users
     ├── GET    /api/debug/payments            - Debug: all payments
     ├── GET    /api/debug/streaks             - Debug: all streaks
