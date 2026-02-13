@@ -123,14 +123,114 @@ app.get('/healthz', (req, res) => {
 // @route   POST /api/upload/verification
 // @desc    Upload verification photo/video
 // @access  Private
-app.post('/api/upload/verification', async (req, res) => {
+app.post('/api/upload/verification', authenticateToken, verificationUpload.single('media'), async (req, res) => {
   try {
-    res.json({
-      success: true,
-      message: 'Verification endpoint is working'
-    });
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'NO_FILE',
+        message: 'No file uploaded'
+      });
+    }
+
+    const { streakId } = req.body;
+
+    // Verify streak exists and belongs to user
+    if (streakId) {
+      const streak = await Streak.findOne({
+        _id: streakId,
+        userId: req.user._id
+      });
+
+      if (!streak) {
+        return res.status(404).json({
+          success: false,
+          error: 'STREAK_NOT_FOUND',
+          message: 'Streak not found or access denied'
+        });
+      }
+    }
+
+    // Generate optimized URL
+    let optimizedUrl;
+    const isVideo = req.file.mimetype.startsWith('video/');
+
+    if (isVideo) {
+      optimizedUrl = cloudinary.url(req.file.filename, {
+        resource_type: 'video',
+        transformation: [
+          { width: 1280, height: 720, crop: 'limit' },
+          { quality: 'auto', fetch_format: 'auto' }
+        ]
+      });
+
+      // Generate thumbnail
+      const thumbnailUrl = cloudinary.url(req.file.filename, {
+        resource_type: 'video',
+        transformation: [
+          { width: 400, height: 400, crop: 'fill' },
+          { format: 'jpg' }
+        ]
+      });
+
+      res.json({
+        success: true,
+        message: 'Verification video uploaded successfully',
+        media: {
+          url: optimizedUrl,
+          thumbnail: thumbnailUrl,
+          type: 'video',
+          duration: req.file.duration || null,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        },
+        streakId
+      });
+
+    } else {
+      optimizedUrl = cloudinary.url(req.file.filename, {
+        transformation: [
+          { width: 1200, height: 1200, crop: 'limit' },
+          { quality: 'auto', fetch_format: 'auto' }
+        ]
+      });
+
+      res.json({
+        success: true,
+        message: 'Verification photo uploaded successfully',
+        media: {
+          url: optimizedUrl,
+          type: 'image',
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          dimensions: {
+            width: req.file.width,
+            height: req.file.height
+          }
+        },
+        streakId
+      });
+    }
+
   } catch (err) {
     console.error('Upload verification error:', err);
+    
+    if (err.message.includes('File type not allowed')) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_FILE_TYPE',
+        message: 'Only image and video files are allowed'
+      });
+    }
+
+    if (err.message.includes('File too large')) {
+      return res.status(400).json({
+        success: false,
+        error: 'FILE_TOO_LARGE',
+        message: 'File size must be less than 15MB'
+      });
+    }
+
     res.status(500).json({
       success: false,
       error: 'SERVER_ERROR',
