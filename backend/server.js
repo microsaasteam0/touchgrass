@@ -18,11 +18,37 @@
 
 // const app = express();
 
-// // Environment variables
-// const PORT = process.env.PORT || 5001;
-// const NODE_ENV = process.env.NODE_ENV || 'development';
-// const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
-// const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure storage for verification uploads
+const verificationStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'touchgrass/verifications',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi'],
+    resource_type: 'auto',
+    transformation: [{ width: 1200, height: 1200, crop: 'limit' }]
+  }
+});
+
+const verificationUpload = multer({ 
+  storage: verificationStorage,
+  limits: {
+    fileSize: 15 * 1024 * 1024, // 15MB limit for verification photos
+    files: 1
+  },
+  fileFilter: (req, file, cb) => {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|avi)$/i)) {
+      return cb(new Error('Only image and video files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
 
 // // ========== MIDDLEWARE SETUP ==========
 
@@ -113,13 +139,132 @@
 //   res.json({ status: 'Backend is running', timestamp: new Date() });
 // });
 
-// // Render health check (required!)
-// app.get('/healthz', (req, res) => {
-//   res.status(200).json({
-//     status: 'ok',
-//     timestamp: new Date().toISOString()
-//   });
-// });
+// Render health check (required!)
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// @route   POST /api/upload/verification
+// @desc    Upload verification photo/video
+// @access  Private
+app.post('/api/upload/verification', authenticateToken, verificationUpload.single('media'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'NO_FILE',
+        message: 'No file uploaded'
+      });
+    }
+
+    const { streakId } = req.body;
+
+    // Verify streak exists and belongs to user
+    if (streakId) {
+      const streak = await Streak.findOne({
+        _id: streakId,
+        userId: req.user._id
+      });
+
+      if (!streak) {
+        return res.status(404).json({
+          success: false,
+          error: 'STREAK_NOT_FOUND',
+          message: 'Streak not found or access denied'
+        });
+      }
+    }
+
+    // Generate optimized URL
+    let optimizedUrl;
+    const isVideo = req.file.mimetype.startsWith('video/');
+
+    if (isVideo) {
+      optimizedUrl = cloudinary.url(req.file.filename, {
+        resource_type: 'video',
+        transformation: [
+          { width: 1280, height: 720, crop: 'limit' },
+          { quality: 'auto', fetch_format: 'auto' }
+        ]
+      });
+
+      // Generate thumbnail
+      const thumbnailUrl = cloudinary.url(req.file.filename, {
+        resource_type: 'video',
+        transformation: [
+          { width: 400, height: 400, crop: 'fill' },
+          { format: 'jpg' }
+        ]
+      });
+
+      res.json({
+        success: true,
+        message: 'Verification video uploaded successfully',
+        media: {
+          url: optimizedUrl,
+          thumbnail: thumbnailUrl,
+          type: 'video',
+          duration: req.file.duration || null,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        },
+        streakId
+      });
+
+    } else {
+      optimizedUrl = cloudinary.url(req.file.filename, {
+        transformation: [
+          { width: 1200, height: 1200, crop: 'limit' },
+          { quality: 'auto', fetch_format: 'auto' }
+        ]
+      });
+
+      res.json({
+        success: true,
+        message: 'Verification photo uploaded successfully',
+        media: {
+          url: optimizedUrl,
+          type: 'image',
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          dimensions: {
+            width: req.file.width,
+            height: req.file.height
+          }
+        },
+        streakId
+      });
+    }
+
+  } catch (err) {
+    console.error('Upload verification error:', err);
+    
+    if (err.message.includes('File type not allowed')) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_FILE_TYPE',
+        message: 'Only image and video files are allowed'
+      });
+    }
+
+    if (err.message.includes('File too large')) {
+      return res.status(400).json({
+        success: false,
+        error: 'FILE_TOO_LARGE',
+        message: 'File size must be less than 15MB'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'SERVER_ERROR',
+      message: 'Server error uploading verification media'
+    });
+  }
+});
 
 // // ========== DATABASE CONNECTION ==========
 
@@ -4834,6 +4979,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
+const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 
 // Import database configuration
 const { configureMongoDB } = require('./src/config/database');
