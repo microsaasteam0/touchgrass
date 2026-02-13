@@ -2572,6 +2572,7 @@ app.use('/api/*', (req, res) => {
       '/api/chat/messages',
       '/api/dodo/checkout/:plan',
       '/api/upload/verification',
+      '/api/upload/verification',
       '/api/debug/*'
     ]
   });
