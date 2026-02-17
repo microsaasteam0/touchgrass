@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { authState, logout } from '../../state/auth';
+import { useStreak } from '../../contexts/StreakContext';
 import { toast } from 'react-hot-toast';
 import { useInView } from 'react-intersection-observer';
 import ThemeToggle from '../ui/ThemeToggle';
@@ -23,6 +24,7 @@ const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const auth = useRecoilValue(authState);
   const setAuth = useSetRecoilState(authState);
+  const { currentStreak } = useStreak();
   const navigate = useNavigate();
   const location = useLocation();
   const { ref, inView } = useInView({ threshold: 0 });
@@ -565,7 +567,7 @@ const Navbar = () => {
                   
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '500' }}>Current Streak</div>
-                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#22c55e' }}>42</div>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#22c55e' }}>{currentStreak || 0}</div>
                   </div>
                 </Link>
 

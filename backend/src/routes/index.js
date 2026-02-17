@@ -11,6 +11,8 @@ const paymentRoutes = require('./payments');
 const socialShareRoutes = require('./socialShare');
 const chatRoutes = require('./chat');
 const uploadRoutes = require('./upload');
+const challengeRoutes = require('./challenges');
+const verificationWallRoutes = require('./verificationWall');
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -38,7 +40,8 @@ router.get('/status', (req, res) => {
       { path: '/api/payments', methods: ['POST', 'GET'] },
       { path: '/api/share', methods: ['POST', 'GET'] },
       { path: '/api/chat', methods: ['GET', 'POST', 'PUT'] },
-      { path: '/api/upload', methods: ['POST'] }
+      { path: '/api/upload', methods: ['POST'] },
+      { path: '/api/verification-wall', methods: ['GET', 'POST'] }
     ],
     rateLimiting: {
       windowMs: 15 * 60 * 1000, // 15 minutes
@@ -97,6 +100,8 @@ router.use('/payments', paymentRoutes);
 router.use('/share', socialShareRoutes);
 router.use('/chat', chatRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/challenges', challengeRoutes);
+router.use('/verification-wall', verificationWallRoutes);
 
 // Error handling for undefined routes
 router.use('*', (req, res) => {

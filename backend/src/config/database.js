@@ -15,15 +15,24 @@ const configureMongoDB = async () => {
     NODE_ENV = 'development'
   } = process.env;
 
-  // Default to local MongoDB for development, Atlas for production
+  // Default to MongoDB container for Docker, localhost for local development, Atlas for production
   const defaultUri = NODE_ENV === 'production'
     ? 'mongodb+srv://hitanshiee:Hitanshii14@touchgrass.dgyxbbm.mongodb.net/touchgrass?retryWrites=true&w=majority&appName=touchgrass'
-    : 'mongodb://localhost:27017/touchgrass';
+    : process.env.DOCKER_ENV ? 'mongodb://root:password@mongodb:27017/touchgrass?authSource=admin' : 'mongodb://localhost:27017/touchgrass';
 
-  // For development, always use local MongoDB unless explicitly overridden
-  const mongoUri = NODE_ENV === 'development' && !process.env.FORCE_ATLAS
-    ? 'mongodb://localhost:27017/touchgrass'
-    : (MONGODB_URI || defaultUri);
+  // ALWAYS use local MongoDB in development
+  // In production, use the MONGODB_URI or default
+  let mongoUri;
+  if (NODE_ENV === 'production') {
+    mongoUri = MONGODB_URI || defaultUri;
+  } else {
+    // Development: always use local MongoDB
+    if (process.env.DOCKER_ENV) {
+      mongoUri = 'mongodb://root:password@mongodb:27017/touchgrass?authSource=admin';
+    } else {
+      mongoUri = 'mongodb://localhost:27017/touchgrass';
+    }
+  }
 
   const isProduction = NODE_ENV === 'production';
   
@@ -87,6 +96,10 @@ const configureMongoDB = async () => {
     }
   });
 
+  // For development: if connection fails with auth, try without auth
+  let uriToTry = mongoUri;
+  let optionsToTry = { ...connectionOptions };
+  
   try {
     // Connect to MongoDB with retry logic
     let connected = false;
@@ -97,12 +110,24 @@ const configureMongoDB = async () => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`🔄 Connection attempt ${attempt}/${maxRetries} to MongoDB...`);
-        await mongoose.connect(mongoUri, connectionOptions);
+        console.log(`   Using URI: ${uriToTry.replace(/\/\/.*:.*@/, '//***:***@')}`); // Hide credentials in log
+        await mongoose.connect(uriToTry, optionsToTry);
         connected = true;
         break;
       } catch (error) {
         lastError = error;
         console.warn(`❌ Connection attempt ${attempt} failed:`, error.message);
+        
+        // In development, if auth fails, try without credentials
+        if (NODE_ENV === 'development' && error.message.includes('Authentication failed')) {
+          console.log('🔄 Authentication failed. Trying connection without credentials...');
+          uriToTry = 'mongodb://localhost:27017/touchgrass';
+          console.log(`   Using fallback URI: ${uriToTry}`);
+          // Clear auth options for fallback connection
+          delete optionsToTry.auth;
+          delete optionsToTry.authSource;
+          continue;
+        }
 
         if (attempt < maxRetries) {
           console.log(`⏳ Retrying in ${retryDelay / 1000} seconds...`);
@@ -116,8 +141,12 @@ const configureMongoDB = async () => {
     }
 
     // Verify connection
-    await mongoose.connection.db.admin().ping();
-    console.log('✅ MongoDB ping successful');
+    if (mongoose.connection.db) {
+      await mongoose.connection.db.admin().ping();
+      console.log('✅ MongoDB ping successful');
+    } else {
+      console.log('✅ MongoDB connected successfully (no db object available yet)');
+    }
 
     // Set up indexes
     if (!isProduction) {

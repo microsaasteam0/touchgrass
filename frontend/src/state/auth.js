@@ -1,16 +1,11 @@
-
-  
-
-  import React from 'react';
- 
-  // ==============================
-// PURE JAVASCRIPT STATE FILE
-// No JSX allowed here!
-// ==============================
-
 import { atom } from 'recoil';
 
-// ATOM DEFINITIONS
+// ==============================
+// AUTHENTICATION STATE MANAGEMENT
+// Single source of truth using Recoil
+// ==============================
+
+// Main auth state atom
 export const authState = atom({
   key: 'authState',
   default: {
@@ -22,6 +17,7 @@ export const authState = atom({
   }
 });
 
+// Auth modal state atom
 export const authModalState = atom({
   key: 'authModalState',
   default: {
@@ -31,47 +27,18 @@ export const authModalState = atom({
   }
 });
 
-// SIMPLE AUTH FUNCTIONS
+// Auth helper functions - now empty to prevent mock usage
+// All authentication should go through AuthContext which uses Supabase
 export const login = async (email, password) => {
-  try {
-    // Mock user for development
-    const mockUser = {
-      id: '1',
-      email: email,
-      username: email.split('@')[0],
-      displayName: email.split('@')[0],
-      stats: {
-        currentStreak: 0,
-        longestStreak: 0,
-        totalDays: 0,
-        consistencyScore: 0
-      },
-      subscription: {
-        plan: 'free',
-        active: false
-      }
-    };
-    
-    const mockToken = 'mock-jwt-token-' + Date.now();
-    
-    localStorage.setItem('token', mockToken);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    
-    return {
-      isAuthenticated: true,
-      user: mockUser,
-      token: mockToken,
-      loading: false
-    };
-  } catch (error) {
-    console.error('Login error:', error);
-    throw error;
-  }
+  throw new Error('Login should be performed through the AuthContext using Supabase');
 };
 
 export const logout = () => {
+  // Clear local storage to ensure clean logout
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('touchgrass_user');
+  localStorage.removeItem('supabase.auth.token');
   
   return {
     isAuthenticated: false,
@@ -82,60 +49,55 @@ export const logout = () => {
 };
 
 export const register = async (userData) => {
-  try {
-    const mockUser = {
-      id: '2',
-      email: userData.email,
-      username: userData.username || userData.email.split('@')[0],
-      displayName: userData.displayName || userData.email.split('@')[0],
-      stats: {
-        currentStreak: 0,
-        longestStreak: 0,
-        totalDays: 0,
-        consistencyScore: 0
-      },
-      subscription: {
-        plan: 'free',
-        active: false
-      }
-    };
-    
-    const mockToken = 'mock-jwt-token-register-' + Date.now();
-    
-    localStorage.setItem('token', mockToken);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    
-    return {
-      isAuthenticated: true,
-      user: mockUser,
-      token: mockToken,
-      loading: false
-    };
-  } catch (error) {
-    console.error('Registration error:', error);
-    throw error;
-  }
+  throw new Error('Registration should be performed through the AuthContext using Supabase');
 };
 
 export const checkAuth = () => {
+  // Check if we have any stored authentication
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user');
+  const touchgrassUser = localStorage.getItem('touchgrass_user');
+  const supabaseToken = localStorage.getItem('supabase.auth.token');
+  
+  if (supabaseToken) {
+    // If we have a Supabase token, we should let AuthContext handle it
+    return {
+      isAuthenticated: false,
+      user: null,
+      token: null,
+      loading: true
+    };
+  }
   
   if (token && user) {
     try {
+      const parsedUser = JSON.parse(user);
       return {
         isAuthenticated: true,
-        user: JSON.parse(user),
+        user: parsedUser,
         token: token,
         loading: false
       };
     } catch (error) {
+      console.error('Error parsing stored user:', error);
+      // Clear invalid data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+  }
+  
+  if (touchgrassUser) {
+    try {
+      const parsedUser = JSON.parse(touchgrassUser);
       return {
-        isAuthenticated: false,
-        user: null,
+        isAuthenticated: true,
+        user: parsedUser,
         token: null,
         loading: false
       };
+    } catch (error) {
+      console.error('Error parsing touchgrass user:', error);
+      localStorage.removeItem('touchgrass_user');
     }
   }
   

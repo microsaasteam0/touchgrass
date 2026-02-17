@@ -1,1035 +1,1253 @@
-// const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001/api';
+import React from 'react';
+  
+  const API_URL = import.meta.env.VITE_BACKEND_URL || 'https://touchgrass-backend.onrender.com/api';
 
-// // Helper to get auth token from various storage locations
-// const getAuthToken = () => {
-//   // Check Supabase auth token first
-//   const supabaseSession = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}');
-//   if (supabaseSession.currentSession?.access_token) {
-//     return supabaseSession.currentSession.access_token;
-//   }
-//   if (supabaseSession.access_token) {
-//     return supabaseSession.access_token;
-//   }
-
-//   // Check Supabase auth token (alternative key)
-//   const supabaseAuth = JSON.parse(localStorage.getItem('sb-tmgwvnpmacrqcykqpggl-auth-token') || '{}');
-//   if (supabaseAuth.access_token) {
-//     return supabaseAuth.access_token;
-//   }
-
-//   // Fallback to regular token
-//   return localStorage.getItem('token') || localStorage.getItem('authToken');
-// };
-
-// // For now, use email-based auth since backend expects it
-// const getUserEmail = () => {
-//   // Get from Supabase user
-//   const supabaseSession = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}');
-//   if (supabaseSession.currentSession?.user?.email) {
-//     return supabaseSession.currentSession.user.email;
-//   }
-
-//   // Check Supabase auth token (alternative key)
-//   const supabaseAuth = JSON.parse(localStorage.getItem('sb-tmgwvnpmacrqcykqpggl-auth-token') || '{}');
-//   if (supabaseAuth.user?.email) {
-//     return supabaseAuth.user.email;
-//   }
-
-//   // Fallback to stored user data
-//   const storedUser = localStorage.getItem('touchgrass_user');
-//   if (storedUser) {
-//     const user = JSON.parse(storedUser);
-//     return user.email;
-//   }
-
-//   return null;
-// };
-
-// class ChallengeService {
-//   // Get all available challenges from backend
-//   static async getAvailableChallenges(userEmail) {
-//     try {
-//       const token = getAuthToken();
-//       const response = await fetch(`${API_URL}/challenges`, {
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'Authorization': token ? `Bearer ${token}` : undefined,
-//           'X-User-Email': userEmail || undefined
-//         }
-//       });
-
-//       if (!response.ok) {
-//         throw new Error(`HTTP error! status: ${response.status}`);
-//       }
-
-//       const data = await response.json();
-//       if (data.success && data.challenges) {
-//         return data.challenges.map(challenge => this.transformChallenge(challenge));
-//       }
-
-//       return [];
-//     } catch (error) {
-//       console.error('Error fetching available challenges:', error);
-//       return [];
-//     }
-//   }
-
-//   // Get user's joined challenges from backend
-//   static async getUserChallenges() {
-//     try {
-//       const userEmail = getUserEmail();
-//       if (!userEmail) {
-//         return { success: false, challenges: [] };
-//       }
-
-//       const token = getAuthToken();
-//       const response = await fetch(`${API_URL}/challenges/user/${userEmail}/challenges`, {
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'Authorization': token ? `Bearer ${token}` : undefined,
-//           'X-User-Email': userEmail
-//         }
-//       });
-
-//       if (!response.ok) {
-//         throw new Error(`HTTP error! status: ${response.status}`);
-//       }
-
-//       const data = await response.json();
-//       if (data.success && data.data) {
-//         return {
-//           success: true,
-//           challenges: data.data.map(challenge => this.transformChallenge(challenge))
-//         };
-//       }
-
-//       return { success: false, challenges: [] };
-//     } catch (error) {
-//       console.error('Error fetching user challenges:', error);
-//       return { success: false, challenges: [] };
-//     }
-//   }
-
-//   // Join a challenge via backend
-//   static async joinChallenge(challengeId) {
-//     try {
-//       const userEmail = getUserEmail();
-//       if (!userEmail) {
-//         return { success: false, message: 'User not authenticated' };
-//       }
-
-//       const token = getAuthToken();
-//       const response = await fetch(`${API_URL}/challenges/${challengeId}/join`, {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'Authorization': token ? `Bearer ${token}` : undefined,
-//           'X-User-Email': userEmail
-//         }
-//       });
-
-//       if (!response.ok) {
-//         const errorData = await response.json();
-//         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-//       }
-
-//       const data = await response.json();
-//       return {
-//         success: true,
-//         message: data.message || 'Successfully joined challenge',
-//         challenge: this.transformChallenge(data.userChallenge)
-//       };
-//     } catch (error) {
-//       console.error('Error joining challenge:', error);
-//       return { success: false, message: error.message || 'Failed to join challenge' };
-//     }
-//   }
-
-//   // Update progress via backend (assuming there's a progress update endpoint)
-//   static async updateProgress(challengeId, progressData) {
-//     try {
-//       const userEmail = getUserEmail();
-//       if (!userEmail) {
-//     if (!response.ok) {
-//       const errorData = await response.json().catch(() => ({}));
-//       throw new Error(errorData.message || `Failed to join challenge: ${response.status}`);
-//     }
-
-//     return await response.json();
-//   }
-
-//   // Update challenge progress
-//   static async updateProgress(challengeId, progress) {
-//     const token = getAuthToken();
-
-//     if (!token) {
-//       throw new Error('Authentication required');
-//     }
-
-//     const response = await fetch(`${API_URL}/challenges/${challengeId}/progress`, {
-//       method: 'POST',
-//       headers: {
-//         'Authorization': `Bearer ${token}`,
-//         'Content-Type': 'application/json'
-//       },
-//       body: JSON.stringify(progress)
-//     });
-
-//     if (!response.ok) {
-//       throw new Error(`Failed to update progress: ${response.status}`);
-//     }
-
-//     return await response.json();
-//   }
-
-//   // Transform challenge data for display
-//   static transformChallenge(challenge) {
-//     return {
-//       id: challenge._id || challenge.id,
-//       name: challenge.name,
-//       description: challenge.description,
-//       type: challenge.type || challenge.category || 'streak',
-//       difficulty: challenge.difficulty || 'medium',
-//       duration: challenge.settings?.duration?.value || challenge.duration || 7,
-//       participants: challenge.participants || 0,
-//       prizePool: challenge.settings?.prizePool || challenge.prizePool || 0,
-//       rules: challenge.rules || [],
-//       status: challenge.status || 'active',
-//       metadata: challenge.metadata || {}
-//     };
-//   }
-// }
-
-// export default RealChallengeService;
-
-// challengeService.js - Complete LocalStorage Version
-// Since backend is failing, we'll use localStorage completely
-
-// Fallback challenges - These will be displayed when backend fails
-// challengeService.js - Auto-Progress LocalStorage Version
-// Simulates backend behavior with automatic daily progress
-
-// Fallback challenges with auto-progress simulation
-const getFallbackChallenges = () => [
-  {
-    id: 'daily-outdoor-verification',
-    name: "Daily Outdoor Verification",
-    type: "mindset",
-    description: "Verify that you've spent time outdoors every day to build consistent discipline and connection with nature.",
-    duration: 30, // 30 days
-    difficulty: "medium",
-    rules: [
-      "Spend at least 15 minutes outdoors",
-      "Take a photo as proof",
-      "No excuses allowed - rain or shine",
-      "Share your experience in the community"
-    ],
-    participants: 1242,
-    icon: "🌳",
-    category: "mindfulness",
-    createdBy: "system",
-    createdAt: "2024-01-01T00:00:00Z",
-    xpReward: 100,
-    dailyProgressRate: 3.33, // 100% / 30 days
-    requiresVerification: true
-  },
-  {
-    id: 'silent-kilometer',
-    name: "The Silent Kilometer",
-    type: "mindfulness",
-    description: "Walk one full kilometer in complete silence—no phone, no music, no podcasts. Just you, your breath, and your surroundings.",
-    duration: 7, // 7 days
-    difficulty: "easy",
-    rules: [
-      "1 km minimum distance",
-      "Absolute silence (no audio input)",
-      "Phone stays in pocket",
-      "Note one small detail you've never noticed before"
-    ],
-    participants: 856,
-    icon: "🤫",
-    category: "mindfulness",
-    createdBy: "system",
-    createdAt: "2024-01-15T00:00:00Z",
-    xpReward: 150,
-    dailyProgressRate: 14.29, // 100% / 7 days
-    requiresVerification: true
-  },
-  {
-    id: 'greening-your-loop',
-    name: "Greening Your Loop",
-    type: "exploration",
-    description: "For one week, you cannot take the exact same outdoor route twice. Find a new street, path, or trail every single time.",
-    duration: 7, // 7 days
-    difficulty: "medium",
-    rules: [
-      "No repeated routes for 7 days",
-      "Minimum 15 minutes per outing",
-      "Must end at a new destination or starting point",
-      "Map your week's 'spiderweb' in your journal"
-    ],
-    participants: 932,
-    icon: "🕸️",
-    category: "exploration",
-    createdBy: "system",
-    createdAt: "2024-01-20T00:00:00Z",
-    xpReward: 200,
-    dailyProgressRate: 14.29,
-    requiresVerification: true
-  },
-  {
-    id: 'sunrise-sunset-bookends',
-    name: "Sunrise-Sunset Bookends",
-    type: "discipline",
-    description: "Bookend your day with natural light. Be present for the sunrise and the sunset, no matter the weather. 5 minutes minimum each.",
-    duration: 7, // 7 days
-    difficulty: "hard",
-    rules: [
-      "Catch sunrise (within 30 min of dawn)",
-      "Catch sunset (within 30 min of dusk)",
-      "At least 5 minutes of presence each",
-      "Complete 5 out of 7 days in a week"
-    ],
-    participants: 423,
-    icon: "🌅",
-    category: "discipline",
-    createdBy: "system",
-    createdAt: "2024-02-01T00:00:00Z",
-    xpReward: 250,
-    dailyProgressRate: 14.29,
-    requiresVerification: true
-  },
-  {
-    id: 'five-bench-circuit',
-    name: "The 5-Bench Circuit",
-    type: "community",
-    description: "Find and sit on 5 different public benches in your neighborhood or a park. Observe the rhythm of life from each station.",
-    duration: 1, // Single day
-    difficulty: "easy",
-    rules: [
-      "Find 5 distinct benches",
-      "Sit for at least 3 minutes each",
-      "No phone while sitting",
-      "Sketch or write one sentence about the view from each"
-    ],
-    participants: 1247,
-    icon: "🪑",
-    category: "community",
-    createdBy: "system",
-    createdAt: "2024-02-10T00:00:00Z",
-    xpReward: 100,
-    dailyProgressRate: 100, // 100% in 1 day
-    requiresVerification: true
-  },
-  {
-    id: 'weatherproof-pledge',
-    name: "The Weatherproof Pledge",
-    type: "resilience",
-    description: "Go outside every day for 7 days, regardless of weather conditions. Rain, wind, or shine—your commitment doesn't waver.",
-    duration: 7,
-    difficulty: "hard",
-    rules: [
-      "Minimum 10 minutes outside daily",
-      "No weather-based excuses",
-      "Document the conditions with a photo",
-      "Reflect on how the weather affected your mood"
-    ],
-    participants: 678,
-    icon: "🌧️",
-    category: "resilience",
-    createdBy: "system",
-    createdAt: "2024-02-15T00:00:00Z",
-    xpReward: 300,
-    dailyProgressRate: 14.29,
-    requiresVerification: true
-  },
-  {
-    id: 'tree-identification-week',
-    name: "Tree Identification Week",
-    type: "learning",
-    description: "Learn to identify 5 different tree species in your local area. Find them, photograph them, and learn one fact about each.",
-    duration: 7,
-    difficulty: "medium",
-    rules: [
-      "Correctly identify 5 local tree species",
-      "Visit at least one of each during the week",
-      "Photograph leaf, bark, and overall shape",
-      "Note the location of your favorite"
-    ],
-    participants: 542,
-    icon: "🌳",
-    category: "learning",
-    createdBy: "system",
-    createdAt: "2024-02-20T00:00:00Z",
-    xpReward: 200,
-    dailyProgressRate: 14.29,
-    requiresVerification: true
-  },
-  {
-    id: 'digital-sunset',
-    name: "The Digital Sunset",
-    type: "detox",
-    description: "For one week, your last screen time of the day must end at least 1 hour before bedtime. Replace that time with an evening outdoor ritual.",
-    duration: 7,
-    difficulty: "medium",
-    rules: [
-      "Screens off 60+ minutes before bed",
-      "Spend those 60 minutes outside (e.g., porch, walk, stargazing)",
-      "No checking phones during outdoor time",
-      "Track how your sleep quality changes"
-    ],
-    participants: 987,
-    icon: "📵",
-    category: "detox",
-    createdBy: "system",
-    createdAt: "2024-03-01T00:00:00Z",
-    xpReward: 250,
-    dailyProgressRate: 14.29,
-    requiresVerification: true
-  }
-];
-
-// Helper to get user email from localStorage
-const getUserEmailFromStorage = () => {
+// Helper to get auth token from various storage locations
+const getAuthToken = () => {
   try {
-    // Try to get from various Supabase storage locations
-    const supabaseKeys = [
-      'supabase.auth.token',
-      'sb-tmgwvnpmacrqcykqpggl-auth-token',
-      'sb-auth-token'
-    ];
-    
-    for (const key of supabaseKeys) {
-      const item = localStorage.getItem(key);
-      if (item) {
-        try {
-          const data = JSON.parse(item);
-          if (data.currentSession?.user?.email) {
-            return data.currentSession.user.email;
-          }
-          if (data.user?.email) {
-            return data.user.email;
-          }
-        } catch (e) {
-          continue;
-        }
-      }
+    // Check Supabase auth token first
+    const supabaseSession = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}');
+    if (supabaseSession.currentSession?.access_token) {
+      return supabaseSession.currentSession.access_token;
+    }
+    if (supabaseSession.access_token) {
+      return supabaseSession.access_token;
+    }
+
+    // Check Supabase auth token (alternative key)
+    const supabaseAuth = JSON.parse(localStorage.getItem('sb-tmgwvnpmacrqcykqpggl-auth-token') || '{}');
+    if (supabaseAuth.access_token) {
+      return supabaseAuth.access_token;
+    }
+
+    // Fallback to regular token
+    return localStorage.getItem('token') || localStorage.getItem('authToken');
+  } catch (error) {
+    console.error('Error getting auth token:', error);
+    return null;
+  }
+};
+
+// Get user email from storage
+const getUserEmail = () => {
+  try {
+    // Get from Supabase user
+    const supabaseSession = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}');
+    if (supabaseSession.currentSession?.user?.email) {
+      return supabaseSession.currentSession.user.email;
+    }
+
+    // Check Supabase auth token (alternative key)
+    const supabaseAuth = JSON.parse(localStorage.getItem('sb-tmgwvnpmacrqcykqpggl-auth-token') || '{}');
+    if (supabaseAuth.user?.email) {
+      return supabaseAuth.user.email;
     }
 
     // Fallback to stored user data
     const storedUser = localStorage.getItem('touchgrass_user');
     if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        return user.email || 'default@user.com';
-      } catch (e) {
-        console.error('Error parsing user data:', e);
-      }
+      const user = JSON.parse(storedUser);
+      return user.email;
     }
 
-    // Default fallback
-    return 'default@user.com';
+    return null;
   } catch (error) {
     console.error('Error getting user email:', error);
-    return 'default@user.com';
+    return null;
   }
 };
 
-// Calculate days between two dates
-const getDaysBetween = (startDate, endDate) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.abs(end - start);
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
-
-// Simulate automatic daily progress
-const calculateAutoProgress = (challenge, joinedAt) => {
-  if (!joinedAt) return challenge;
-  
-  const now = new Date();
-  const daysSinceJoin = getDaysBetween(joinedAt, now);
-  const maxDays = challenge.duration || 7;
-  
-  // Calculate auto-progress based on days passed
-  const autoProgressPercent = Math.min(100, (daysSinceJoin / maxDays) * 100);
-  
-  // Ensure we don't exceed the daily progress rate
-  const dailyRate = challenge.dailyProgressRate || (100 / maxDays);
-  const calculatedProgress = Math.min(autoProgressPercent, daysSinceJoin * dailyRate);
-  
-  return {
-    ...challenge,
-    autoProgress: Math.round(calculatedProgress),
-    daysSinceJoin,
-    isBehindSchedule: daysSinceJoin > maxDays && challenge.progress < 100
+// Helper to build headers properly (no undefined values)
+const buildHeaders = (includeEmail = true) => {
+  const headers = {
+    'Content-Type': 'application/json'
   };
+  
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  if (includeEmail) {
+    const userEmail = getUserEmail();
+    if (userEmail) {
+      headers['X-User-Email'] = userEmail;
+    }
+  }
+  
+  return headers;
 };
 
+// Challenge Service - API-based (MongoDB)
 class ChallengeService {
-  // Get all available challenges
-  static async getAvailableChallenges() {
-    const fallbackChallenges = getFallbackChallenges();
-    const userEmail = getUserEmailFromStorage();
-    const joinedChallenges = this.getLocalChallenges(userEmail);
-    const joinedIds = joinedChallenges.map(c => c.id);
-    
-    return fallbackChallenges.map(challenge => ({
-      ...challenge,
-      isJoined: joinedIds.includes(challenge.id)
-    }));
-  }
-
-  // Get user's joined challenges with auto-progress calculation
-  static async getUserChallenges() {
-    const userEmail = getUserEmailFromStorage();
-    let localChallenges = this.getLocalChallenges(userEmail);
-    
-    // Apply auto-progress to each challenge
-    localChallenges = localChallenges.map(challenge => {
-      const updatedChallenge = calculateAutoProgress(challenge, challenge.joinedAt);
-      
-      // If user hasn't manually updated today, add auto-progress
-      const today = new Date().toISOString().split('T')[0];
-      if (!challenge.dailyProgress?.[today]?.completed) {
-        return {
-          ...updatedChallenge,
-          progress: Math.max(challenge.progress || 0, updatedChallenge.autoProgress || 0),
-          lastAutoProgressUpdate: new Date().toISOString()
-        };
-      }
-      
-      return updatedChallenge;
-    });
-    
-    // Save updated progress
-    this.saveLocalChallenges(userEmail, localChallenges);
-    
+  // Transform challenge data from API to frontend format
+  static transformChallenge(challenge) {
     return {
-      success: true,
-      challenges: localChallenges,
-      progress: this.getLocalProgress(userEmail)
+      id: challenge._id || challenge.id,
+      name: challenge.name,
+      type: challenge.type,
+      description: challenge.description,
+      duration: challenge.settings?.duration?.value || 7,
+      durationUnit: challenge.settings?.duration?.unit || 'days',
+      difficulty: challenge.difficulty || 'medium',
+      rules: challenge.rules,
+      participants: challenge.participants?.length || 0,
+      icon: challenge.metadata?.bannerImage || '🎯',
+      category: challenge.category,
+      createdBy: challenge.createdBy,
+      createdAt: challenge.createdAt,
+      xpReward: challenge.xpReward || 0,
+      dailyProgressRate: challenge.dailyProgressRate,
+      requiresVerification: challenge.settings?.verificationRequired || true,
+      isCustom: challenge.metadata?.isBuiltIn ? false : true,
+      isBuiltIn: challenge.metadata?.isBuiltIn || false,
+      metadata: challenge.metadata || {},
+      settings: challenge.settings || {}
     };
   }
 
-  // Join a challenge
-  static async joinChallenge(challengeId) {
-    const userEmail = getUserEmailFromStorage();
+  // Transform user challenge data from API to frontend format
+  static transformUserChallenge(userChallenge) {
+    // The backend returns challengeId as the actual challenge ID
+    const challengeId = userChallenge.challengeId?._id || userChallenge.challengeId || userChallenge._id;
     
+    // Get today's date for checking if completed today
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if completed today from dailyProgress
+    let completedToday = userChallenge.completedToday;
+    if (completedToday === undefined && userChallenge.dailyProgress) {
+      completedToday = userChallenge.dailyProgress[today]?.completed || false;
+    }
+    
+    return {
+      id: challengeId,
+      challengeId: challengeId, // Keep both for compatibility
+      userChallengeId: userChallenge._id, // The UserChallenge document ID
+      name: userChallenge.name,
+      type: userChallenge.type,
+      description: userChallenge.description,
+      duration: userChallenge.duration || 7,
+      difficulty: userChallenge.difficulty,
+      rules: userChallenge.rules || [],
+      participants: userChallenge.participants || 0,
+      icon: userChallenge.icon || '🎯',
+      category: userChallenge.category,
+      createdBy: userChallenge.createdBy,
+      createdAt: userChallenge.createdAt,
+      xpReward: userChallenge.xpReward || 0,
+      dailyProgressRate: userChallenge.dailyProgressRate,
+      requiresVerification: userChallenge.requiresVerification || true,
+      isCustom: userChallenge.isCustom || false,
+      joinedAt: userChallenge.joinedAt,
+      progress: userChallenge.totalProgress || userChallenge.progress || 0,
+      totalProgress: userChallenge.totalProgress || 0,
+      currentStreak: userChallenge.currentStreak || 0,
+      longestStreak: userChallenge.longestStreak || 0,
+      autoProgress: userChallenge.autoProgress || 0,
+      status: userChallenge.status,
+      dailyProgress: userChallenge.dailyProgress || {},
+      completedDays: userChallenge.completedDays || [],
+      completedToday: completedToday || false,
+      streak: userChallenge.currentStreak || userChallenge.streak || 0,
+      lastUpdated: userChallenge.lastUpdated,
+      lastActivity: userChallenge.lastActivity,
+      lastAutoProgressUpdate: userChallenge.lastAutoProgressUpdate,
+      totalDays: userChallenge.totalDays || 0,
+      xpEarned: userChallenge.xpEarned || 0,
+      milestones: userChallenge.milestones || [],
+      achievedMilestones: userChallenge.achievedMilestones || [],
+      metadata: userChallenge.metadata || {},
+      settings: userChallenge.settings || {}
+    };
+  }
+  // Get all available challenges from backend
+  static async getAvailableChallenges() {
     try {
-      const availableChallenges = getFallbackChallenges();
-      const challenge = availableChallenges.find(c => c.id === challengeId);
-      
-      if (!challenge) {
-        return {
-          success: false,
-          message: 'Challenge not found'
-        };
-      }
-
-      const existingChallenges = this.getLocalChallenges(userEmail);
-      const alreadyJoined = existingChallenges.some(c => c.id === challengeId);
-      
-      if (alreadyJoined) {
-        return {
-          success: true,
-          message: 'Already joined this challenge',
-          challengeId
-        };
-      }
-
-      // Create joined challenge with initial progress
-      const joinedChallenge = {
-        ...challenge,
-        joinedAt: new Date().toISOString(),
-        progress: 0,
-        autoProgress: 0,
-        status: 'active',
-        dailyProgress: {},
-        completedDays: 0,
-        streak: 0,
-        lastUpdated: new Date().toISOString(),
-        lastAutoProgressUpdate: new Date().toISOString(),
-        totalDays: 0,
-        xpEarned: 0,
-        milestones: this.generateMilestones(challenge.duration)
-      };
-
-      existingChallenges.push(joinedChallenge);
-      this.saveLocalChallenges(userEmail, existingChallenges);
-      
-      // Update available challenges
-      this.saveAvailableChallengesToLocal(availableChallenges.map(c => ({
-        ...c,
-        isJoined: c.id === challengeId ? true : c.isJoined
-      })));
-
-      // Schedule daily auto-progress updates
-      this.scheduleAutoProgress(challengeId, userEmail);
-
-      return {
-        success: true,
-        message: 'Challenge joined successfully!',
-        challenge: joinedChallenge
-      };
-    } catch (error) {
-      console.error('Error joining challenge:', error);
-      return {
-        success: false,
-        message: 'Failed to join challenge'
-      };
-    }
-  }
-
-  // Generate milestone dates for the challenge
-  static generateMilestones(duration) {
-    const milestones = [];
-    const today = new Date();
-    
-    if (duration >= 7) {
-      milestones.push({
-        day: 7,
-        date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        label: "Week 1 Complete",
-        xp: 50
+      const response = await fetch(`${API_URL}/challenges/built-in`, {
+        headers: buildHeaders()
       });
-    }
-    
-    if (duration >= 14) {
-      milestones.push({
-        day: 14,
-        date: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        label: "Week 2 Complete",
-        xp: 75
-      });
-    }
-    
-    if (duration >= 30) {
-      milestones.push({
-        day: 30,
-        date: new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        label: "Month Complete",
-        xp: 100
-      });
-    }
-    
-    return milestones;
-  }
 
-  // Schedule automatic progress updates (simulates backend cron job)
-  static scheduleAutoProgress(challengeId, userEmail) {
-    // This simulates backend auto-progress
-    // In a real backend, this would be a cron job
-    const autoUpdateKey = `challenge_auto_update_${challengeId}_${userEmail}`;
-    
-    // Store when we should next update progress
-    const nextUpdate = new Date();
-    nextUpdate.setHours(24, 0, 0, 0); // Next day at midnight
-    
-    localStorage.setItem(autoUpdateKey, nextUpdate.toISOString());
-  }
-
-  // Check and apply auto-progress for all challenges
-  static checkAndApplyAutoProgress() {
-    const userEmail = getUserEmailFromStorage();
-    const challenges = this.getLocalChallenges(userEmail);
-    const now = new Date();
-    
-    const updatedChallenges = challenges.map(challenge => {
-      const autoUpdateKey = `challenge_auto_update_${challenge.id}_${userEmail}`;
-      const nextUpdate = localStorage.getItem(autoUpdateKey);
-      
-      if (nextUpdate && new Date(nextUpdate) <= now) {
-        // Apply daily auto-progress
-        const dailyProgress = challenge.dailyProgressRate || (100 / (challenge.duration || 7));
-        const newProgress = Math.min(100, (challenge.progress || 0) + dailyProgress);
-        
-        // Schedule next update
-        const next = new Date(now);
-        next.setHours(24, 0, 0, 0);
-        localStorage.setItem(autoUpdateKey, next.toISOString());
-        
-        return {
-          ...challenge,
-          progress: newProgress,
-          lastAutoProgressUpdate: now.toISOString(),
-          autoProgress: newProgress
-        };
-      }
-      
-      return challenge;
-    });
-    
-    this.saveLocalChallenges(userEmail, updatedChallenges);
-    return updatedChallenges;
-  }
-
-  // Update progress (manual verification)
-  static async updateProgress(challengeId, progressData) {
-    const userEmail = getUserEmailFromStorage();
-    
-    try {
-      const challenges = this.getLocalChallenges(userEmail);
-      const challengeIndex = challenges.findIndex(c => c.id === challengeId);
-      
-      if (challengeIndex === -1) {
-        return {
-          success: false,
-          message: 'Challenge not found'
-        };
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const today = new Date().toISOString().split('T')[0];
-      const challenge = challenges[challengeIndex];
+      const data = await response.json();
       
-      // Initialize dailyProgress if not exists
-      if (!challenge.dailyProgress) {
-        challenges[challengeIndex].dailyProgress = {};
+      if (data.success && data.data) {
+        return data.data.map(challenge => ChallengeService.transformChallenge(challenge));
       }
-      
-      // Update today's progress
-      challenges[challengeIndex].dailyProgress[today] = {
-        ...progressData,
-        date: today,
-        timestamp: new Date().toISOString(),
-        isManual: true
-      };
-      
-      // Calculate progress
-      const daysCompleted = Object.keys(challenges[challengeIndex].dailyProgress)
-        .filter(date => challenges[challengeIndex].dailyProgress[date].completed).length;
-      
-      const duration = challenge.duration || 7;
-      const manualProgress = (daysCompleted / duration) * 100;
-      
-      // Use the higher of manual or auto progress
-      const currentAutoProgress = challenge.autoProgress || 0;
-      const newProgress = Math.max(manualProgress, currentAutoProgress);
-      
-      // Update challenge stats
-      challenges[challengeIndex].completedDays = daysCompleted;
-      challenges[challengeIndex].progress = newProgress;
-      challenges[challengeIndex].lastUpdated = new Date().toISOString();
-      
-      // Update streak
-      if (progressData.completed) {
-        challenges[challengeIndex].streak += 1;
-        challenges[challengeIndex].totalDays += 1;
-        challenges[challengeIndex].xpEarned += (challenges[challengeIndex].xpReward || 10) / duration;
-        
-        // Check milestones
-        this.checkMilestones(challenges[challengeIndex], daysCompleted);
-      }
-      
-      // Save to localStorage
-      this.saveLocalChallenges(userEmail, challenges);
-      
-      return {
-        success: true,
-        message: 'Progress updated successfully',
-        progress: newProgress,
-        completedDays: daysCompleted,
-        challenge: challenges[challengeIndex]
-      };
+
+      return [];
     } catch (error) {
-      console.error('Error updating progress:', error);
-      return {
-        success: false,
-        message: 'Failed to update progress'
-      };
-    }
-  }
-
-  // Check and award milestone achievements
-  static checkMilestones(challenge, daysCompleted) {
-    if (!challenge.milestones) return;
-    
-    const achievedMilestones = challenge.milestones.filter(m => m.day <= daysCompleted);
-    const newMilestones = achievedMilestones.filter(m => 
-      !challenge.achievedMilestones?.includes(m.day)
-    );
-    
-    if (newMilestones.length > 0) {
-      // Award XP for milestones
-      const totalXPAwarded = newMilestones.reduce((sum, m) => sum + (m.xp || 0), 0);
-      challenge.xpEarned += totalXPAwarded;
-      challenge.achievedMilestones = [
-        ...(challenge.achievedMilestones || []),
-        ...newMilestones.map(m => m.day)
-      ];
-      
-      return {
-        hasNewMilestones: true,
-        milestones: newMilestones,
-        xpAwarded: totalXPAwarded
-      };
-    }
-    
-    return null;
-  }
-
-  // Local storage helpers
-  static getLocalChallenges(userEmail) {
-    try {
-      const key = `touchgrass_user_challenges_${userEmail}`;
-      const stored = localStorage.getItem(key);
-      const challenges = stored ? JSON.parse(stored) : [];
-      
-      // Apply auto-progress on load
-      return challenges.map(challenge => 
-        calculateAutoProgress(challenge, challenge.joinedAt)
-      );
-    } catch (error) {
-      console.error('Error getting local challenges:', error);
+      console.error('Error fetching available challenges:', error);
       return [];
     }
   }
 
-  static saveLocalChallenges(userEmail, challenges) {
+  // Get built-in challenges
+  static async getBuiltInChallenges() {
     try {
-      const key = `touchgrass_user_challenges_${userEmail}`;
-      localStorage.setItem(key, JSON.stringify(challenges));
+      const response = await fetch(`${API_URL}/challenges/built-in`, {
+        headers: buildHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        return data.data.map(challenge => ChallengeService.transformChallenge(challenge));
+      }
+
+      return [];
     } catch (error) {
-      console.error('Error saving local challenges:', error);
+      console.error('Error fetching built-in challenges:', error);
+      return [];
     }
   }
 
-  static getLocalProgress(userEmail) {
+  // Get user's joined challenges from backend (using /my-challenges endpoint)
+  static async getUserChallenges() {
     try {
-      const challenges = this.getLocalChallenges(userEmail);
-      const progress = {};
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return { success: false, challenges: [], message: 'User not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/challenges/my-challenges`, {
+        headers: buildHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      challenges.forEach(challenge => {
-        progress[challenge.id] = {
-          progress: challenge.progress || 0,
-          autoProgress: challenge.autoProgress || 0,
-          completedDays: challenge.completedDays || 0,
-          dailyProgress: challenge.dailyProgress || {},
-          streak: challenge.streak || 0,
-          totalDays: challenge.totalDays || 0,
-          xpEarned: challenge.xpEarned || 0,
-          lastUpdated: challenge.lastUpdated,
-          lastAutoProgressUpdate: challenge.lastAutoProgressUpdate,
-          milestones: challenge.milestones || [],
-          achievedMilestones: challenge.achievedMilestones || []
+      if (data.success && data.data) {
+        return {
+          success: true,
+          challenges: data.data.map(challenge => ChallengeService.transformUserChallenge(challenge))
         };
-      });
-      
-      return progress;
+      }
+
+      return { success: false, challenges: [] };
     } catch (error) {
-      console.error('Error getting local progress:', error);
-      return {};
+      console.error('Error fetching user challenges:', error);
+      return { success: false, challenges: [], message: error.message };
     }
   }
 
-  // Initialize daily auto-progress check
-  static initDailyAutoProgress() {
-    // Check for auto-progress updates on app load
-    this.checkAndApplyAutoProgress();
-    
-    // Simulate backend cron job - check every hour
-    setInterval(() => {
-      this.checkAndApplyAutoProgress();
-    }, 60 * 60 * 1000); // Every hour
-  }
+  // Join a challenge via backend
+  static async joinChallenge(challengeId) {
+    try {
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        console.error('joinChallenge: No user email found');
+        return { success: false, message: 'User not authenticated' };
+      }
 
-  // Get daily progress report
-  static getDailyProgressReport() {
-    const userEmail = getUserEmailFromStorage();
-    const challenges = this.getLocalChallenges(userEmail);
-    const today = new Date().toISOString().split('T')[0];
-    
-    const report = {
-      date: today,
-      totalChallenges: challenges.length,
-      challengesDueToday: [],
-      progressMadeToday: 0,
-      streakMaintained: 0
-    };
-    
-    challenges.forEach(challenge => {
-      const todayProgress = challenge.dailyProgress?.[today];
-      const daysSinceJoin = getDaysBetween(challenge.joinedAt, new Date());
+      console.log('joinChallenge: Calling API with:', {
+        url: `${API_URL}/challenges/${challengeId}/join`,
+        userEmail
+      });
+
+      const response = await fetch(`${API_URL}/challenges/${challengeId}/join`, {
+        method: 'POST',
+        headers: buildHeaders()
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('joinChallenge: API error:', errorData);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('joinChallenge: API response:', data);
       
-      if (daysSinceJoin <= (challenge.duration || 7)) {
-        report.challengesDueToday.push({
-          id: challenge.id,
-          name: challenge.name,
-          progress: challenge.progress,
-          autoProgress: challenge.autoProgress,
-          requiresAction: !todayProgress?.completed && challenge.requiresVerification
-        });
+      if (data.success) {
+        return {
+          success: true,
+          message: data.message || 'Successfully joined challenge',
+          data: data.userChallenge
+        };
       }
       
-      if (todayProgress?.completed) {
-        report.progressMadeToday += challenge.dailyProgressRate || 0;
-        report.streakMaintained += 1;
+      return { success: false, message: data.message || 'Failed to join challenge' };
+    } catch (error) {
+      console.error('Error joining challenge:', error);
+      return { success: false, message: error.message || 'Failed to join challenge' };
+    }
+  }
+
+  // Verify daily progress / check-in
+  static async verifyProgress(challengeId, progressData = {}) {
+    try {
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return { success: false, message: 'User not authenticated' };
       }
-    });
-    
-    return report;
-  }
 
-  // Get challenge analytics
-  static getChallengeAnalytics() {
-    const userEmail = getUserEmailFromStorage();
-    const challenges = this.getLocalChallenges(userEmail);
-    
-    const analytics = {
-      totalChallenges: challenges.length,
-      activeChallenges: challenges.filter(c => c.progress < 100).length,
-      completedChallenges: challenges.filter(c => c.progress >= 100).length,
-      averageProgress: 0,
-      totalXPEarned: 0,
-      currentStreak: 0,
-      bestStreak: 0,
-      dailyCompletionRate: 0
-    };
-    
-    if (challenges.length > 0) {
-      analytics.averageProgress = challenges.reduce((sum, c) => sum + (c.progress || 0), 0) / challenges.length;
-      analytics.totalXPEarned = challenges.reduce((sum, c) => sum + (c.xpEarned || 0), 0);
-      analytics.currentStreak = challenges.reduce((min, c) => Math.min(min, c.streak || 0), Infinity) || 0;
-      analytics.bestStreak = Math.max(...challenges.map(c => c.streak || 0));
-      
-      // Calculate daily completion rate (last 7 days)
-      const last7Days = Array.from({length: 7}, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        return date.toISOString().split('T')[0];
+      const response = await fetch(`${API_URL}/challenges/${challengeId}/verify`, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify({
+          notes: progressData.notes || '',
+          verificationMethod: progressData.verificationMethod || 'manual'
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      let completedDays = 0;
-      challenges.forEach(challenge => {
-        last7Days.forEach(day => {
-          if (challenge.dailyProgress?.[day]?.completed) {
-            completedDays++;
-          }
-        });
+      if (data.success) {
+        return {
+          success: true,
+          message: data.message || 'Progress verified successfully',
+          data: data.data
+        };
+      }
+      
+      return { success: false, message: data.message || 'Failed to verify progress' };
+    } catch (error) {
+      console.error('Error verifying progress:', error);
+      return { success: false, message: error.message || 'Failed to verify progress' };
+    }
+  }
+
+  // Get daily check-ins for user
+  static async getDailyCheckins(date = null) {
+    try {
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return { success: false, data: [], message: 'User not authenticated' };
+      }
+
+      let url = `${API_URL}/challenges/user/${encodeURIComponent(userEmail)}/daily-checkins`;
+      if (date) {
+        url += `?date=${date}`;
+      }
+
+      const response = await fetch(url, {
+        headers: buildHeaders()
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      const totalPossible = challenges.length * 7;
-      analytics.dailyCompletionRate = totalPossible > 0 ? (completedDays / totalPossible) * 100 : 0;
-    }
-    
-    return analytics;
-  }
-
-  // Helper to save available challenges to localStorage
-  static saveAvailableChallengesToLocal(challenges) {
-    try {
-      localStorage.setItem('touchgrass_available_challenges', JSON.stringify(challenges));
+      if (data.success) {
+        return {
+          success: true,
+          data: data.data
+        };
+      }
+      
+      return { success: false, data: [] };
     } catch (error) {
-      console.error('Error saving available challenges:', error);
+      console.error('Error fetching daily check-ins:', error);
+      return { success: false, data: [], message: error.message };
     }
   }
 
-  // Get available challenges from localStorage
-  static getAvailableChallengesFromLocal() {
+  // Get challenge progress history
+  static async getProgressHistory(challengeId) {
     try {
-      const stored = localStorage.getItem('touchgrass_available_challenges');
-      return stored ? JSON.parse(stored) : getFallbackChallenges();
-    } catch (error) {
-      console.error('Error getting available challenges:', error);
-      return getFallbackChallenges();
-    }
-  }
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return { success: false, message: 'User not authenticated' };
+      }
 
-  // Check if challenge is joined
-  static isChallengeJoined(challengeId) {
-    const userEmail = getUserEmailFromStorage();
-    const localChallenges = this.getLocalChallenges(userEmail);
-    return localChallenges.some(c => c.id === challengeId);
+      const response = await fetch(`${API_URL}/challenges/${challengeId}/progress?email=${encodeURIComponent(userEmail)}`, {
+        headers: buildHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        return {
+          success: true,
+          data: data.data
+        };
+      }
+      
+      return { success: false, data: [] };
+    } catch (error) {
+      console.error('Error fetching progress history:', error);
+      return { success: false, data: [], message: error.message };
+    }
   }
 
   // Leave a challenge
   static async leaveChallenge(challengeId) {
-    const userEmail = getUserEmailFromStorage();
-    
     try {
-      const challenges = this.getLocalChallenges(userEmail);
-      const filteredChallenges = challenges.filter(c => c.id !== challengeId);
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return { success: false, message: 'User not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/challenges/${challengeId}/leave`, {
+        method: 'POST',
+        headers: buildHeaders()
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      this.saveLocalChallenges(userEmail, filteredChallenges);
+      if (data.success) {
+        return {
+          success: true,
+          message: data.message || 'Successfully left challenge'
+        };
+      }
       
-      // Update available challenges
-      const availableChallenges = this.getAvailableChallengesFromLocal();
-      const updatedAvailable = availableChallenges.map(c => ({
-        ...c,
-        isJoined: c.id === challengeId ? false : c.isJoined
-      }));
-      
-      this.saveAvailableChallengesToLocal(updatedAvailable);
-      
-      return {
-        success: true,
-        message: 'Challenge left successfully'
-      };
+      return { success: false, message: data.message || 'Failed to leave challenge' };
     } catch (error) {
       console.error('Error leaving challenge:', error);
-      return {
-        success: false,
-        message: 'Failed to leave challenge'
-      };
+      return { success: false, message: error.message || 'Failed to leave challenge' };
     }
   }
 
   // Create a new challenge
   static async createChallenge(challengeData) {
-    const userEmail = getUserEmailFromStorage();
-    
     try {
-      const duration = challengeData.duration || 7;
-      const challenge = {
-        id: `custom-${Date.now()}`,
-        ...challengeData,
-        createdBy: userEmail,
-        createdAt: new Date().toISOString(),
-        isCustom: true,
-        participants: 1,
-        joinedAt: new Date().toISOString(),
-        progress: 0,
-        autoProgress: 0,
-        status: 'active',
-        dailyProgress: {},
-        completedDays: 0,
-        streak: 0,
-        lastUpdated: new Date().toISOString(),
-        lastAutoProgressUpdate: new Date().toISOString(),
-        totalDays: 0,
-        xpEarned: 0,
-        xpReward: challengeData.difficulty === 'easy' ? 50 :
-                 challengeData.difficulty === 'medium' ? 100 :
-                 challengeData.difficulty === 'hard' ? 200 : 300,
-        dailyProgressRate: 100 / duration,
-        requiresVerification: true,
-        milestones: this.generateMilestones(duration)
-      };
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return { success: false, message: 'User not authenticated' };
+      }
 
-      // Add to user's challenges
-      const userChallenges = this.getLocalChallenges(userEmail);
-      userChallenges.push(challenge);
-      this.saveLocalChallenges(userEmail, userChallenges);
+      const response = await fetch(`${API_URL}/challenges`, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify(challengeData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      // Schedule auto-progress
-      this.scheduleAutoProgress(challenge.id, userEmail);
-
-      return {
-        success: true,
-        message: 'Challenge created successfully',
-        challenge: challenge
-      };
+      if (data.success) {
+        return {
+          success: true,
+          message: data.message || 'Challenge created successfully',
+          challenge: ChallengeService.transformChallenge(data.challenge)
+        };
+      }
+      
+      return { success: false, message: data.message || 'Failed to create challenge' };
     } catch (error) {
       console.error('Error creating challenge:', error);
-      return {
-        success: false,
-        message: 'Failed to create challenge'
-      };
+      return { success: false, message: error.message || 'Failed to create challenge' };
     }
   }
-}
 
-// Initialize auto-progress system when service loads
-ChallengeService.initDailyAutoProgress();
+  // Get challenge analytics
+  static async getChallengeAnalytics() {
+    try {
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return { success: false, message: 'User not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/challenges/user/${encodeURIComponent(userEmail)}/analytics`, {
+        headers: buildHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        return {
+          success: true,
+          data: data.data
+        };
+      }
+      
+      return { success: false, data: {} };
+    } catch (error) {
+      console.error('Error fetching challenge analytics:', error);
+      return { success: false, data: {}, message: error.message };
+    }
+  }
+
+  // Get daily progress report
+  static async getDailyProgressReport() {
+    try {
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return { success: false, message: 'User not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/challenges/user/${encodeURIComponent(userEmail)}/daily-report`, {
+        headers: buildHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        return {
+          success: true,
+          data: data.data
+        };
+      }
+      
+      return { success: false, data: {} };
+    } catch (error) {
+      console.error('Error fetching daily progress report:', error);
+      return { success: false, data: {}, message: error.message };
+    }
+  }
+
+  // Check if challenge is joined
+  static async isChallengeJoined(challengeId) {
+    try {
+      const userEmail = getUserEmail();
+      if (!userEmail) {
+        return false;
+      }
+
+      const userChallenges = await this.getUserChallenges();
+      if (userChallenges.success) {
+        return userChallenges.challenges.some(challenge => challenge.id === challengeId);
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking if challenge is joined:', error);
+      return false;
+    }
+  }
+
+  // Save challenges to localStorage for offline use
+  static saveAvailableChallengesToLocal(challenges) {
+    try {
+      localStorage.setItem('touchgrass_challenges', JSON.stringify({
+        challenges: challenges,
+        timestamp: Date.now()
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error saving challenges to localStorage:', error);
+      return false;
+    }
+  }
+
+  // Get challenges from localStorage
+  static getLocalChallenges() {
+    try {
+      const stored = localStorage.getItem('touchgrass_challenges');
+      if (stored) {
+        const data = JSON.parse(stored);
+        // Check if data is less than 24 hours old
+        const oneDay = 24 * 60 * 60 * 1000;
+        if (Date.now() - data.timestamp < oneDay) {
+          return data.challenges;
+        }
+      }
+      // Fallback to hardcoded challenges
+      return this.getDefaultChallenges();
+    } catch (error) {
+      console.error('Error getting challenges from localStorage:', error);
+      return this.getDefaultChallenges();
+    }
+  }
+
+  // Get default hardcoded challenges (51 challenges)
+  static getDefaultChallenges() {
+    return [
+      {
+        id: 'challenge-1',
+        name: "Morning Grounding",
+        type: "mindfulness",
+        description: "Start your day standing barefoot on grass for 10 minutes while breathing deeply.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "🌅",
+        category: "mindfulness",
+        participants: 1250,
+        status: "active",
+        rules: ["10 minutes barefoot on grass", "Deep breathing throughout", "No phone during routine", "Observe 3 things around you"]
+      },
+      {
+        id: 'challenge-2',
+        name: "Daily Sunset Watch",
+        type: "routine",
+        description: "Watch sunset every evening without distractions for 15 minutes.",
+        duration: 21,
+        difficulty: "easy",
+        icon: "🌇",
+        category: "mindfulness",
+        participants: 890,
+        status: "active",
+        rules: ["15 minutes sunset watch", "No screens allowed", "Document sky colors", "Share one reflection"]
+      },
+      {
+        id: 'challenge-3',
+        name: "Park Bench Meditation",
+        type: "meditation",
+        description: "Meditate on a park bench for 20 minutes daily, focusing on natural sounds.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "🧘",
+        category: "mindfulness",
+        participants: 670,
+        status: "active",
+        rules: ["Find different benches", "20 minutes meditation", "Focus on natural sounds", "No guided apps"]
+      },
+      {
+        id: 'challenge-4',
+        name: "Tree Identification",
+        type: "learning",
+        description: "Learn to identify 7 different tree species in your local area.",
+        duration: 7,
+        difficulty: "medium",
+        icon: "🌳",
+        category: "exploration",
+        participants: 430,
+        status: "active",
+        rules: ["Identify 7 different trees", "Take photos of leaves", "Learn one fact each", "Map their locations"]
+      },
+      {
+        id: 'challenge-5',
+        name: "Silent Nature Walk",
+        type: "mindfulness",
+        description: "Walk 30 minutes in nature without any technology or talking.",
+        duration: 7,
+        difficulty: "medium",
+        icon: "🤫",
+        category: "mindfulness",
+        participants: 980,
+        status: "active",
+        rules: ["30-minute silent walk", "No phone or music", "Observe 5 details", "No talking allowed"]
+      },
+      {
+        id: 'challenge-6',
+        name: "Weather Warrior",
+        type: "discipline",
+        description: "Go outside 15 minutes daily regardless of weather conditions.",
+        duration: 30,
+        difficulty: "hard",
+        icon: "🌧️",
+        category: "discipline",
+        participants: 320,
+        status: "active",
+        rules: ["15 minutes outside daily", "No weather excuses", "Document conditions", "Reflect on experience"]
+      },
+      {
+        id: 'challenge-7',
+        name: "Digital Sunset",
+        type: "detox",
+        description: "No screens 1 hour before bed, replace with evening outdoor time.",
+        duration: 21,
+        difficulty: "medium",
+        icon: "📵",
+        category: "detox",
+        participants: 1250,
+        status: "active",
+        rules: ["Screens off 60+ minutes", "Spend time outside", "Stargaze or walk", "Track sleep improvements"]
+      },
+      {
+        id: 'challenge-8',
+        name: "5-Bench Circuit",
+        type: "exploration",
+        description: "Visit and sit on 5 different public benches in your neighborhood.",
+        duration: 1,
+        difficulty: "easy",
+        icon: "🪑",
+        category: "exploration",
+        participants: 560,
+        status: "active",
+        rules: ["Find 5 distinct benches", "Sit 3 minutes each", "No phone while sitting", "Sketch or write about view"]
+      },
+      {
+        id: 'challenge-9',
+        name: "Bird Song Morning",
+        type: "awareness",
+        description: "Wake up to birdsong and identify 3 different bird calls each morning.",
+        duration: 14,
+        difficulty: "easy",
+        icon: "🐦",
+        category: "awareness",
+        participants: 720,
+        status: "active",
+        rules: ["Wake to bird calls", "Identify 3 species", "Log each morning", "No alarm clock"]
+      },
+      {
+        id: 'challenge-10',
+        name: "Nature Discovery Map",
+        type: "exploration",
+        description: "Map 20 interesting natural spots in your neighborhood. Become a local explorer.",
+        duration: 30,
+        difficulty: "medium",
+        icon: "🗺️",
+        category: "exploration",
+        participants: 270,
+        status: "active",
+        rules: ["Map 20 locations", "Photo each spot", "Add descriptions", "Update weekly"]
+      },
+      {
+        id: 'challenge-11',
+        name: "Morning Cold Shower",
+        type: "discipline",
+        description: "Take a cold shower outdoors each morning. Build mental toughness.",
+        duration: 14,
+        difficulty: "hard",
+        icon: "🚿",
+        category: "discipline",
+        participants: 290,
+        status: "active",
+        rules: ["Cold water only", "Outdoor shower preferred", "2 minutes minimum", "No warm water"]
+      },
+      {
+        id: 'challenge-12',
+        name: "Bird Watching Log",
+        type: "awareness",
+        description: "Identify and log 5 different bird species daily. Connect with wildlife.",
+        duration: 21,
+        difficulty: "easy",
+        icon: "🐦",
+        category: "nature",
+        participants: 380,
+        status: "active",
+        rules: ["5 bird species daily", "Log in journal or app", "Note behaviors", "Take photos if possible"]
+      },
+      {
+        id: 'challenge-13',
+        name: "Forest Bathing",
+        type: "mindfulness",
+        description: "Spend 30 minutes in a forest or wooded area. Practice shinrin-yoku.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "🌲",
+        category: "mindfulness",
+        participants: 450,
+        status: "active",
+        rules: ["30 min forest time", "All 5 senses engaged", "No phone interaction", "Slow, deliberate pace"]
+      },
+      {
+        id: 'challenge-14',
+        name: "Outdoor Meal Planning",
+        type: "routine",
+        description: "Plan and prepare one outdoor meal daily. Eat mindfully in nature.",
+        duration: 7,
+        difficulty: "easy",
+        icon: "🍽️",
+        category: "routine",
+        participants: 620,
+        status: "active",
+        rules: ["One outdoor meal", "Sit outside to eat", "No distractions", "Appreciate the food"]
+      },
+      {
+        id: 'challenge-15',
+        name: "Rock Pool Exploration",
+        type: "exploration",
+        description: "Visit rock pools and document marine life. Discover ocean treasures.",
+        duration: 7,
+        difficulty: "medium",
+        icon: "🦀",
+        category: "exploration",
+        participants: 180,
+        status: "active",
+        rules: ["Visit 2 rock pools", "Document 5 species", "Respect wildlife", "Leave no trace"]
+      },
+      {
+        id: 'challenge-16',
+        name: "Sunrise Running",
+        type: "fitness",
+        description: "Run at sunrise for 30 minutes. Start your day with energy.",
+        duration: 21,
+        difficulty: "hard",
+        icon: "🌅",
+        category: "fitness",
+        participants: 540,
+        status: "active",
+        rules: ["30 min run at sunrise", "Outdoors only", "Track distance", "No missing days"]
+      },
+      {
+        id: 'challenge-17',
+        name: "Garden Meditation",
+        type: "mindfulness",
+        description: "Meditate in your garden for 15 minutes. Find peace at home.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "🌻",
+        category: "mindfulness",
+        participants: 380,
+        status: "active",
+        rules: ["15 min garden meditation", "Same time daily", "Focus on plants", "No indoor fallback"]
+      },
+      {
+        id: 'challenge-18',
+        name: "Beachcombing Adventure",
+        type: "exploration",
+        description: "Walk along the beach for 30 minutes daily. Collect interesting finds.",
+        duration: 14,
+        difficulty: "easy",
+        icon: "🏖️",
+        category: "exploration",
+        participants: 290,
+        status: "active",
+        rules: ["30 min beach walk", "Collect one item", "Document findings", "Respect wildlife"]
+      },
+      {
+        id: 'challenge-19',
+        name: "Stargazing Session",
+        type: "awareness",
+        description: "Spend 20 minutes outdoors stargazing each night. Learn about the cosmos.",
+        duration: 21,
+        difficulty: "easy",
+        icon: "⭐",
+        category: "awareness",
+        participants: 420,
+        status: "active",
+        rules: ["20 min stargazing", "Identify 3 constellations", "Note moon phase", "No telescope needed"]
+      },
+      {
+        id: 'challenge-20',
+        name: "Outdoor Yoga Flow",
+        type: "fitness",
+        description: "Practice yoga outdoors for 30 minutes every morning.",
+        duration: 30,
+        difficulty: "medium",
+        icon: "🧘‍♀️",
+        category: "fitness",
+        participants: 680,
+        status: "active",
+        rules: ["30 min outdoor yoga", "Sunrise preferred", "No interruptions", "Full body routine"]
+      },
+      {
+        id: 'challenge-21',
+        name: "Sound Map Creation",
+        type: "awareness",
+        description: "Create a sound map of different outdoor locations. Train your auditory awareness.",
+        duration: 7,
+        difficulty: "medium",
+        icon: "🎵",
+        category: "awareness",
+        participants: 210,
+        status: "active",
+        rules: ["Visit 3 different locations", "Map sounds heard", "Identify 5+ sounds each", "Note time of day"]
+      },
+      {
+        id: 'challenge-22',
+        name: "Outdoor Journaling",
+        type: "mindfulness",
+        description: "Write in your journal outside for 20 minutes daily. Clear your mind in nature.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "📝",
+        category: "mindfulness",
+        participants: 410,
+        status: "active",
+        rules: ["20 minutes outdoor writing", "Nature observation notes", "Gratitude entry", "No indoor writing"]
+      },
+      {
+        id: 'challenge-23',
+        name: "Geocaching Adventure",
+        type: "exploration",
+        description: "Find 10 geocaches in your area. Turn exploration into a treasure hunt.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "🗝️",
+        category: "exploration",
+        participants: 180,
+        status: "active",
+        rules: ["Find 10 geocaches", "Log each find", "Take proof photos", "Explore new areas"]
+      },
+      {
+        id: 'challenge-24',
+        name: "Outdoor Nap",
+        type: "rest",
+        description: "Take a 20-minute outdoor nap in a hammock or bench. Rediscover restful sleep.",
+        duration: 7,
+        difficulty: "easy",
+        icon: "😴",
+        category: "rest",
+        participants: 340,
+        status: "active",
+        rules: ["20 min outdoor rest", "Nature sounds only", "No indoor naps", "Fresh air required"]
+      },
+      {
+        id: 'challenge-25',
+        name: "Photography Walk",
+        type: "creativity",
+        description: "Take 50 photos during your outdoor walk. Train your photographer's eye.",
+        duration: 14,
+        difficulty: "easy",
+        icon: "📸",
+        category: "creativity",
+        participants: 560,
+        status: "active",
+        rules: ["50 photos minimum", "Must be outdoors", "Different subjects", "Review and select best"]
+      },
+      {
+        id: 'challenge-26',
+        name: "Mountain Trail Hiking",
+        type: "fitness",
+        description: "Hike a different mountain trail each week. Conquer heights and build strength.",
+        duration: 7,
+        difficulty: "hard",
+        icon: "🏔️",
+        category: "fitness",
+        participants: 390,
+        status: "active",
+        rules: ["1 trail per week", "Document the climb", "Note flora and fauna", "Reach the summit"]
+      },
+      {
+        id: 'challenge-27',
+        name: "Dawn Chorus Listening",
+        type: "awareness",
+        description: "Wake up early to listen to birdsong at dawn. Connect with morning energy.",
+        duration: 21,
+        difficulty: "easy",
+        icon: "🐤",
+        category: "awareness",
+        participants: 250,
+        status: "active",
+        rules: ["Listen at sunrise", "Identify 3 bird songs", "No phone interaction", "Document species heard"]
+      },
+      {
+        id: 'challenge-28',
+        name: "Wildflower Counting",
+        type: "learning",
+        description: "Identify and count different wildflower species in your area.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "🌸",
+        category: "learning",
+        participants: 180,
+        status: "active",
+        rules: ["Find 10 species", "Photo documentation", "Note locations", "Learn medicinal uses"]
+      },
+      {
+        id: 'challenge-29',
+        name: "River Walk Meditation",
+        type: "mindfulness",
+        description: "Walk alongside a river for 30 minutes while meditating on the water flow.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "🌊",
+        category: "mindfulness",
+        participants: 320,
+        status: "active",
+        rules: ["30 min riverside walk", "Focus on water sounds", "No headphones", "Mindful breathing"]
+      },
+      {
+        id: 'challenge-30',
+        name: "Cloud Watching",
+        type: "creativity",
+        description: "Spend 15 minutes daily watching clouds. Let your imagination soar.",
+        duration: 7,
+        difficulty: "easy",
+        icon: "☁️",
+        category: "creativity",
+        participants: 410,
+        status: "active",
+        rules: ["15 min cloud watching", "Identify cloud types", "Sketch formations", "No indoor viewing"]
+      },
+      {
+        id: 'challenge-31',
+        name: "Urban Nature Hunt",
+        type: "exploration",
+        description: "Find 10 examples of nature thriving in urban areas. Discover hidden green spaces.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "🌿",
+        category: "exploration",
+        participants: 290,
+        status: "active",
+        rules: ["Find 10 urban plants", "Photo documentation", "Map locations", "Note species"]
+      },
+      {
+        id: 'challenge-32',
+        name: "Sunset Yoga",
+        type: "fitness",
+        description: "Practice yoga at sunset for 20 minutes. Wind down with nature.",
+        duration: 21,
+        difficulty: "easy",
+        icon: "🧘‍♂️",
+        category: "fitness",
+        participants: 520,
+        status: "active",
+        rules: ["20 min sunset yoga", "Outdoors only", "Gratitude practice", "No indoor fallback"]
+      },
+      {
+        id: 'challenge-33',
+        name: "Morning Dew Walk",
+        type: "awareness",
+        description: "Walk through grass covered in morning dew. Feel the freshness of the day.",
+        duration: 14,
+        difficulty: "easy",
+        icon: "💧",
+        category: "awareness",
+        participants: 340,
+        status: "active",
+        rules: ["Walk at dawn", "Barefoot preferred", "Feel the dew", "Document the experience"]
+      },
+      {
+        id: 'challenge-34',
+        name: "Full Moon Vigil",
+        type: "awareness",
+        description: "Spend one night each month under the full moon. Connect with lunar energy.",
+        duration: 1,
+        difficulty: "easy",
+        icon: "🌕",
+        category: "awareness",
+        participants: 280,
+        status: "active",
+        rules: ["1 hour full moon viewing", "Outdoors only", "Meditate on moonlight", "Journal the experience"]
+      },
+      {
+        id: 'challenge-35',
+        name: "Outdoor Reading Habit",
+        type: "learning",
+        description: "Read 30 minutes outside daily. Combine learning with nature.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "📚",
+        category: "learning",
+        participants: 450,
+        status: "active",
+        rules: ["30 min outdoor reading", "Different locations", "Finish one book", "Note insights"]
+      },
+      {
+        id: 'challenge-36',
+        name: "Nature Sound Bath",
+        type: "mindfulness",
+        description: "Listen to nature sounds for 20 minutes daily. Let nature heal your mind.",
+        duration: 21,
+        difficulty: "easy",
+        icon: "🎧",
+        category: "mindfulness",
+        participants: 380,
+        status: "active",
+        rules: ["20 min nature sounds", "Eyes closed", "No interruptions", "Focus on breathing"]
+      },
+      {
+        id: 'challenge-37',
+        name: "Trail Running",
+        type: "fitness",
+        description: "Run on natural trails for 25 minutes. Connect with earth while jogging.",
+        duration: 14,
+        difficulty: "hard",
+        icon: "👟",
+        category: "fitness",
+        participants: 420,
+        status: "active",
+        rules: ["25 min trail running", "Natural surfaces only", "No pavement", "Document distance"]
+      },
+      {
+        id: 'challenge-38',
+        name: "Morning Stretch Outdoors",
+        type: "fitness",
+        description: "Stretch for 15 minutes outdoors each morning. Wake up your body with nature.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "🤸",
+        category: "fitness",
+        participants: 580,
+        status: "active",
+        rules: ["15 min outdoor stretching", "Sunrise preferred", "Full body routine", "No indoor fallback"]
+      },
+      {
+        id: 'challenge-39',
+        name: "Wildlife Photography",
+        type: "creativity",
+        description: "Capture 25 photos of wildlife in their natural habitat.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "🦊",
+        category: "creativity",
+        participants: 310,
+        status: "active",
+        rules: ["25 wildlife photos", "Must be wild animals", "No zoos or pets", "Document species"]
+      },
+      {
+        id: 'challenge-40',
+        name: "Outdoor Meditation Trail",
+        type: "mindfulness",
+        description: "Walk a meditation trail for 20 minutes. Combine movement with mindfulness.",
+        duration: 21,
+        difficulty: "medium",
+        icon: "🚶",
+        category: "mindfulness",
+        participants: 360,
+        status: "active",
+        rules: ["20 min meditation walk", "Set intentions", "Mindful steps", "Nature observations"]
+      },
+      {
+        id: 'challenge-41',
+        name: "Sunrise Salutation",
+        type: "fitness",
+        description: "Greet the sunrise with 15 minutes of yoga and stretching.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "🙏",
+        category: "fitness",
+        participants: 490,
+        status: "active",
+        rules: ["15 min at sunrise", "Outdoor practice", "Gratitude journaling", "No missing days"]
+      },
+      {
+        id: 'challenge-42',
+        name: "Nature Sketching",
+        type: "creativity",
+        description: "Sketch one nature scene outdoors daily. Train your artistic eye.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "✏️",
+        category: "creativity",
+        participants: 280,
+        status: "active",
+        rules: ["1 nature sketch daily", "Outdoors only", "Use any medium", "Document location"]
+      },
+      {
+        id: 'challenge-43',
+        name: "Hilltop Meditation",
+        type: "mindfulness",
+        description: "Climb to a hilltop and meditate for 20 minutes. Rise above and find clarity.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "⛰️",
+        category: "mindfulness",
+        participants: 220,
+        status: "active",
+        rules: ["Find a hill or elevation", "20 min meditation", "View while meditating", "Reflect on climb"]
+      },
+      {
+        id: 'challenge-44',
+        name: "Night Walk Adventure",
+        type: "awareness",
+        description: "Take a 20-minute walk after dark. Discover a different side of nature.",
+        duration: 7,
+        difficulty: "medium",
+        icon: "🌙",
+        category: "awareness",
+        participants: 260,
+        status: "active",
+        rules: ["20 min night walking", "Stay safe", "Observe nocturnal life", "Look at stars"]
+      },
+      {
+        id: 'challenge-45',
+        name: "Picnic Planning",
+        type: "routine",
+        description: "Have a picnic outdoors once a week. Make dining an adventure.",
+        duration: 7,
+        difficulty: "easy",
+        icon: "🧺",
+        category: "routine",
+        participants: 420,
+        status: "active",
+        rules: ["1 outdoor picnic weekly", "New location each time", "Homemade food preferred", "Enjoy the view"]
+      },
+      {
+        id: 'challenge-46',
+        name: "Outdoor Work Session",
+        type: "productivity",
+        description: "Work outdoors for 2 hours daily. Boost productivity with fresh air.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "💻",
+        category: "productivity",
+        participants: 350,
+        status: "active",
+        rules: ["2 hours outdoor work", "Laptop outdoors", "Nature background", "Document focus levels"]
+      },
+      {
+        id: 'challenge-47',
+        name: "Waterfall Chasing",
+        type: "exploration",
+        description: "Find and visit 5 different waterfalls. Experience nature's power.",
+        duration: 14,
+        difficulty: "medium",
+        icon: "💦",
+        category: "exploration",
+        participants: 240,
+        status: "active",
+        rules: ["Find 5 waterfalls", "Document each visit", "Swim if safe", "Respect nature"]
+      },
+      {
+        id: 'challenge-48',
+        name: "Mushroom Hunting",
+        type: "learning",
+        description: "Learn to identify 10 different mushroom species. Explore fungal worlds.",
+        duration: 30,
+        difficulty: "hard",
+        icon: "🍄",
+        category: "learning",
+        participants: 160,
+        status: "active",
+        rules: ["Identify 10 species", "Photo documentation", "Never eat unknown", "Learn ecosystem role"]
+      },
+      {
+        id: 'challenge-49',
+        name: "Dawn Patrol Walk",
+        type: "discipline",
+        description: "Walk outdoors before sunrise daily. Win the morning.",
+        duration: 30,
+        difficulty: "hard",
+        icon: "🌤️",
+        category: "discipline",
+        participants: 380,
+        status: "active",
+        rules: ["Walk before sunrise", "No excuses", "Document sunrise", "Build routine"]
+      },
+      {
+        id: 'challenge-50',
+        name: "Butterfly Counting",
+        type: "awareness",
+        description: "Spot and identify 15 different butterfly species. Discover delicate beauty.",
+        duration: 21,
+        difficulty: "medium",
+        icon: "🦋",
+        category: "awareness",
+        participants: 200,
+        status: "active",
+        rules: ["Spot 15 species", "Photo documentation", "Note locations", "Learn life cycles"]
+      },
+      {
+        id: 'challenge-51',
+        name: "Outdoor Mindfulness",
+        type: "mindfulness",
+        description: "Practice mindfulness outdoors for 15 minutes daily. Find peace in nature.",
+        duration: 30,
+        difficulty: "easy",
+        icon: "🧠",
+        category: "mindfulness",
+        participants: 480,
+        status: "active",
+        rules: ["15 min outdoor mindfulness", "Focus on present", "Nature observations", "No distractions"]
+      }
+    ];
+  }
+}
 
 export default ChallengeService;

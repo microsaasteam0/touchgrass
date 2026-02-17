@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { authState, logout } from '../../state/auth';
+import { useStreak } from '../../contexts/StreakContext';
 import { toast } from 'react-hot-toast';
 import Logo from '../ui/Logo';
 
@@ -20,6 +21,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const auth = useRecoilValue(authState);
   const setAuth = useSetRecoilState(authState);
+  const { currentStreak, longestStreak, todayVerified } = useStreak();
 
   const handleLogout = () => {
     logout(setAuth);
@@ -662,8 +664,8 @@ const Sidebar = () => {
                   <div style={styles.streakLabel}>Current Streak</div>
                   <Flame style={styles.streakIcon} />
                 </div>
-                <div style={styles.streakCount}>42 days</div>
-                <div style={styles.streakSubtext}>🔥 Personal best: 89 days</div>
+                <div style={styles.streakCount}>{currentStreak || 0} days</div>
+                <div style={styles.streakSubtext}>🔥 Personal best: {longestStreak || 0} days</div>
                 
                 {/* Animated glow */}
                 <motion.div
@@ -708,7 +710,7 @@ const Sidebar = () => {
               {/* Streak Icon */}
               <div style={styles.collapsedStreak}>
                 <Flame style={styles.collapsedStreakIcon} />
-                <div style={styles.collapsedStreakBadge}>42</div>
+                <div style={styles.collapsedStreakBadge}>{currentStreak || 0}</div>
               </div>
             </div>
           )}

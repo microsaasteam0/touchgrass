@@ -4836,6 +4836,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { useStreak } from '../contexts/StreakContext';
+import streakService from '../services/streakservice';
 import api from '../services/api';
 import {
   Bell,
@@ -4881,11 +4883,19 @@ const Dashboard = ({ onNavigate }) => {
   // Authentication & User State
   const navigate = useNavigate();
   const { user, loading: authLoading, initialized } = useAuth();
+  const { 
+    streakData, 
+    loading: streakLoading, 
+    loadStreakData, 
+    currentStreak, 
+    longestStreak, 
+    todayVerified,
+    totalDays
+  } = useStreak();
   const [showAchievement, setShowAchievement] = useState(false);
   const [showSocialShareModal, setShowSocialShareModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [streakData, setStreakData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -5094,8 +5104,8 @@ const Dashboard = ({ onNavigate }) => {
 
 
 
-  // Load streak data
-  const loadStreakData = useCallback((username) => {
+  // Load streak data - now using streakService via context
+  const getLocalStreakData = useCallback((username) => {
     try {
       const streakKey = `touchgrass_streak_${username}`;
       const storedStreak = localStorage.getItem(streakKey);
@@ -5236,35 +5246,35 @@ const Dashboard = ({ onNavigate }) => {
       // Use the user from AuthContext instead of loading from localStorage
       setUserData(user);
 
-      const streakData = loadStreakData(user.email?.split('@')[0] || user.username || 'user');
-
-      const todayVerified = checkTodayVerified(streakData);
-      if (streakData) {
-        streakData.todayVerified = todayVerified;
-        saveStreakData(user.email?.split('@')[0] || user.username || 'user', streakData);
-      }
+      // Load streak data from context/service
+      await loadStreakData();
+      
+      // Use streakData from context
+      const currentStreakData = streakData || await streakService.getStreakData();
+      const todayVerified = currentStreakData?.todayVerified || false;
+      setIsTodayVerified(todayVerified);
       
       const joinDate = new Date(user.createdAt || new Date());
       const now = new Date();
       const daysSinceJoin = Math.max(1, Math.floor((now - joinDate) / (1000 * 60 * 60 * 24)));
       
-      const consistency = streakData?.totalDays > 0 
-        ? Math.min(100, Math.round((streakData.totalDays / daysSinceJoin) * 100))
+      const consistency = currentStreakData?.totalDays > 0 
+        ? Math.min(100, Math.round((currentStreakData.totalDays / daysSinceJoin) * 100))
         : 0;
       
       const calculatedStats = [
         {
           id: 1,
           title: "Current Streak",
-          value: streakData?.currentStreak || 0,
-          change: streakData?.todayVerified ? "+1" : "0",
+          value: currentStreakData?.currentStreak || 0,
+          change: todayVerified ? "+1" : "0",
           description: "Consecutive verified days",
           icon: <Flame size={24} />
         },
         {
           id: 2,
           title: "Total Time Outside",
-          value: `${Math.floor((streakData?.totalOutdoorTime || 0) / 60)}h`,
+          value: `${Math.floor((currentStreakData?.totalOutdoorTime || 0) / 60)}h`,
           change: "+12%",
           description: "Time spent touching grass",
           icon: <Clock size={24} />
@@ -5280,7 +5290,7 @@ const Dashboard = ({ onNavigate }) => {
         {
           id: 4,
           title: "Challenge Wins",
-          value: streakData?.challengeWins || 0,
+          value: currentStreakData?.challengeWins || 0,
           change: "+5",
           description: "Challenges completed",
           icon: <Trophy size={24} />
@@ -5288,7 +5298,7 @@ const Dashboard = ({ onNavigate }) => {
         {
           id: 5,
           title: "Social Score",
-          value: streakData?.viralScore || 0,
+          value: currentStreakData?.viralScore || 0,
           change: "+24",
           description: "Impact on community",
           icon: <TrendingUp size={24} />
@@ -5297,7 +5307,7 @@ const Dashboard = ({ onNavigate }) => {
           id: 6,
           title: "Global Rank",
           value: `#${Math.floor(Math.random() * 1000) + 1}`,
-          change: (streakData?.currentStreak || 0) > 0 ? "↑12" : "0",
+          change: (currentStreakData?.currentStreak || 0) > 0 ? "↑12" : "0",
           description: "Out of 50k users",
           icon: <Users size={24} />
         }
@@ -5305,7 +5315,7 @@ const Dashboard = ({ onNavigate }) => {
 
       const recentActivities = [];
       
-      if (streakData?.todayVerified) {
+      if (todayVerified) {
         recentActivities.push({
           id: 1,
           action: "✅ Verified today's outdoor time",
@@ -5315,9 +5325,9 @@ const Dashboard = ({ onNavigate }) => {
         });
       }
       
-      if (streakData?.history && streakData.history.length > 0) {
+      if (currentStreakData?.history && currentStreakData.history.length > 0) {
         // Show ALL activities, not just recent ones
-        streakData.history.slice().reverse().forEach((entry, index) => {
+        currentStreakData.history.slice().reverse().forEach((entry, index) => {
           const timeText = timeAgo(entry.date);
           recentActivities.push({
             id: recentActivities.length + 1,
@@ -5329,13 +5339,13 @@ const Dashboard = ({ onNavigate }) => {
         });
       }
       
-      if (streakData?.shareCount > 0) {
+      if (currentStreakData?.shareCount > 0) {
         recentActivities.push({
           id: recentActivities.length + 1,
           action: 'Shared achievement on social media',
           time: '4 hours ago',
           icon: <Share2 size={20} />,
-          meta: `+${streakData.shareCount} shares`
+          meta: `+${currentStreakData.shareCount} shares`
         });
       }
 
@@ -5870,7 +5880,7 @@ You can also save this image and share it directly!`;
             loadedStreakData.todayVerified = todayVerified;
             saveStreakData(userData.username, loadedStreakData);
           }
-          setStreakData(loadedStreakData);
+
 
           const joinDate = new Date(user.createdAt || new Date());
           const now = new Date();

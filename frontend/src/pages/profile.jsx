@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import challengeService from '../services/challengeService';
+import RealChallengeService from '../services/realChallengeService';
 import { useAuth } from '../contexts/AuthContext';
 import { useStreak } from '../contexts/StreakContext';
 // import { businessChallenges } from '../data/businessChallenges';
@@ -28,6 +29,16 @@ import {
 const Profile = ({ onNavigate }) => {
   // Get user from Supabase auth context
   const { user, session } = useAuth();
+  
+  // Get streak data from context
+  const { 
+    streakData, 
+    currentStreak, 
+    longestStreak, 
+    todayVerified, 
+    totalDays,
+    loadStreakData 
+  } = useStreak();
 
   // User State
   const [showAchievement, setShowAchievement] = useState(false);
@@ -48,6 +59,7 @@ const Profile = ({ onNavigate }) => {
   const [availableChallenges, setAvailableChallenges] = useState([]);
   const [activeUserChallenges, setActiveUserChallenges] = useState([]);
   const [challengesLoading, setChallengesLoading] = useState(false);
+  const [dailyCheckins, setDailyCheckins] = useState([]);
   
   // Profile edit state
   const [profileEdit, setProfileEdit] = useState({
@@ -1871,56 +1883,21 @@ const Profile = ({ onNavigate }) => {
     }
   }, [user]);
 
-  // Load streak data
-  const loadStreakData = useCallback((username) => {
-    try {
-      const streakKey = `touchgrass_streak_${username}`;
-      const storedStreak = localStorage.getItem(streakKey);
-      
-      if (storedStreak) {
-        return JSON.parse(storedStreak);
-      }
-      
-      const newStreak = {
-        currentStreak: 0,
-        longestStreak: 0,
-        totalDays: 0,
-        totalOutdoorTime: 0,
-        shameDays: 0,
-        challengeWins: 0,
-        history: [],
-        startDate: new Date().toISOString(),
-        todayVerified: false,
-        shareCount: 0,
-        viralScore: 0,
-        lastVerification: null
-      };
-      
-      localStorage.setItem(streakKey, JSON.stringify(newStreak));
-      return newStreak;
-    } catch (error) {
-      console.error('Error loading streak data:', error);
-      return null;
-    }
-  }, []);
-
-  // Load challenges from backend
+  // Load challenges from backend - uses RealChallengeService for real backend data
   const loadChallenges = useCallback(async () => {
     if (!user?.email) return;
 
     setChallengesLoading(true);
     
     try {
-      // Load available challenges
-      const availableData = await challengeService.getAvailableChallenges();
+      // Load available challenges using RealChallengeService (real backend)
+      const availableData = await RealChallengeService.getAvailableChallenges();
       if (availableData && availableData.length > 0) {
         setAvailableChallenges(availableData);
-        // Save to localStorage for offline use
-        challengeService.saveAvailableChallengesToLocal(availableData);
       }
       
-      // Load user's active challenges
-      const userChallengesData = await challengeService.getUserChallenges();
+      // Load user's active challenges using RealChallengeService (real backend)
+      const userChallengesData = await RealChallengeService.getMyChallenges();
       
       if (userChallengesData.success && userChallengesData.challenges) {
         setActiveUserChallenges(userChallengesData.challenges);
@@ -1928,31 +1905,42 @@ const Profile = ({ onNavigate }) => {
         setActiveUserChallenges(userChallengesData.challenges);
       }
       
+      // Load daily check-ins for today using RealChallengeService (real backend)
+      const today = new Date().toISOString().split('T')[0];
+      const checkinsData = await RealChallengeService.getDailyCheckins(today);
+      if (checkinsData.success && checkinsData.data) {
+        setDailyCheckins(checkinsData.data);
+      }
+      
       setChallengesLoading(false);
     } catch (error) {
       console.error('Error loading challenges:', error);
       
-      // Fallback to localStorage
-      const localChallenges = challengeService.getLocalChallenges();
-      setActiveUserChallenges(localChallenges);
-      
-      // Load available challenges from localStorage
-      const storedAvailable = localStorage.getItem('available_challenges');
-      if (storedAvailable) {
-        try {
-          setAvailableChallenges(JSON.parse(storedAvailable));
-        } catch (e) {
-          console.error('Error parsing stored challenges:', e);
+      // Fallback to challengeService for local data
+      try {
+        const localChallenges = challengeService.getLocalChallenges();
+        if (localChallenges) {
+          setActiveUserChallenges(localChallenges);
         }
+        
+        const storedAvailable = localStorage.getItem('available_challenges');
+        if (storedAvailable) {
+          try {
+            setAvailableChallenges(JSON.parse(storedAvailable));
+          } catch (e) {
+            console.error('Error parsing stored challenges:', e);
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Error loading fallback challenges:', fallbackError);
       }
       
       setChallengesLoading(false);
-      toast.error('Failed to load challenges. Using local data.');
     }
   }, [user]);
 
   // Initialize profile
-  const initializeProfile = useCallback(() => {
+  const initializeProfile = useCallback(async () => {
     setIsLoading(true);
 
     try {
@@ -1969,21 +1957,23 @@ const Profile = ({ onNavigate }) => {
         });
       }
 
-      // Set stats from streak data (use same key as Dashboard)
-      const streakData = loadStreakData(loadedUserData?.username || 'default');
+      // Load streak data from context
+      await loadStreakData();
+      
+      // Set stats from streak data (from context)
       setStats([
         {
           id: 'current-streak',
-          value: streakData?.currentStreak || 0,
+          value: currentStreak || 0,
           icon: '🔥',
           title: 'Current Streak',
           description: 'Days in a row',
-          change: streakData?.currentStreak > 0 ? 'Active' : 'Start Now',
+          change: currentStreak > 0 ? 'Active' : 'Start Now',
           label: 'Current Streak'
         },
         {
           id: 'longest-streak',
-          value: streakData?.longestStreak || 0,
+          value: longestStreak || 0,
           icon: '🏆',
           title: 'Longest Streak',
           description: 'Best streak ever',
@@ -1992,7 +1982,7 @@ const Profile = ({ onNavigate }) => {
         },
         {
           id: 'total-days',
-          value: streakData?.totalDays || 0,
+          value: totalDays || 0,
           icon: '📅',
           title: 'Total Days',
           description: 'Total outdoor days',
@@ -2011,47 +2001,8 @@ const Profile = ({ onNavigate }) => {
       ]);
 
     // Check if user has verified today
-    const verifiedToday = checkTodayVerification();
-
-    // Set stats from streak data
-    setStats([
-      {
-        id: 'current-streak',
-        value: streakData?.currentStreak || 0,
-        icon: '🔥',
-        title: 'Current Streak',
-        description: 'Days in a row',
-        change: streakData?.currentStreak > 0 ? 'Active' : 'Start Now',
-        label: 'Current Streak'
-      },
-      {
-        id: 'longest-streak',
-        value: streakData?.longestStreak || 0,
-        icon: '🏆',
-        title: 'Longest Streak',
-        description: 'Best streak ever',
-        change: 'Personal Best',
-        label: 'Longest Streak'
-      },
-      {
-        id: 'total-days',
-        value: streakData?.totalDays || 0,
-        icon: '📅',
-        title: 'Total Days',
-        description: 'Total outdoor days',
-        change: 'Lifetime Total',
-        label: 'Total Days'
-      },
-      {
-        id: 'outdoor-time',
-        value: `${streakData?.totalOutdoorTime || 0}h`,
-        icon: '🌳',
-        title: 'Outdoor Time',
-        description: 'Hours spent outdoors',
-        change: 'Total Hours',
-        label: 'Outdoor Time'
-      }
-    ]);
+    const verifiedToday = todayVerified;
+    setHasVerifiedToday(verifiedToday);
 
     // Set activities conditionally
     const recentActivities = [];
@@ -2076,7 +2027,7 @@ const Profile = ({ onNavigate }) => {
     }
 
     // Only show milestone activity if user has 7+ day streak
-    if (streakData?.currentStreak >= 7) {
+    if (currentStreak >= 7) {
       recentActivities.push({
         id: 2,
         action: "🔥 Reached 7-day streak milestone",
@@ -2369,99 +2320,48 @@ const Profile = ({ onNavigate }) => {
     }
   };
 
-  // Mark challenge as completed for today
+  // Mark challenge as completed for today - uses RealChallengeService for consistency
   const markChallengeCompleted = async (challengeId) => {
     if (!userData?.email) {
       toast.error('Please login to update progress');
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-
-    // Find the challenge
-    const challengeIndex = activeUserChallenges.findIndex(c => c.id === challengeId);
-    if (challengeIndex === -1) {
-      toast.error('Challenge not found');
-      return;
-    }
-
-    const challenge = activeUserChallenges[challengeIndex];
-
-    // Check if already completed today
-    if (challenge?.dailyProgress?.[today]?.completed) {
-      toast.info('Already completed today!');
-      return;
-    }
-
+    setChallengesLoading(true);
     try {
-      const progressData = {
-        date: today,
-        completed: true,
-        verified: true,
-        notes: 'Completed daily challenge',
-        timestamp: new Date().toISOString()
-      };
+      // Use RealChallengeService which calls the real backend API
+      const response = await RealChallengeService.verifyProgress(challengeId, user.id, {
+        notes: "Verified via TouchGrass app"
+      });
 
-      // Update the challenge in state first
-      const updatedChallenge = { ...challenge };
-      if (!updatedChallenge.dailyProgress) {
-        updatedChallenge.dailyProgress = {};
-      }
-      updatedChallenge.dailyProgress[today] = progressData;
+      if (response.success) {
+        toast.success('Progress verified! Keep going!');
 
-      const daysCompleted = Object.keys(updatedChallenge.dailyProgress)
-        .filter(date => updatedChallenge.dailyProgress[date].completed).length;
+        // Reload user challenges and daily checkins to get updated data from backend
+        const userResponse = await RealChallengeService.getMyChallenges();
+        if (userResponse.success) {
+          setActiveUserChallenges(userResponse.challenges);
+        }
 
-      const duration = challenge.duration || 7;
-      const progress = Math.min(100, (daysCompleted / duration) * 100);
+        // Reload daily check-ins
+        const today = new Date().toISOString().split('T')[0];
+        const checkinsResponse = await RealChallengeService.getDailyCheckins(today);
+        if (checkinsResponse.success) {
+          setDailyCheckins(checkinsResponse.data);
+        }
 
-      updatedChallenge.completedDays = daysCompleted;
-      updatedChallenge.progress = progress;
-      updatedChallenge.lastUpdated = new Date().toISOString();
-
-      if (progressData.completed) {
-        updatedChallenge.streak = (updatedChallenge.streak || 0) + 1;
-        updatedChallenge.totalDays = (updatedChallenge.totalDays || 0) + 1;
-        updatedChallenge.xpEarned = (updatedChallenge.xpEarned || 0) + (updatedChallenge.xpReward || 10) / duration;
-      }
-
-      // Update state immediately
-      setActiveUserChallenges(prev =>
-        prev.map(c => c.id === challengeId ? updatedChallenge : c)
-      );
-
-      // Then call the service
-      const result = await challengeService.updateProgress(challengeId, progressData);
-
-      if (result.success) {
-        toast.success('Daily progress updated!');
+        const progress = response.data;
+        if (progress.streak === 7 || progress.streak === 30 || progress.streak === 100) {
+          toast.success(`🎉 Amazing! ${progress.streak}-day streak!`);
+        }
       } else {
-        // Revert the state update if service failed
-        setActiveUserChallenges(prev =>
-          prev.map(c => {
-            if (c.id === challengeId) {
-              const revertedChallenge = { ...c };
-              if (revertedChallenge.dailyProgress?.[today]) {
-                delete revertedChallenge.dailyProgress[today];
-                const daysCompleted = Object.keys(revertedChallenge.dailyProgress)
-                  .filter(date => revertedChallenge.dailyProgress[date].completed).length;
-                const progress = Math.min(100, (daysCompleted / duration) * 100);
-                revertedChallenge.completedDays = daysCompleted;
-                revertedChallenge.progress = progress;
-                revertedChallenge.streak = (revertedChallenge.streak || 0) - 1;
-                revertedChallenge.totalDays = (revertedChallenge.totalDays || 0) - 1;
-                revertedChallenge.xpEarned = (revertedChallenge.xpEarned || 0) - (revertedChallenge.xpReward || 10) / duration;
-              }
-              return revertedChallenge;
-            }
-            return c;
-          })
-        );
-        toast.error(result.message || 'Failed to update progress');
+        toast.error(response.message || 'Failed to verify progress');
       }
     } catch (error) {
-      console.error('Error updating progress:', error);
-      toast.error('Failed to update progress. Please try again.');
+      console.error('Error verifying progress:', error);
+      toast.error('Failed to verify progress');
+    } finally {
+      setChallengesLoading(false);
     }
   };
 
@@ -2657,10 +2557,48 @@ const Profile = ({ onNavigate }) => {
     }
   ];
 
-  // Progress button component
+  // Helper function to check if IDs match (handles both id and _id from MongoDB)
+  const idsMatch = (id1, id2) => {
+    if (!id1 || !id2) return false;
+    return String(id1) === String(id2);
+  };
+
+  // Progress button component - uses real backend data from dailyCheckins
   const ProgressButton = ({ challenge }) => {
     const today = new Date().toISOString().split('T')[0];
-    const isCompletedToday = challenge.dailyProgress?.[today]?.completed;
+    
+    // First check dailyCheckins from backend (most reliable source)
+    const checkinFromBackend = dailyCheckins.find(c => 
+      idsMatch(c.challengeId, challenge.id) || 
+      idsMatch(c.challengeId, challenge._id) ||
+      idsMatch(c.challengeId, challenge.challengeId) ||
+      idsMatch(c.challenge?._id, challenge.id) ||
+      idsMatch(c.challenge?._id, challenge._id)
+    );
+    const isCompletedFromBackend = checkinFromBackend?.completed === true;
+    
+    // Also check completedToday flag from backend (set by transformUserChallenge)
+    const isCompletedFromFlag = challenge.completedToday === true;
+    
+    // Check dailyProgress object for today's date (from backend)
+    const isCompletedFromDailyProgress = challenge.dailyProgress && challenge.dailyProgress[today];
+    
+    // Check completedDays array (from backend)
+    const isCompletedFromDays = Array.isArray(challenge.completedDays) && 
+      challenge.completedDays.includes(today);
+    
+    // Check lastActivity for today's date (from backend)
+    let isCompletedFromLastActivity = false;
+    if (challenge.lastActivity) {
+      const lastActivityDate = new Date(challenge.lastActivity).toISOString().split('T')[0];
+      if (lastActivityDate === today) {
+        isCompletedFromLastActivity = true;
+      }
+    }
+    
+    // Use backend data if available, otherwise fallback to local
+    const isCompletedToday = isCompletedFromBackend || isCompletedFromFlag || 
+      isCompletedFromDailyProgress || isCompletedFromDays || isCompletedFromLastActivity;
     
     return (
       <button
@@ -2778,7 +2716,7 @@ const Profile = ({ onNavigate }) => {
     );
   }
 
-  const streakData = userData ? loadStreakData(userData.username) : null;
+  // streakData is now from context, no need to declare it here
 
   return (
     <div className="profile-page">
@@ -3167,10 +3105,10 @@ const Profile = ({ onNavigate }) => {
                         <p className="challenge-description">{challenge.description}</p>
 
                         <div className="challenge-rules">
-                          {challenge.rules?.slice(0, 2).map((rule, index) => (
+                          {(Array.isArray(challenge.rules) ? challenge.rules.slice(0, 2) : Object.entries(challenge.rules || {}).slice(0, 2)).map((rule, index) => (
                             <div key={index} className="rule-item">
                               <CheckCircle size={12} className="rule-icon" />
-                              <span>{rule}</span>
+                              <span>{typeof rule === "object" ? `${rule[0]}: ${rule[1]}` : rule}</span>
                             </div>
                           ))}
                         </div>
@@ -3251,7 +3189,10 @@ const Profile = ({ onNavigate }) => {
                 ) : availableChallenges.length > 0 ? (
                   <div className="challenges-grid">
                     {availableChallenges.map(challenge => {
-                      const isJoined = activeUserChallenges.some(c => c.id === challenge.id);
+                      // Check if challenge is joined by comparing challengeId (not id)
+                      const isJoined = activeUserChallenges.some(c => 
+                        c.challengeId === challenge.id || c.id === challenge.id
+                      );
                       
                       return (
                         <div key={challenge.id} className="challenge-card glass">
@@ -3293,10 +3234,10 @@ const Profile = ({ onNavigate }) => {
                           <p className="challenge-description">{challenge.description}</p>
 
                           <div className="challenge-rules">
-                            {challenge.rules?.slice(0, 2).map((rule, index) => (
+                            {(Array.isArray(challenge.rules) ? challenge.rules.slice(0, 2) : Object.entries(challenge.rules || {}).slice(0, 2)).map((rule, index) => (
                               <div key={index} className="rule-item">
                                 <CheckCircle size={12} className="rule-icon" />
-                                <span>{rule}</span>
+                                <span>{typeof rule === "object" ? `${rule[0]}: ${rule[1]}` : rule}</span>
                               </div>
                             ))}
                           </div>

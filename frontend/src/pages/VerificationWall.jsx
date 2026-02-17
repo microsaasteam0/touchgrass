@@ -2348,6 +2348,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useNotifications } from '../contexts/NotificationContext';
+import { verificationWallApi } from '../services/api';
 import {
   Home,
   Camera,
@@ -2986,17 +2987,52 @@ const VerificationWall = () => {
     };
   }, [navigate]);
 
-  const loadVerificationData = useCallback(() => {
+  const loadVerificationData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const storedPosts = JSON.parse(localStorage.getItem('touchgrass_verification_posts') || '[]');
-
-      if (storedPosts.length > 0) {
-        setPosts(storedPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+      // Try to fetch posts from backend API
+      const response = await verificationWallApi.getPosts();
+      
+      if (response.success && response.posts && response.posts.length > 0) {
+        // Transform backend posts to match frontend format
+        const formattedPosts = response.posts.map(post => ({
+          id: post._id,
+          userId: post.userId._id || post.userId,
+          userName: post.userId.displayName || post.userId.username || 'User',
+          userAvatar: post.userId.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.userId._id || post.userId}`,
+          mediaUrl: post.photoUrl,
+          mediaType: post.photoUrl?.includes('video') ? 'video' : 'photo',
+          caption: post.caption,
+          location: post.location,
+          activity: post.activityType,
+          activityName: activityTypes.find(a => a.value === post.activityType)?.label || post.activityType,
+          activityEmoji: activityTypes.find(a => a.value === post.activityType)?.emoji || '🌱',
+          activityColor: activityTypes.find(a => a.value === post.activityType)?.color || '#22c55e',
+          duration: post.duration,
+          likes: post.likeCount || 0,
+          comments: post.comments || [],
+          isLiked: false,
+          isBookmarked: false,
+          isReported: false,
+          reportCount: post.reportCount || 0,
+          reports: post.reports || [],
+          verificationScore: 100,
+          verified: true,
+          trending: false,
+          featured: false,
+          isBlocked: post.isBlocked || false,
+          timestamp: post.createdAt,
+          tags: post.tags || [],
+          shareCount: 0,
+          views: post.views || 0,
+          isNew: true
+        }));
+        
+        setPosts(formattedPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
       } else {
+        // Fallback to demo posts if API fails or no posts
         const demoPosts = generateDemoPosts();
         setPosts(demoPosts);
-        localStorage.setItem('touchgrass_verification_posts', JSON.stringify(demoPosts));
       }
     } catch (error) {
       toast.error('Failed to load posts');
@@ -3346,70 +3382,75 @@ const VerificationWall = () => {
 
       const activity = ACTIVITIES.find(a => a.id === uploadData.activity) || ACTIVITIES[0];
       
-      // Get a unique photo for user's post
-      const photoIndex = getUniquePhotoIndex();
-      
-      const newPost = {
-        id: `post_${userData.username}_${Date.now()}`,
-        userId: userData.username,
-        userName: userData.displayName || userData.username,
-        userAvatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.username}`,
-        userBio: userData.bio || 'Outdoor enthusiast',
-        userLocation: userData.location || 'Exploring',
-        userStreak: 1,
-        userFollowers: 0,
-        userVerified: true,
-        mediaUrl: uploadData.media || CLOUDINARY_PHOTOS[photoIndex],
-        mediaType: uploadData.mediaType,
-        caption: uploadData.caption || `My outdoor activity! ${activity.emoji}`,
-        location: uploadData.location || 'Outdoors',
-        activity: uploadData.activity,
-        activityName: activity.name,
-        activityEmoji: activity.emoji,
-        activityColor: activity.color,
-        activityBg: activity.bg,
+      // Call backend API to create verification wall post
+      const postData = {
+        photoUrl: uploadData.media,
+        activityType: uploadData.activity,
         duration: uploadData.duration,
-        likes: 0,
-        comments: [],
-        isLiked: false,
-        isBookmarked: false,
-        isReported: false,
-        reportCount: 0,
-        reports: [],
-        verificationScore: 100,
-        verified: true,
-        trending: true,
-        featured: false,
-        isBlocked: false,
-        timestamp: new Date().toISOString(),
-        tags: ['touchgrass', uploadData.activity, 'myverification'],
-        shareCount: 0,
-        views: 0,
-        isNew: true
+        caption: uploadData.caption || `My outdoor activity! ${activity.emoji}`,
+        location: uploadData.location || 'Outdoors'
       };
+
+      const response = await verificationWallApi.createPost(postData);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const updatedPosts = [newPost, ...posts];
-      setPosts(updatedPosts);
-      setMyPosts([newPost, ...myPosts]);
-      
-      localStorage.setItem('touchgrass_verification_posts', JSON.stringify(updatedPosts));
-      
-      setUploadData({
-        media: null,
-        mediaType: 'photo',
-        caption: '',
-        location: '',
-        activity: 'walk',
-        duration: 30,
-        tags: []
-      });
-      setShowUploadModal(false);
-      
-      toast.success('✅ Verification posted successfully with a fresh photo!');
+      if (response.success && response.post) {
+        // Transform backend post to match frontend format
+        const newPost = {
+          id: response.post._id,
+          userId: response.post.userId._id || response.post.userId,
+          userName: response.post.userId.displayName || response.post.userId.username || 'User',
+          userAvatar: response.post.userId.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${response.post.userId._id || response.post.userId}`,
+          mediaUrl: response.post.photoUrl,
+          mediaType: response.post.photoUrl?.includes('video') ? 'video' : 'photo',
+          caption: response.post.caption,
+          location: response.post.location,
+          activity: response.post.activityType,
+          activityName: activityTypes.find(a => a.value === response.post.activityType)?.label || response.post.activityType,
+          activityEmoji: activityTypes.find(a => a.value === response.post.activityType)?.emoji || '🌱',
+          activityColor: activityTypes.find(a => a.value === response.post.activityType)?.color || '#22c55e',
+          duration: response.post.duration,
+          likes: response.post.likeCount || 0,
+          comments: response.post.comments || [],
+          isLiked: false,
+          isBookmarked: false,
+          isReported: false,
+          reportCount: response.post.reportCount || 0,
+          reports: response.post.reports || [],
+          verificationScore: 100,
+          verified: true,
+          trending: true,
+          featured: false,
+          isBlocked: response.post.isBlocked || false,
+          timestamp: response.post.createdAt,
+          tags: response.post.tags || ['touchgrass', uploadData.activity, 'myverification'],
+          shareCount: 0,
+          views: response.post.views || 0,
+          isNew: true
+        };
+
+        const updatedPosts = [newPost, ...posts];
+        setPosts(updatedPosts);
+        setMyPosts([newPost, ...myPosts]);
+        
+        setUploadData({
+          media: null,
+          mediaType: 'photo',
+          caption: '',
+          location: '',
+          activity: 'walk',
+          duration: 30,
+          tags: []
+        });
+        setShowUploadModal(false);
+        
+        toast.success('✅ Verification posted successfully!');
+      } else {
+        throw new Error(response.message || 'Failed to create post');
+      }
       
     } catch (error) {
       toast.error('Failed to upload. Please try again.');

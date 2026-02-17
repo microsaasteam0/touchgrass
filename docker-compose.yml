@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: touchgrass-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: touchgrass
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: touchgrass-backend
+    restart: unless-stopped
+    environment:
+       NODE_ENV: development
+       DOCKER_ENV: true
+       MONGODB_URI: mongodb://root:password@mongodb:27017/touchgrass?authSource=admin
+       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+       PORT: 5001
+    ports:
+      - "5001:5001"
+    depends_on:
+      - mongodb
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: touchgrass-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      VITE_BACKEND_URL: http://localhost:5001/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  mongodb_data:

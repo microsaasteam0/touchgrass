@@ -1,17 +1,30 @@
 // backend/src/services/challengeManagementService.js
-const redis = require('redis');
 const mongoose = require('mongoose');
 const Challenge = require('../models/Challenge');
 const UserChallenge = require('../models/UserChallenge');
 const User = require('../models/user');
 const NotificationService = require('./notificationService');
 
-// Initialize Redis client
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL
-});
+// Try to initialize Redis client (fallback to no cache if fails)
+let redisClient = null;
+let redisAvailable = false;
 
-redisClient.connect().catch(console.error);
+try {
+  const redis = require('redis');
+  redisClient = redis.createClient({
+    url: process.env.REDIS_URL
+  });
+  redisClient.connect().then(() => {
+    redisAvailable = true;
+    console.log('✅ Redis connected successfully');
+  }).catch((error) => {
+    console.warn('⚠️  Redis connection failed, caching disabled:', error.message);
+    redisAvailable = false;
+  });
+} catch (error) {
+  console.warn('⚠️  Redis not available, caching disabled');
+  redisAvailable = false;
+}
 
 class ChallengeManagementService {
   constructor() {
@@ -22,13 +35,15 @@ class ChallengeManagementService {
   async getAvailableChallenges(userEmail, filters = {}) {
     const cacheKey = `challenges:available:${userEmail}:${JSON.stringify(filters)}`;
     
-    try {
-      const cached = await redisClient.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached);
+    if (redisAvailable && redisClient) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (err) {
+        console.warn('Redis cache miss:', err);
       }
-    } catch (err) {
-      console.warn('Redis cache miss:', err);
     }
 
     try {
@@ -38,8 +53,15 @@ class ChallengeManagementService {
         throw new Error('User not found');
       }
 
-      // Build query
-      const query = { isActive: true };
+      // Build query - find joinable challenges (upcoming or active, public or invite-only)
+      const query = {
+        status: { $in: ['upcoming', 'active'] },
+        'participants.user': { $ne: user._id },
+        $or: [
+          { 'settings.visibility': 'public' },
+          { 'settings.visibility': 'invite-only', 'metadata.challengeCode': { $exists: true } }
+        ]
+      };
       
       // Apply filters
       if (filters.category) {
@@ -51,16 +73,18 @@ class ChallengeManagementService {
       }
       
       if (filters.minDuration) {
-        query.duration = { $gte: parseInt(filters.minDuration) };
+        query['settings.duration.value'] = { $gte: parseInt(filters.minDuration) };
       }
       
       if (filters.maxDuration) {
-        query.duration = query.duration ? { ...query.duration, $lte: parseInt(filters.maxDuration) } : { $lte: parseInt(filters.maxDuration) };
+        query['settings.duration.value'] = query['settings.duration.value'] ? 
+          { ...query['settings.duration.value'], $lte: parseInt(filters.maxDuration) } : 
+          { $lte: parseInt(filters.maxDuration) };
       }
 
       // Get available challenges
       const challenges = await Challenge.find(query)
-        .sort({ participants: -1, createdAt: -1 })
+        .sort({ 'stats.totalEntries': -1, createdAt: -1 })
         .limit(filters.limit || 50);
 
       // Get user's joined challenge IDs
@@ -79,10 +103,12 @@ class ChallengeManagementService {
           isJoined: false
         }));
 
-      try {
-        await redisClient.setEx(cacheKey, this.cacheDuration, JSON.stringify(availableChallenges));
-      } catch (err) {
-        console.warn('Redis cache set failed:', err);
+      if (redisAvailable && redisClient) {
+        try {
+          await redisClient.setEx(cacheKey, this.cacheDuration, JSON.stringify(availableChallenges));
+        } catch (err) {
+          console.warn('Redis cache set failed:', err);
+        }
       }
 
       return availableChallenges;
@@ -96,13 +122,15 @@ class ChallengeManagementService {
   async getUserActiveChallenges(userEmail) {
     const cacheKey = `challenges:active:${userEmail}`;
     
-    try {
-      const cached = await redisClient.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached);
+    if (redisAvailable && redisClient) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (err) {
+        console.warn('Redis cache miss:', err);
       }
-    } catch (err) {
-      console.warn('Redis cache miss:', err);
     }
 
     try {
@@ -140,10 +168,12 @@ class ChallengeManagementService {
         })
       );
 
-      try {
-        await redisClient.setEx(cacheKey, this.cacheDuration, JSON.stringify(activeChallenges));
-      } catch (err) {
-        console.warn('Redis cache set failed:', err);
+      if (redisAvailable && redisClient) {
+        try {
+          await redisClient.setEx(cacheKey, this.cacheDuration, JSON.stringify(activeChallenges));
+        } catch (err) {
+          console.warn('Redis cache set failed:', err);
+        }
       }
 
       return activeChallenges;
@@ -182,7 +212,8 @@ class ChallengeManagementService {
       }
 
       // Check challenge capacity if exists
-      if (challenge.maxParticipants && challenge.participants >= challenge.maxParticipants) {
+      if (challenge.settings.maxParticipants > 0 && 
+          challenge.participants.length >= challenge.settings.maxParticipants) {
         return {
           success: false,
           message: 'This challenge has reached maximum capacity'
@@ -195,33 +226,41 @@ class ChallengeManagementService {
         challengeId: challenge._id,
         status: 'active',
         joinedAt: new Date(),
-        progress: {
-          currentDay: 1,
-          totalDays: challenge.duration,
-          completedDays: 0,
-          streak: 0,
-          lastCompleted: null
-        },
         ...joinData
       });
 
       await userChallenge.save();
 
-      // Update challenge participants count
+      // Update challenge participants
       await Challenge.findByIdAndUpdate(challengeId, {
-        $inc: { participants: 1 },
-        $push: { participantIds: user._id }
+        $push: { 
+          participants: { 
+            user: user._id,
+            status: 'active',
+            score: 0,
+            progress: {
+              current: 0,
+              target: challenge.calculateTarget()
+            }
+          }
+        },
+        $inc: { 
+          'stats.totalEntries': 1,
+          'stats.activeParticipants': 1 
+        }
       });
 
       // Clear relevant caches
       await this.clearUserChallengesCache(userEmail);
 
       // Send notification
-      await NotificationService.sendChallengeJoinNotification(
-        user._id,
-        challenge.name,
-        challenge.duration
-      );
+      if (NotificationService.sendChallengeJoinNotification) {
+        await NotificationService.sendChallengeJoinNotification(
+          user._id,
+          challenge.name,
+          challenge.settings.duration.value
+        );
+      }
 
       // Add to user's activity
       await User.findByIdAndUpdate(user._id, {
@@ -265,20 +304,28 @@ class ChallengeManagementService {
       
       // Calculate days since joining
       const daysSinceJoin = Math.floor((now - startDate) / (1000 * 60 * 60 * 24)) + 1;
-      const currentDay = Math.min(daysSinceJoin, challenge.duration);
+      const currentDay = Math.min(daysSinceJoin, challenge.settings.duration.value);
       
-      // Calculate percentage
-      const percentage = Math.round((currentDay / challenge.duration) * 100);
-
-      // Get completion stats
-      const completedDays = await this.getCompletedDaysCount(userId, challengeId);
+      // Calculate percentage based on challenge type
+      let percentage = 0;
+      const challengeDoc = await Challenge.findById(challengeId);
+      
+      // Find user in challenge participants
+      const participant = challengeDoc.participants.find(p => 
+        p.user.toString() === userId.toString()
+      );
+      
+      if (participant) {
+        const target = challengeDoc.calculateTarget();
+        percentage = Math.round((participant.progress.current / target) * 100);
+      }
 
       return {
-        percentage,
+        percentage: Math.min(100, percentage),
         currentDay,
-        totalDays: challenge.duration,
-        completedDays,
-        isCompleted: currentDay >= challenge.duration
+        totalDays: challenge.settings.duration.value,
+        completedDays: participant?.progress.current || 0,
+        isCompleted: userChallenge.completed
       };
     } catch (error) {
       console.error('Error calculating progress:', error);
@@ -471,16 +518,31 @@ class ChallengeManagementService {
 
       const challenge = new Challenge({
         ...challengeData,
-        createdBy: user._id,
-        participants: 0,
-        isActive: true,
-        isPublic: challengeData.isPublic !== undefined ? challengeData.isPublic : true
+        creator: user._id,
+        status: challengeData.status || 'draft',
+        participants: [],
+        payments: [],
+        stats: {
+          totalEntries: 0,
+          activeParticipants: 0,
+          completionRate: 0,
+          averageScore: 0,
+          totalPrizePool: 0
+        }
       });
 
       await challenge.save();
 
-      // Clear challenges cache
-      await redisClient.del('challenges:available:*');
+      // Clear challenges cache if redis is available
+      if (redisAvailable && redisClient) {
+        try {
+          // Note: Redis DEL with pattern requires using SCAN or keys, which is not supported in all environments
+          // For simplicity, we'll just let the cache expire naturally
+          console.warn('Cache clearing for pattern challenges:available:* not implemented');
+        } catch (error) {
+          console.warn('Failed to clear challenges cache:', error);
+        }
+      }
 
       // If creator auto-joins
       if (challengeData.autoJoinCreator) {
@@ -502,13 +564,15 @@ class ChallengeManagementService {
   async getChallengeLeaderboard(challengeId, limit = 20) {
     const cacheKey = `challenge:leaderboard:${challengeId}:${limit}`;
     
-    try {
-      const cached = await redisClient.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached);
+    if (redisAvailable && redisClient) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (err) {
+        console.warn('Redis cache miss:', err);
       }
-    } catch (err) {
-      console.warn('Redis cache miss:', err);
     }
 
     try {
@@ -540,10 +604,12 @@ class ChallengeManagementService {
         }
       ]);
 
-      try {
-        await redisClient.setEx(cacheKey, 60, JSON.stringify(leaderboard)); // 1 minute cache for leaderboard
-      } catch (err) {
-        console.warn('Redis cache set failed:', err);
+      if (redisAvailable && redisClient) {
+        try {
+          await redisClient.setEx(cacheKey, 60, JSON.stringify(leaderboard)); // 1 minute cache for leaderboard
+        } catch (err) {
+          console.warn('Redis cache set failed:', err);
+        }
       }
 
       return leaderboard;
@@ -555,6 +621,10 @@ class ChallengeManagementService {
 
   // Clear user challenges cache
   async clearUserChallengesCache(userEmail) {
+    if (!redisAvailable || !redisClient) {
+      return; // Do nothing if cache not available
+    }
+    
     try {
       const pattern = `challenges:*${userEmail}*`;
       const keys = await redisClient.keys(pattern);
@@ -615,21 +685,26 @@ class ChallengeManagementService {
   async getTrendingChallenges(limit = 10) {
     const cacheKey = `challenges:trending:${limit}`;
     
-    try {
-      const cached = await redisClient.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached);
+    if (redisAvailable && redisClient) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (err) {
+        console.warn('Redis cache miss:', err);
       }
-    } catch (err) {
-      console.warn('Redis cache miss:', err);
     }
 
     try {
       const trending = await Challenge.aggregate([
-        { $match: { isActive: true, isPublic: true } },
+        { $match: { 
+          status: { $in: ['active', 'upcoming'] },
+          'settings.visibility': 'public'
+        } },
         { $sort: { 
-          participants: -1,
-          'metrics.dailyJoins': -1 
+          'stats.totalEntries': -1,
+          'stats.activeParticipants': -1 
         }},
         { $limit: limit },
         {
@@ -638,14 +713,14 @@ class ChallengeManagementService {
             description: 1,
             category: 1,
             difficulty: 1,
-            duration: 1,
+            'settings.duration': 1,
             participants: 1,
-            icon: 1,
-            metrics: 1,
+            'metadata.bannerImage': 1,
+            'stats': 1,
             completionRate: {
               $cond: [
-                { $gt: ['$participants', 0] },
-                { $divide: ['$metrics.completions', '$participants'] },
+                { $gt: ['$stats.totalEntries', 0] },
+                { $divide: ['$stats.completionRate', 100] },
                 0
               ]
             }
@@ -653,10 +728,12 @@ class ChallengeManagementService {
         }
       ]);
 
-      try {
-        await redisClient.setEx(cacheKey, 300, JSON.stringify(trending));
-      } catch (err) {
-        console.warn('Redis cache set failed:', err);
+      if (redisAvailable && redisClient) {
+        try {
+          await redisClient.setEx(cacheKey, 300, JSON.stringify(trending));
+        } catch (err) {
+          console.warn('Redis cache set failed:', err);
+        }
       }
 
       return trending;

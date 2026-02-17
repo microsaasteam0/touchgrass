@@ -39,6 +39,16 @@ const userChallengeSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  dailyProgress: {
+    type: Map,
+    of: {
+      completed: { type: Boolean, default: false },
+      completedAt: Date,
+      notes: String,
+      verificationMethod: String
+    },
+    default: {}
+  },
   status: {
     type: String,
     enum: ['active', 'completed', 'failed', 'withdrawn'],

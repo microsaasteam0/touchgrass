@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -110,9 +109,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root endpoint
 app.get('/', (req, res) => {
-  res.json({ status: 'Backend is running', timestamp: new Date() });
+  res.json({ 
+    success: true,
+    message: 'TouchGrass Backend API', 
+    status: 'running', 
+    timestamp: new Date(),
+    documentation: '/api'
+  });
 });
+
+// Health check endpoint
 app.get('/healthz', (req, res) => {
   res.status(200).json({ 
     status: 'ok',
@@ -120,135 +128,16 @@ app.get('/healthz', (req, res) => {
   });
 });
 
-// @route   POST /api/upload/verification
-// @desc    Upload verification photo/video
-// @access  Private
-app.post('/api/upload/verification', authenticateToken, verificationUpload.single('media'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'NO_FILE',
-        message: 'No file uploaded'
-      });
-    }
-
-    const { streakId } = req.body;
-
-    // Verify streak exists and belongs to user
-    if (streakId) {
-      const streak = await Streak.findOne({
-        _id: streakId,
-        userId: req.user._id
-      });
-
-      if (!streak) {
-        return res.status(404).json({
-          success: false,
-          error: 'STREAK_NOT_FOUND',
-          message: 'Streak not found or access denied'
-        });
-      }
-    }
-
-    // Generate optimized URL
-    let optimizedUrl;
-    const isVideo = req.file.mimetype.startsWith('video/');
-
-    if (isVideo) {
-      optimizedUrl = cloudinary.url(req.file.filename, {
-        resource_type: 'video',
-        transformation: [
-          { width: 1280, height: 720, crop: 'limit' },
-          { quality: 'auto', fetch_format: 'auto' }
-        ]
-      });
-
-      // Generate thumbnail
-      const thumbnailUrl = cloudinary.url(req.file.filename, {
-        resource_type: 'video',
-        transformation: [
-          { width: 400, height: 400, crop: 'fill' },
-          { format: 'jpg' }
-        ]
-      });
-
-      res.json({
-        success: true,
-        message: 'Verification video uploaded successfully',
-        media: {
-          url: optimizedUrl,
-          thumbnail: thumbnailUrl,
-          type: 'video',
-          duration: req.file.duration || null,
-          size: req.file.size,
-          mimetype: req.file.mimetype
-        },
-        streakId
-      });
-
-    } else {
-      optimizedUrl = cloudinary.url(req.file.filename, {
-        transformation: [
-          { width: 1200, height: 1200, crop: 'limit' },
-          { quality: 'auto', fetch_format: 'auto' }
-        ]
-      });
-
-      res.json({
-        success: true,
-        message: 'Verification photo uploaded successfully',
-        media: {
-          url: optimizedUrl,
-          type: 'image',
-          size: req.file.size,
-          mimetype: req.file.mimetype,
-          dimensions: {
-            width: req.file.width,
-            height: req.file.height
-          }
-        },
-        streakId
-      });
-    }
-
-  } catch (err) {
-    console.error('Upload verification error:', err);
-    
-    if (err.message.includes('File type not allowed')) {
-      return res.status(400).json({
-        success: false,
-        error: 'INVALID_FILE_TYPE',
-        message: 'Only image and video files are allowed'
-      });
-    }
-
-    if (err.message.includes('File too large')) {
-      return res.status(400).json({
-        success: false,
-        error: 'FILE_TOO_LARGE',
-        message: 'File size must be less than 15MB'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: 'SERVER_ERROR',
-      message: 'Server error uploading verification media'
-    });
-  }
-});
-
 // ========== DATABASE CONNECTION ==========
 
 console.log('🔄 Attempting to connect to MongoDB...');
-console.log(`📁 MongoDB URI: ${MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@')}`); // Hide password in logs
+console.log(`📁 MongoDB URI: ${MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@')}`);
 
 // MongoDB connection options
 const mongoOptions = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 10000, // 10 seconds
+  serverSelectionTimeoutMS: 10000,
   socketTimeoutMS: 45000,
   maxPoolSize: 10,
   retryWrites: true,
@@ -302,6 +191,7 @@ mongoose.connection.on('error', (err) => {
 mongoose.connection.on('disconnected', () => {
   console.log('⚠️  Mongoose disconnected from DB');
 });
+
 // ========== DATABASE SCHEMAS & MODELS ==========
 
 // User Schema
@@ -438,269 +328,6 @@ userSchema.methods.generateResetToken = function() {
 };
 
 const User = mongoose.model('User', userSchema);
-
-// Import models
-// const uploadRoutes = require('./routes/upload');
-
-// Verification Wall Schema (keeping for reference but using imported model)
-const verificationWallSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-    index: true
-  },
-
-  // Photo details
-  photoUrl: {
-    type: String,
-    required: true
-  },
-  photoThumbnail: String,
-  photoMetadata: {
-    width: Number,
-    height: Number,
-    size: Number,
-    format: String,
-    uploadedAt: Date
-  },
-
-  // Verification details
-  streakId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Streak'
-  },
-  activityType: {
-    type: String,
-    enum: ['walk', 'run', 'hike', 'sports', 'gardening', 'picnic', 'meditation', 'reading', 'other'],
-    required: true
-  },
-  duration: {
-    type: Number, // in minutes
-    required: true,
-    min: 1,
-    max: 1440
-  },
-  location: {
-    lat: Number,
-    lng: Number,
-    name: String,
-    address: String
-  },
-
-  // User content
-  caption: {
-    type: String,
-    maxlength: 500,
-    trim: true
-  },
-  tags: [String],
-
-  // Social features
-  likes: [{
-    userId: mongoose.Schema.Types.ObjectId,
-    timestamp: Date
-  }],
-  comments: [{
-    userId: mongoose.Schema.Types.ObjectId,
-    text: String,
-    timestamp: Date,
-    likes: [{
-      userId: mongoose.Schema.Types.ObjectId,
-      timestamp: Date
-    }]
-  }],
-
-  // Reporting system
-  reports: [{
-    userId: mongoose.Schema.Types.ObjectId,
-    reason: {
-      type: String,
-      enum: ['fake_photo', 'inappropriate', 'spam', 'copyright', 'other'],
-      required: true
-    },
-    details: String,
-    timestamp: Date,
-    status: {
-      type: String,
-      enum: ['pending', 'reviewed', 'dismissed'],
-      default: 'pending'
-    }
-  }],
-
-  // Moderation
-  isBlocked: {
-    type: Boolean,
-    default: false
-  },
-  blockedReason: String,
-  blockedAt: Date,
-  blockedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-
-  // Analytics
-  views: {
-    type: Number,
-    default: 0
-  },
-  shares: {
-    type: Number,
-    default: 0
-  },
-
-  // Verification status
-  isVerified: {
-    type: Boolean,
-    default: true // Assume genuine unless reported
-  },
-  verificationScore: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: 100
-  }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
-
-// Indexes
-verificationWallSchema.index({ userId: 1, createdAt: -1 });
-verificationWallSchema.index({ createdAt: -1 });
-verificationWallSchema.index({ isBlocked: 1 });
-verificationWallSchema.index({ 'reports.status': 1 });
-
-// Virtual for total reports
-verificationWallSchema.virtual('totalReports').get(function() {
-  return this.reports.length;
-});
-
-// Virtual for pending reports
-verificationWallSchema.virtual('pendingReports').get(function() {
-  return this.reports.filter(report => report.status === 'pending').length;
-});
-
-// Virtual for like count
-verificationWallSchema.virtual('likeCount').get(function() {
-  return this.likes.length;
-});
-
-// Virtual for comment count
-verificationWallSchema.virtual('commentCount').get(function() {
-  return this.comments.length;
-});
-
-// Method to add report
-verificationWallSchema.methods.addReport = async function(userId, reason, details = '') {
-  // Check if user already reported
-  const existingReport = this.reports.find(report =>
-    report.userId.toString() === userId.toString()
-  );
-
-  if (existingReport) {
-    throw new Error('You have already reported this post');
-  }
-
-  this.reports.push({
-    userId,
-    reason,
-    details,
-    timestamp: new Date(),
-    status: 'pending'
-  });
-
-  // Auto-block if too many reports
-  if (this.pendingReports >= 5) {
-    this.isBlocked = true;
-    this.blockedReason = 'Multiple reports received';
-    this.blockedAt = new Date();
-    this.verificationScore = Math.max(0, this.verificationScore - 20);
-  }
-
-  return this.save();
-};
-
-// Method to moderate report
-verificationWallSchema.methods.moderateReport = async function(reportId, action, moderatorId) {
-  const report = this.reports.id(reportId);
-  if (!report) {
-    throw new Error('Report not found');
-  }
-
-  report.status = action === 'block' ? 'reviewed' : 'dismissed';
-
-  if (action === 'block') {
-    this.isBlocked = true;
-    this.blockedReason = `Blocked due to report: ${report.reason}`;
-    this.blockedAt = new Date();
-    this.blockedBy = moderatorId;
-    this.verificationScore = Math.max(0, this.verificationScore - 30);
-  }
-
-  return this.save();
-};
-
-// Method to add comment
-verificationWallSchema.methods.addComment = async function(userId, text) {
-  if (this.isBlocked) {
-    throw new Error('Cannot comment on blocked post');
-  }
-
-  this.comments.push({
-    userId,
-    text: text.trim(),
-    timestamp: new Date()
-  });
-
-  return this.save();
-};
-
-// Method to like/unlike
-verificationWallSchema.methods.toggleLike = async function(userId) {
-  const existingLike = this.likes.find(like =>
-    like.userId.toString() === userId.toString()
-  );
-
-  if (existingLike) {
-    // Unlike
-    this.likes = this.likes.filter(like =>
-      like.userId.toString() !== userId.toString()
-    );
-  } else {
-    // Like
-    this.likes.push({
-      userId,
-      timestamp: new Date()
-    });
-  }
-
-  return this.save();
-};
-
-// Static method to get public posts
-verificationWallSchema.statics.getPublicPosts = function(limit = 20, skip = 0) {
-  return this.find({ isBlocked: false })
-    .populate('userId', 'username displayName avatar')
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .skip(skip);
-};
-
-// Static method to get reported posts for moderation
-verificationWallSchema.statics.getReportedPosts = function() {
-  return this.find({
-    'reports.status': 'pending',
-    isBlocked: false
-  })
-    .populate('userId', 'username displayName avatar')
-    .populate('reports.userId', 'username')
-    .sort({ 'reports.timestamp': -1 });
-};
-
-const VerificationWall = mongoose.model('VerificationWall', verificationWallSchema);
 
 // Password Reset Token Schema
 const passwordResetTokenSchema = new mongoose.Schema({
@@ -869,7 +496,238 @@ const webhookLogSchema = new mongoose.Schema({
 
 const WebhookLog = mongoose.model('WebhookLog', webhookLogSchema);
 
+// Verification Wall Schema
+const verificationWallSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+  photoUrl: {
+    type: String,
+    required: true
+  },
+  photoThumbnail: String,
+  photoMetadata: {
+    width: Number,
+    height: Number,
+    size: Number,
+    format: String,
+    uploadedAt: Date
+  },
+  streakId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Streak'
+  },
+  activityType: {
+    type: String,
+    enum: ['walk', 'run', 'hike', 'sports', 'gardening', 'picnic', 'meditation', 'reading', 'other'],
+    required: true
+  },
+  duration: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 1440
+  },
+  location: {
+    lat: Number,
+    lng: Number,
+    name: String,
+    address: String
+  },
+  caption: {
+    type: String,
+    maxlength: 500,
+    trim: true
+  },
+  tags: [String],
+  likes: [{
+    userId: mongoose.Schema.Types.ObjectId,
+    timestamp: Date
+  }],
+  comments: [{
+    userId: mongoose.Schema.Types.ObjectId,
+    text: String,
+    timestamp: Date,
+    likes: [{
+      userId: mongoose.Schema.Types.ObjectId,
+      timestamp: Date
+    }]
+  }],
+  reports: [{
+    userId: mongoose.Schema.Types.ObjectId,
+    reason: {
+      type: String,
+      enum: ['fake_photo', 'inappropriate', 'spam', 'copyright', 'other'],
+      required: true
+    },
+    details: String,
+    timestamp: Date,
+    status: {
+      type: String,
+      enum: ['pending', 'reviewed', 'dismissed'],
+      default: 'pending'
+    }
+  }],
+  isBlocked: {
+    type: Boolean,
+    default: false
+  },
+  blockedReason: String,
+  blockedAt: Date,
+  blockedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  views: {
+    type: Number,
+    default: 0
+  },
+  shares: {
+    type: Number,
+    default: 0
+  },
+  isVerified: {
+    type: Boolean,
+    default: true
+  },
+  verificationScore: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 100
+  }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
 
+// Indexes
+verificationWallSchema.index({ userId: 1, createdAt: -1 });
+verificationWallSchema.index({ createdAt: -1 });
+verificationWallSchema.index({ isBlocked: 1 });
+verificationWallSchema.index({ 'reports.status': 1 });
+
+// Virtuals
+verificationWallSchema.virtual('totalReports').get(function() {
+  return this.reports.length;
+});
+
+verificationWallSchema.virtual('pendingReports').get(function() {
+  return this.reports.filter(report => report.status === 'pending').length;
+});
+
+verificationWallSchema.virtual('likeCount').get(function() {
+  return this.likes.length;
+});
+
+verificationWallSchema.virtual('commentCount').get(function() {
+  return this.comments.length;
+});
+
+// Methods
+verificationWallSchema.methods.addReport = async function(userId, reason, details = '') {
+  const existingReport = this.reports.find(report =>
+    report.userId.toString() === userId.toString()
+  );
+
+  if (existingReport) {
+    throw new Error('You have already reported this post');
+  }
+
+  this.reports.push({
+    userId,
+    reason,
+    details,
+    timestamp: new Date(),
+    status: 'pending'
+  });
+
+  if (this.pendingReports >= 5) {
+    this.isBlocked = true;
+    this.blockedReason = 'Multiple reports received';
+    this.blockedAt = new Date();
+    this.verificationScore = Math.max(0, this.verificationScore - 20);
+  }
+
+  return this.save();
+};
+
+verificationWallSchema.methods.moderateReport = async function(reportId, action, moderatorId) {
+  const report = this.reports.id(reportId);
+  if (!report) {
+    throw new Error('Report not found');
+  }
+
+  report.status = action === 'block' ? 'reviewed' : 'dismissed';
+
+  if (action === 'block') {
+    this.isBlocked = true;
+    this.blockedReason = `Blocked due to report: ${report.reason}`;
+    this.blockedAt = new Date();
+    this.blockedBy = moderatorId;
+    this.verificationScore = Math.max(0, this.verificationScore - 30);
+  }
+
+  return this.save();
+};
+
+verificationWallSchema.methods.addComment = async function(userId, text) {
+  if (this.isBlocked) {
+    throw new Error('Cannot comment on blocked post');
+  }
+
+  this.comments.push({
+    userId,
+    text: text.trim(),
+    timestamp: new Date()
+  });
+
+  return this.save();
+};
+
+verificationWallSchema.methods.toggleLike = async function(userId) {
+  const existingLike = this.likes.find(like =>
+    like.userId.toString() === userId.toString()
+  );
+
+  if (existingLike) {
+    this.likes = this.likes.filter(like =>
+      like.userId.toString() !== userId.toString()
+    );
+  } else {
+    this.likes.push({
+      userId,
+      timestamp: new Date()
+    });
+  }
+
+  return this.save();
+};
+
+// Statics
+verificationWallSchema.statics.getPublicPosts = function(limit = 20, skip = 0) {
+  return this.find({ isBlocked: false })
+    .populate('userId', 'username displayName avatar')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+};
+
+verificationWallSchema.statics.getReportedPosts = function() {
+  return this.find({
+    'reports.status': 'pending',
+    isBlocked: false
+  })
+    .populate('userId', 'username displayName avatar')
+    .populate('reports.userId', 'username')
+    .sort({ 'reports.timestamp': -1 });
+};
+
+const VerificationWall = mongoose.model('VerificationWall', verificationWallSchema);
 
 // ========== AUTHENTICATION MIDDLEWARE ==========
 
@@ -952,21 +810,104 @@ app.get('/api', (req, res) => {
         shame: 'POST /api/streaks/shame',
         userStreak: 'GET /api/streaks/user/:userId'
       },
-      leaderboard: 'GET /api/leaderboard',
-      leaderboardUserRank: 'GET /api/leaderboard/user-rank/:userId',
+      leaderboard: {
+        global: 'GET /api/leaderboard',
+        userRank: 'GET /api/leaderboard/user-rank/:userId',
+        city: 'GET /api/leaderboard/city/:city'
+      },
+      verification: {
+        wall: 'GET /api/verification-wall',
+        like: 'POST /api/verification-wall/:postId/like',
+        report: 'POST /api/verification-wall/:postId/report',
+        comment: 'POST /api/verification-wall/:postId/comment',
+        upload: 'POST /api/upload/verification'
+      },
+      chat: {
+        messages: 'GET /api/chat/messages',
+        send: 'POST /api/chat/messages',
+        online: 'GET /api/chat/online-users'
+      },
+      notifications: {
+        list: 'GET /api/notifications',
+        markRead: 'PUT /api/notifications/:id/read'
+      },
+      dodo: {
+        checkout: 'GET /api/dodo/checkout/:plan'
+      },
       seo: {
         sitemap: 'GET /api/seo/sitemap.xml',
         robots: 'GET /api/seo/robots.txt'
+      },
+      debug: {
+        users: 'GET /api/debug/users',
+        payments: 'GET /api/debug/payments',
+        streaks: 'GET /api/debug/streaks'
       }
-    },
-    dodo: {
-      checkout: 'GET /api/dodo/checkout/:plan',
-      webhook: 'POST /api/dodo/webhook'
     }
   });
 });
 
 // ========== SEO ROUTES ==========
+
+// Sitemap generator class
+class SitemapGenerator {
+  constructor(baseUrl) {
+    this.baseUrl = baseUrl;
+  }
+
+  async generate() {
+    const urls = [
+      { loc: '/', priority: '1.0' },
+      { loc: '/about', priority: '0.8' },
+      { loc: '/features', priority: '0.8' },
+      { loc: '/pricing', priority: '0.7' },
+      { loc: '/leaderboard', priority: '0.9' },
+      { loc: '/login', priority: '0.5' },
+      { loc: '/register', priority: '0.5' }
+    ];
+
+    const users = await User.find({}, 'username').limit(100);
+    users.forEach(user => {
+      urls.push({ 
+        loc: `/profile/${user.username}`, 
+        priority: '0.6',
+        lastmod: new Date().toISOString().split('T')[0]
+      });
+    });
+
+    return this.generateXML(urls);
+  }
+
+  async generateStatic() {
+    const urls = [
+      { loc: '/', priority: '1.0' },
+      { loc: '/about', priority: '0.8' },
+      { loc: '/features', priority: '0.8' },
+      { loc: '/pricing', priority: '0.7' },
+      { loc: '/leaderboard', priority: '0.9' },
+      { loc: '/login', priority: '0.5' },
+      { loc: '/register', priority: '0.5' }
+    ];
+
+    return this.generateXML(urls);
+  }
+
+  generateXML(urls) {
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+    urls.forEach(url => {
+      xml += '  <url>\n';
+      xml += `    <loc>${this.baseUrl}${url.loc}</loc>\n`;
+      if (url.lastmod) xml += `    <lastmod>${url.lastmod}</lastmod>\n`;
+      xml += `    <priority>${url.priority}</priority>\n`;
+      xml += '  </url>\n';
+    });
+
+    xml += '</urlset>';
+    return xml;
+  }
+}
 
 // Sitemap route
 app.get('/api/seo/sitemap.xml', async (req, res) => {
@@ -1147,11 +1088,9 @@ app.post('/api/auth/google', async (req, res) => {
       });
     }
     
-    // Check if user already exists
     let user = await User.findOne({ email });
     
     if (!user) {
-      // Create new user from Google data
       const username = email.split('@')[0] + '_' + Math.random().toString(36).substr(2, 5);
       
       user = new User({
@@ -1159,7 +1098,7 @@ app.post('/api/auth/google', async (req, res) => {
         username,
         displayName: name,
         avatar: picture || '',
-        password: crypto.randomBytes(16).toString('hex'), // Random password for Google users
+        password: crypto.randomBytes(16).toString('hex'),
         stats: {
           currentStreak: 0,
           longestStreak: 0,
@@ -1174,7 +1113,6 @@ app.post('/api/auth/google', async (req, res) => {
       
       await user.save();
       
-      // Create streak for new user
       const streak = new Streak({
         userId: user._id,
         currentStreak: 0,
@@ -1219,44 +1157,36 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       });
     }
     
-    // Find user by email
     const user = await User.findOne({ email });
     
     if (!user) {
-      // For security, don't reveal if user exists
       return res.json({
         success: true,
         message: 'If an account exists with this email, you will receive a password reset link'
       });
     }
     
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto
       .createHash('sha256')
       .update(resetToken)
       .digest('hex');
     
-    // Create reset token in database
     const resetTokenDoc = new PasswordResetToken({
       userId: user._id,
       token: hashedToken,
-      expiresAt: new Date(Date.now() + 3600000) // 1 hour
+      expiresAt: new Date(Date.now() + 3600000)
     });
     
     await resetTokenDoc.save();
     
-    // In a real app, you would send an email here
-    // For now, we'll return the token in development
     const resetUrl = `${FRONTEND_URL}/reset-password/${resetToken}`;
     
     console.log('📧 Password reset URL (dev mode):', resetUrl);
-    console.log('For production, implement email sending with nodemailer');
     
     res.json({
       success: true,
       message: 'Password reset initiated',
-      // In development, return the token for testing
       ...(NODE_ENV === 'development' && { 
         resetToken,
         resetUrl,
@@ -1285,13 +1215,11 @@ app.get('/api/auth/reset-password/:token', async (req, res) => {
       });
     }
     
-    // Hash the token to compare with stored hash
     const hashedToken = crypto
       .createHash('sha256')
       .update(token)
       .digest('hex');
     
-    // Find valid reset token
     const resetToken = await PasswordResetToken.findOne({
       token: hashedToken,
       used: false,
@@ -1340,13 +1268,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
       });
     }
     
-    // Hash the token to compare with stored hash
     const hashedToken = crypto
       .createHash('sha256')
       .update(token)
       .digest('hex');
     
-    // Find valid reset token
     const resetToken = await PasswordResetToken.findOne({
       token: hashedToken,
       used: false,
@@ -1360,16 +1286,13 @@ app.post('/api/auth/reset-password', async (req, res) => {
       });
     }
     
-    // Update user's password
     const user = resetToken.userId;
     user.password = newPassword;
     await user.save();
     
-    // Mark token as used
     resetToken.used = true;
     await resetToken.save();
     
-    // Delete all other reset tokens for this user
     await PasswordResetToken.deleteMany({
       userId: user._id,
       used: false
@@ -1443,7 +1366,6 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
     
     const user = await User.findById(req.user._id);
     
-    // Verify current password
     const isPasswordValid = await user.comparePassword(currentPassword);
     
     if (!isPasswordValid) {
@@ -1453,7 +1375,6 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
       });
     }
     
-    // Update password
     user.password = newPassword;
     await user.save();
     
@@ -1670,10 +1591,10 @@ app.get('/api/users/:userId/achievements', authenticateToken, async (req, res) =
 
 app.get('/api/streaks/current', authenticateToken, async (req, res) => {
   try {
-    const streak = await Streak.findOne({ userId: req.user._id });
+    let streak = await Streak.findOne({ userId: req.user._id });
     
     if (!streak) {
-      const newStreak = new Streak({
+      streak = new Streak({
         userId: req.user._id,
         currentStreak: 0,
         longestStreak: 0,
@@ -1681,11 +1602,11 @@ app.get('/api/streaks/current', authenticateToken, async (req, res) => {
         todayVerified: false,
         history: []
       });
-      await newStreak.save();
+      await streak.save();
       
       return res.json({
         success: true,
-        streak: newStreak
+        streak
       });
     }
     
@@ -1835,11 +1756,10 @@ app.post('/api/streaks/verify', authenticateToken, async (req, res) => {
     
     await user.save();
     
-    // Create verification wall post if method is photo or manual
     if (method === 'photo' || method === 'manual') {
       const wallPost = new VerificationWall({
         userId: req.user._id,
-        photoUrl: req.body.photoUrl || '', // If photoUrl is provided in body
+        photoUrl: req.body.photoUrl || '',
         activityType: req.body.activityType || 'other',
         duration: parseInt(duration),
         location: req.body.location || null,
@@ -1975,7 +1895,6 @@ app.get('/api/dodo/checkout/:plan', authenticateToken, async (req, res) => {
   try {
     const { plan } = req.params;
     
-    // Dodo product URLs from your environment
     const dodoUrls = {
       pro: process.env.DODO_PRO_PRODUCT_URL || 'https://checkout.dodopayments.com/buy/pdt_0NWPkwJJcZChm84jRPqIt',
       enterprise: process.env.DODO_ENTERPRISE_PRODUCT_URL || 'https://checkout.dodopayments.com/buy/pdt_0NWPl4fuR5huBMtu7YAKT',
@@ -1989,7 +1908,6 @@ app.get('/api/dodo/checkout/:plan', authenticateToken, async (req, res) => {
       });
     }
     
-    // Add user metadata to the URL
     let checkoutUrl = dodoUrls[plan] + '?quantity=1';
     
     if (req.user) {
@@ -2002,7 +1920,6 @@ app.get('/api/dodo/checkout/:plan', authenticateToken, async (req, res) => {
       checkoutUrl = urlObj.toString();
     }
     
-    // Log the payment attempt
     const payment = new Payment({
       userId: req.user._id,
       paymentId: `dodo_${Date.now()}_${plan}`,
@@ -2157,8 +2074,8 @@ app.get('/api/verification-wall', async (req, res) => {
   try {
     const { page = 1, limit = 20, filter = 'recent' } = req.query;
 
-    let query = { isBlocked: false }; // Only show public posts
-    let sort = { createdAt: -1 }; // recent first
+    let query = { isBlocked: false };
+    let sort = { createdAt: -1 };
 
     switch (filter) {
       case 'popular':
@@ -2205,7 +2122,7 @@ app.get('/api/verification-wall', async (req, res) => {
       verificationScore: post.verificationScore,
       createdAt: post.createdAt,
       likes: post.likes,
-      comments: post.comments.slice(-3), // Last 3 comments
+      comments: post.comments.slice(-3),
       reports: post.reports
     }));
 
@@ -2231,6 +2148,49 @@ app.get('/api/verification-wall', async (req, res) => {
   }
 });
 
+// Create new verification wall post
+app.post('/api/verification-wall', authenticateToken, async (req, res) => {
+  try {
+    const { photoUrl, activityType, duration, location, caption } = req.body;
+
+    // Validate required fields
+    if (!photoUrl || !activityType || !duration) {
+      return res.status(400).json({
+        success: false,
+        message: 'Photo URL, activity type, and duration are required'
+      });
+    }
+
+    // Create new post
+    const newPost = new VerificationWall({
+      userId: req.user._id,
+      photoUrl,
+      activityType,
+      duration,
+      location: location || 'Outdoors',
+      caption: caption || '',
+      likes: [],
+      comments: [],
+      reports: []
+    });
+
+    await newPost.save();
+    await newPost.populate('userId', 'username displayName avatar');
+
+    res.status(201).json({
+      success: true,
+      message: 'Post created successfully',
+      post: newPost
+    });
+  } catch (error) {
+    console.error('Create verification wall error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // Like a post
 app.post('/api/verification-wall/:postId/like', authenticateToken, async (req, res) => {
   try {
@@ -2248,7 +2208,6 @@ app.post('/api/verification-wall/:postId/like', authenticateToken, async (req, r
     const likeIndex = post.likes.findIndex(like => like.userId.toString() === userId.toString());
 
     if (likeIndex > -1) {
-      // Unlike
       post.likes.splice(likeIndex, 1);
       await post.save();
 
@@ -2258,8 +2217,7 @@ app.post('/api/verification-wall/:postId/like', authenticateToken, async (req, r
         liked: false
       });
     } else {
-      // Like
-      post.likes.push({ userId, createdAt: new Date() });
+      post.likes.push({ userId, timestamp: new Date() });
       await post.save();
 
       res.json({
@@ -2293,8 +2251,7 @@ app.post('/api/verification-wall/:postId/report', authenticateToken, async (req,
       });
     }
 
-    // Check if user already reported
-    const existingReport = post.reports.find(report => report.reportedBy.toString() === userId.toString());
+    const existingReport = post.reports.find(report => report.userId.toString() === userId.toString());
     if (existingReport) {
       return res.status(400).json({
         success: false,
@@ -2303,10 +2260,11 @@ app.post('/api/verification-wall/:postId/report', authenticateToken, async (req,
     }
 
     post.reports.push({
-      reportedBy: userId,
+      userId,
       reason,
       details,
-      createdAt: new Date()
+      timestamp: new Date(),
+      status: 'pending'
     });
 
     await post.save();
@@ -2347,16 +2305,13 @@ app.post('/api/verification-wall/:postId/comment', authenticateToken, async (req
       });
     }
 
-    const comment = {
+    post.comments.push({
       userId,
       text: text.trim(),
-      createdAt: new Date()
-    };
+      timestamp: new Date()
+    });
 
-    post.comments.push(comment);
     await post.save();
-
-    // Populate user info for response
     await post.populate('comments.userId', 'username displayName avatar');
 
     const newComment = post.comments[post.comments.length - 1];
@@ -2373,7 +2328,7 @@ app.post('/api/verification-wall/:postId/comment', authenticateToken, async (req
           avatar: newComment.userId.avatar
         },
         text: newComment.text,
-        createdAt: newComment.createdAt
+        timestamp: newComment.timestamp
       }
     });
 
@@ -2382,6 +2337,124 @@ app.post('/api/verification-wall/:postId/comment', authenticateToken, async (req
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// ========== UPLOAD ROUTES ==========
+
+// @route   POST /api/upload/verification
+// @desc    Upload verification photo/video
+// @access  Private
+app.post('/api/upload/verification', authenticateToken, verificationUpload.single('media'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'NO_FILE',
+        message: 'No file uploaded'
+      });
+    }
+
+    const { streakId } = req.body;
+
+    if (streakId) {
+      const streak = await Streak.findOne({
+        _id: streakId,
+        userId: req.user._id
+      });
+
+      if (!streak) {
+        return res.status(404).json({
+          success: false,
+          error: 'STREAK_NOT_FOUND',
+          message: 'Streak not found or access denied'
+        });
+      }
+    }
+
+    let optimizedUrl;
+    const isVideo = req.file.mimetype.startsWith('video/');
+
+    if (isVideo) {
+      optimizedUrl = cloudinary.url(req.file.filename, {
+        resource_type: 'video',
+        transformation: [
+          { width: 1280, height: 720, crop: 'limit' },
+          { quality: 'auto', fetch_format: 'auto' }
+        ]
+      });
+
+      const thumbnailUrl = cloudinary.url(req.file.filename, {
+        resource_type: 'video',
+        transformation: [
+          { width: 400, height: 400, crop: 'fill' },
+          { format: 'jpg' }
+        ]
+      });
+
+      res.json({
+        success: true,
+        message: 'Verification video uploaded successfully',
+        media: {
+          url: optimizedUrl,
+          thumbnail: thumbnailUrl,
+          type: 'video',
+          duration: req.file.duration || null,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        },
+        streakId
+      });
+
+    } else {
+      optimizedUrl = cloudinary.url(req.file.filename, {
+        transformation: [
+          { width: 1200, height: 1200, crop: 'limit' },
+          { quality: 'auto', fetch_format: 'auto' }
+        ]
+      });
+
+      res.json({
+        success: true,
+        message: 'Verification photo uploaded successfully',
+        media: {
+          url: optimizedUrl,
+          type: 'image',
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          dimensions: {
+            width: req.file.width,
+            height: req.file.height
+          }
+        },
+        streakId
+      });
+    }
+
+  } catch (err) {
+    console.error('Upload verification error:', err);
+    
+    if (err.message.includes('File type not allowed')) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_FILE_TYPE',
+        message: 'Only image and video files are allowed'
+      });
+    }
+
+    if (err.message.includes('File too large')) {
+      return res.status(400).json({
+        success: false,
+        error: 'FILE_TOO_LARGE',
+        message: 'File size must be less than 15MB'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'SERVER_ERROR',
+      message: 'Server error uploading verification media'
     });
   }
 });
@@ -2646,7 +2719,481 @@ app.get('/api/debug/streaks', async (req, res) => {
   }
 });
 
+// ========== CHALLENGE ROUTES ==========
 
+// Use existing Challenge model if it exists, otherwise create it
+let Challenge;
+try {
+  Challenge = mongoose.model('Challenge');
+} catch (e) {
+  const challengeSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    type: { type: String, enum: ['streak', 'consistency', 'milestone'], default: 'streak' },
+    description: { type: String, required: true },
+    category: { type: String, default: 'daily' },
+    difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
+    settings: {
+      duration: { value: { type: Number, default: 30 }, unit: { type: String, default: 'days' } },
+      entryFee: { type: Number, default: 0 },
+      prizePool: { type: Number, default: 0 },
+      maxParticipants: { type: Number, default: 0 },
+      minParticipants: { type: Number, default: 1 },
+      visibility: { type: String, enum: ['public', 'private', 'unlisted'], default: 'public' },
+      verificationRequired: { type: Boolean, default: true },
+      allowShameDays: { type: Boolean, default: false },
+      strictMode: { type: Boolean, default: false }
+    },
+    rules: {
+      targetStreak: { type: Number, default: 30 },
+      minDailyTime: { type: Number, default: 10 },
+      allowedVerificationMethods: { type: [String], default: ['photo', 'location'] },
+      freezeAllowed: { type: Boolean, default: false },
+      skipAllowed: { type: Boolean, default: false }
+    },
+    status: { type: String, enum: ['active', 'completed', 'archived'], default: 'active' },
+    metadata: {
+      isBuiltIn: { type: Boolean, default: false },
+      tags: [String],
+      themeColor: String,
+      bannerImage: String,
+      requiresVerification: { type: Boolean, default: true }
+    },
+    creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    duration: { type: Number, default: 30 },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+  }, { timestamps: true });
+  Challenge = mongoose.model('Challenge', challengeSchema);
+}
+
+// Use existing UserChallenge model if it exists, otherwise create it
+let UserChallenge;
+try {
+  UserChallenge = mongoose.model('UserChallenge');
+} catch (e) {
+  const userChallengeSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenge', required: true },
+    joinedAt: { type: Date, default: Date.now },
+    progress: { type: Number, default: 0 },
+    currentStreak: { type: Number, default: 0 },
+    longestStreak: { type: Number, default: 0 },
+    totalProgress: { type: Number, default: 0 },
+    status: { type: String, enum: ['active', 'completed', 'abandoned'], default: 'active' },
+    completedAt: Date,
+    lastVerifiedAt: Date,
+    verificationHistory: [{
+      date: Date,
+      verified: Boolean,
+      method: String,
+      photoUrl: String,
+      location: Object
+    }],
+    shameDays: { type: Number, default: 0 },
+    dailyProgress: {
+      type: Map,
+      of: {
+        completed: { type: Boolean, default: false },
+        completedAt: Date,
+        notes: String,
+        verificationMethod: String
+      },
+      default: {}
+    }
+  }, { timestamps: true });
+  UserChallenge = mongoose.model('UserChallenge', userChallengeSchema);
+}
+
+// Get all available challenges (built-in)
+app.get('/api/challenges/built-in', async (req, res) => {
+  try {
+    const challenges = await Challenge.find({ 
+      'metadata.isBuiltIn': true,
+      status: 'active'
+    }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: challenges
+    });
+  } catch (error) {
+    console.error('Get built-in challenges error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get user's active challenges
+app.get('/api/challenges/user/:email/challenges', async (req, res) => {
+  try {
+    const userEmail = req.params.email;
+
+    const user = await User.findOne({ email: userEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userChallenges = await UserChallenge.find({
+      userId: user._id,
+      status: 'active'
+    }).populate('challengeId');
+
+    // Get today's date for checking daily completion
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayKey = today.toISOString().split('T')[0];
+
+    const challenges = userChallenges
+      .filter(uc => uc.challengeId) // Filter out null challengeId
+      .map(uc => {
+        // Convert Map to plain object if needed
+        let dailyProgress = {};
+        if (uc.dailyProgress) {
+          if (uc.dailyProgress instanceof Map) {
+            uc.dailyProgress.forEach((value, key) => {
+              dailyProgress[key] = value;
+            });
+          } else {
+            dailyProgress = uc.dailyProgress;
+          }
+        }
+        
+        return {
+          id: uc._id,
+          challengeId: uc.challengeId._id,
+          name: uc.challengeId.name,
+          description: uc.challengeId.description,
+          type: uc.challengeId.type,
+          category: uc.challengeId.category,
+          difficulty: uc.challengeId.difficulty,
+          duration: uc.challengeId.settings?.duration?.value || uc.challengeId.duration || 7,
+          progress: uc.totalProgress || 0,
+          joinedAt: uc.joinedAt,
+          status: uc.status,
+          rules: uc.challengeId.rules || [],
+          metadata: uc.challengeId.metadata || {},
+          icon: uc.challengeId.metadata?.bannerImage || '🎯',
+          participants: uc.challengeId.participants?.length || 0,
+          currentStreak: uc.currentStreak || 0,
+          longestStreak: uc.longestStreak || 0,
+          totalProgress: uc.totalProgress || 0,
+          dailyProgress: dailyProgress,
+          completedToday: dailyProgress[todayKey]?.completed || false
+        };
+      });
+
+    res.json({
+      success: true,
+      data: challenges
+    });
+  } catch (error) {
+    console.error('Get user challenges error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Join a challenge
+app.post('/api/challenges/:id/join', async (req, res) => {
+  try {
+    const challenge = await Challenge.findById(req.params.id);
+    if (!challenge) {
+      return res.status(404).json({
+        success: false,
+        message: 'Challenge not found'
+      });
+    }
+
+    const userEmail = req.headers['x-user-email'];
+    if (!userEmail) {
+      return res.status(401).json({
+        success: false,
+        message: 'User email required'
+      });
+    }
+
+    const user = await User.findOne({ email: userEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const existingJoin = await UserChallenge.findOne({
+      userId: user._id,
+      challengeId: challenge._id
+    });
+
+    if (existingJoin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Already joined this challenge'
+      });
+    }
+
+    const userChallenge = new UserChallenge({
+      userId: user._id,
+      challengeId: challenge._id,
+      joinedAt: new Date(),
+      totalProgress: 0,
+      status: 'active'
+    });
+
+    await userChallenge.save();
+
+    // Add user to challenge participants (proper format for the schema)
+    if (!challenge.participants) {
+      challenge.participants = [];
+    }
+    
+    // Check if user is already in participants
+    const existingParticipant = challenge.participants.find(
+      p => p.user && p.user.toString() === user._id.toString()
+    );
+    
+    if (!existingParticipant) {
+      challenge.participants.push({
+        user: user._id,
+        joinedAt: new Date(),
+        status: 'active',
+        score: 0,
+        progress: { current: 0, target: challenge.settings?.duration?.value || 0 }
+      });
+      await challenge.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Successfully joined challenge',
+      userChallenge: {
+        id: userChallenge._id,
+        challengeId: challenge._id,
+        joinedAt: userChallenge.joinedAt,
+        progress: userChallenge.totalProgress,
+        status: userChallenge.status
+      }
+    });
+  } catch (error) {
+    console.error('Join challenge error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Leave a challenge
+app.post('/api/challenges/:id/leave', async (req, res) => {
+  try {
+    const userEmail = req.headers['x-user-email'];
+    if (!userEmail) {
+      return res.status(401).json({
+        success: false,
+        message: 'User email required'
+      });
+    }
+
+    const user = await User.findOne({ email: userEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userChallenge = await UserChallenge.findOne({
+      userId: user._id,
+      challengeId: req.params.id
+    });
+
+    if (!userChallenge) {
+      return res.status(404).json({
+        success: false,
+        message: 'Not joined this challenge'
+      });
+    }
+
+    userChallenge.status = 'abandoned';
+    await userChallenge.save();
+
+    res.json({
+      success: true,
+      message: 'Successfully left challenge'
+    });
+  } catch (error) {
+    console.error('Leave challenge error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Verify/Complete daily challenge progress
+app.post('/api/challenges/:id/verify', async (req, res) => {
+  try {
+    const challengeId = req.params.id;
+    const userEmail = req.headers['x-user-email'];
+    
+    if (!userEmail) {
+      return res.status(401).json({
+        success: false,
+        message: 'User email required'
+      });
+    }
+
+    const user = await User.findOne({ email: userEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Find the user's challenge
+    const userChallenge = await UserChallenge.findOne({
+      userId: user._id,
+      challengeId: challengeId,
+      status: 'active'
+    });
+
+    if (!userChallenge) {
+      return res.status(404).json({
+        success: false,
+        message: 'Challenge not found or not joined'
+      });
+    }
+
+    // Get today's date (start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Initialize dailyProgress if not exists
+    if (!userChallenge.dailyProgress) {
+      userChallenge.dailyProgress = {};
+    }
+
+    // Check if already completed today
+    const todayKey = today.toISOString().split('T')[0];
+    if (userChallenge.dailyProgress[todayKey]?.completed) {
+      return res.json({
+        success: true,
+        message: 'Already completed today',
+        data: {
+          date: todayKey,
+          completed: true,
+          alreadyDone: true
+        }
+      });
+    }
+
+    // Mark today as completed
+    userChallenge.dailyProgress[todayKey] = {
+      completed: true,
+      completedAt: new Date(),
+      notes: req.body?.notes || '',
+      verificationMethod: req.body?.verificationMethod || 'manual'
+    };
+
+    // Update progress
+    userChallenge.totalProgress = (userChallenge.totalProgress || 0) + 1;
+    
+    // Update streak
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().split('T')[0];
+    
+    if (userChallenge.dailyProgress[yesterdayKey]?.completed) {
+      userChallenge.currentStreak = (userChallenge.currentStreak || 0) + 1;
+    } else {
+      userChallenge.currentStreak = 1;
+    }
+    
+    userChallenge.longestStreak = Math.max(
+      userChallenge.longestStreak || 0,
+      userChallenge.currentStreak
+    );
+    
+    userChallenge.lastActivity = new Date();
+    
+    await userChallenge.save();
+
+    res.json({
+      success: true,
+      message: 'Daily progress verified successfully',
+      data: {
+        date: todayKey,
+        completed: true,
+        totalProgress: userChallenge.totalProgress,
+        currentStreak: userChallenge.currentStreak,
+        longestStreak: userChallenge.longestStreak
+      }
+    });
+  } catch (error) {
+    console.error('Verify challenge progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Get daily progress report
+app.get('/api/challenges/user/:email/daily-report', async (req, res) => {
+  try {
+    const userEmail = req.params.email;
+    const user = await User.findOne({ email: userEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const userChallenges = await UserChallenge.find({
+      userId: user._id,
+      status: 'active'
+    }).populate('challengeId');
+
+    const report = {
+      date: today.toISOString().split('T')[0],
+      totalChallenges: userChallenges.length,
+      challengesDueToday: [],
+      progressMadeToday: 0,
+      streakMaintained: 0
+    };
+
+    res.json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    console.error('Get daily report error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
 
 // ========== 404 HANDLER ==========
 app.use('/api/*', (req, res) => {
@@ -2672,7 +3219,7 @@ app.use('/api/*', (req, res) => {
       '/api/chat/messages',
       '/api/dodo/checkout/:plan',
       '/api/upload/verification',
-      '/api/upload/verification',
+      '/api/verification-wall',
       '/api/debug/*'
     ]
   });
@@ -2705,10 +3252,13 @@ app.use((err, req, res, next) => {
 });
 
 // ========== START SERVER ==========
-const server = http.createServer(app);
+let server;
 
 const startServer = (port) => {
-  server.listen(port, () => {
+  // Create a new server instance for each port attempt
+  const serverInstance = http.createServer(app);
+  
+  serverInstance.listen(port, () => {
     console.log(`
     🚀 TouchGrass Backend Server Started!
     
@@ -2732,36 +3282,52 @@ const startServer = (port) => {
     ├── GET    /api/dodo/checkout/:plan      - Get checkout URL for plan
     └── Webhook endpoint ready for production
     
+    📸 Verification Wall: ✅ Enabled
+    ├── GET    /api/verification-wall        - Get posts
+    ├── POST   /api/upload/verification      - Upload media
+    ├── POST   /api/verification-wall/:postId/like - Like post
+    ├── POST   /api/verification-wall/:postId/report - Report post
+    └── POST   /api/verification-wall/:postId/comment - Add comment
+    
     🎯 Available Endpoints:
     ├── GET    /api/health                    - Health check
     ├── POST   /api/auth/register             - Register user
     ├── POST   /api/auth/login                - Login user
     ├── GET    /api/auth/me                   - Get profile (protected)
     ├── GET    /api/users/:username           - Get user profile
-    ├── PUT    /api/users/bio                 - Update bio
-    ├── PUT    /api/users/avatar              - Update avatar
-    ├── POST   /api/users/:userId/follow      - Follow/unfollow
-    ├── GET    /api/streaks/current           - Current streak
-    ├── POST   /api/streaks/verify            - Verify streak
-    ├── POST   /api/streaks/shame             - Accept shame day
-    ├── GET    /api/streaks/user/:userId      - Get user streak
-    ├── GET    /api/dodo/checkout/:plan       - Dodo checkout
-    ├── GET    /api/leaderboard               - Global leaderboard
+    ├── PUT    /api/users/bio                  - Update bio
+    ├── PUT    /api/users/avatar               - Update avatar
+    ├── POST   /api/users/:userId/follow       - Follow/unfollow
+    ├── GET    /api/streaks/current            - Current streak
+    ├── POST   /api/streaks/verify             - Verify streak
+    ├── POST   /api/streaks/shame              - Accept shame day
+    ├── GET    /api/streaks/user/:userId       - Get user streak
+    ├── GET    /api/dodo/checkout/:plan        - Dodo checkout
+    ├── GET    /api/leaderboard                 - Global leaderboard
     ├── GET    /api/leaderboard/user-rank/:userId - Get user rank
-    ├── GET    /api/leaderboard/city/:city    - City leaderboard
-    ├── GET    /api/notifications             - Get notifications
-    ├── PUT    /api/notifications/:id/read    - Mark notification as read
-    ├── GET    /api/chat/messages             - Get chat messages
-    ├── POST   /api/chat/messages             - Send chat message
-    ├── GET    /api/chat/online-users         - Get online users
-    ├── POST   /api/upload/verification       - Upload verification media
-    ├── GET    /api/debug/users               - Debug: all users
-    ├── GET    /api/debug/payments            - Debug: all payments
-    ├── GET    /api/debug/streaks             - Debug: all streaks
+    ├── GET    /api/leaderboard/city/:city      - City leaderboard
+    ├── GET    /api/notifications               - Get notifications
+    ├── PUT    /api/notifications/:id/read      - Mark notification as read
+    ├── GET    /api/chat/messages                - Get chat messages
+    ├── POST   /api/chat/messages                - Send chat message
+    ├── GET    /api/chat/online-users            - Get online users
+    ├── POST   /api/upload/verification          - Upload verification media
+    ├── GET    /api/verification-wall            - Get verification wall posts
+    ├── POST   /api/verification-wall/:postId/like - Like post
+    ├── POST   /api/verification-wall/:postId/report - Report post
+    ├── POST   /api/verification-wall/:postId/comment - Add comment
+    ├── GET    /api/seo/sitemap.xml              - Sitemap for SEO
+    ├── GET    /api/seo/robots.txt               - Robots.txt for SEO
+    ├── GET    /api/debug/users                   - Debug: all users
+    ├── GET    /api/debug/payments                - Debug: all payments
+    └── GET    /api/debug/streaks                 - Debug: all streaks
     
-    🔑 Authentication: Bearer token required for protected routes
+     🔑 Authentication: Bearer token required for protected routes
     💡 Tip: Test with Postman or curl first
     `);
+    
+    // Update the global server reference to the new instance
+    server = serverInstance;
   }).on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
       console.log(`⚠️  Port ${port} is busy, trying ${port + 1}...`);

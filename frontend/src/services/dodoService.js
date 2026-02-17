@@ -1,12 +1,10 @@
 import React from 'react';
-  
- 
-  import axios from 'axios';
+
 
 class DodoService {
   constructor() {
     this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+      baseURL: import.meta.env.VITE_API_URL || 'https://touchgrass-backend.onrender.com/api',
     });
     
     // Add auth token to requests

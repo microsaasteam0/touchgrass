@@ -499,10 +499,16 @@ export const AuthProvider = ({ children }) => {
         }
 
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        // Handle AbortError specifically - this is expected in some network conditions
+        if (error.name === 'AbortError' || (error.message && error.message.includes('aborted'))) {
+          console.warn('Auth initialization aborted - this is non-critical');
+        } else {
+          console.error('Auth initialization error:', error.message || error);
+        }
         // Even on error, set user to null and continue
         if (mounted) {
           setUser(null);
+          setSession(null);
         }
       } finally {
         if (mounted) {

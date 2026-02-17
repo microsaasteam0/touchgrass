@@ -3,6 +3,35 @@ const Challenge = require('../src/models/Challenge');
 const User = require('../src/models/user');
 require('dotenv').config();
 
+// Connect to MongoDB
+async function connectDB() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/touchgrass');
+    console.log('MongoDB connected');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  }
+}
+
+// Main seeding function
+async function seedBuiltInChallenges() {
+  try {
+    await connectDB();
+
+    // Create system user if not exists
+    let systemUser = await User.findOne({ email: 'system@touchgrass.now' });
+    if (!systemUser) {
+      systemUser = new User({
+        email: 'system@touchgrass.now',
+        displayName: 'System',
+        username: 'system',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=system'
+      });
+      await systemUser.save();
+      console.log('System user created');
+    }
+
 const builtInChallenges = [
   {
     name: "The First 10 Minutes",

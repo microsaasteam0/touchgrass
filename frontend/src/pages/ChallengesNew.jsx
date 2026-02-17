@@ -2,248 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-// import ChallengeService from '../services/ChallengeService';
+import challengeService from '../services/challengeService';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/layout/LoadingSpinner';
 import Confetti from '../components/ui/Confetti';
 import SEO from '../components/seo/SEO';
 import { SEO_CONFIG } from '../config/seo';
-
-// REAL BACKEND API CALLS - UPDATED WITH SUPABASE AUTH
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001/api';
-
-// Helper to get Supabase auth token
-const getAuthToken = () => {
-  // Get from Supabase session
-  const supabaseSession = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}');
-
-  // Try different possible locations for the token
-  if (supabaseSession.currentSession?.access_token) {
-    return supabaseSession.currentSession.access_token;
-  }
-
-  if (supabaseSession.access_token) {
-    return supabaseSession.access_token;
-  }
-
-  // Check for Supabase auth token
-  const supabaseAuth = JSON.parse(localStorage.getItem('sb-tmgwvnpmacrqcykqpggl-auth-token') || '{}');
-  if (supabaseAuth.access_token) {
-    return supabaseAuth.access_token;
-  }
-
-  // Fallback to your current token storage
-  return localStorage.getItem('token') || localStorage.getItem('authToken');
-};
-
-const realBackend = {
-  // REAL: Join a challenge
-  joinChallenge: async (challengeId) => {
-
-    const token = getAuthToken();
-
-    if (!token) {
-      throw new Error('Authentication required. Please log in again.');
-    }
-
-    try {
-      // Get user data first to ensure we're authenticated
-      const userResponse = await fetch(`${BACKEND_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!userResponse.ok) {
-        throw new Error(`Not authenticated: ${userResponse.status}`);
-      }
-
-      const userData = await userResponse.json();
-
-      // Try to join challenge via streaks endpoint (since challenges endpoint may not exist)
-      const response = await fetch(`${BACKEND_URL}/streaks/verify`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          challengeId: challengeId,
-          action: 'join_challenge',
-          userId: userData._id || userData.id,
-          timestamp: new Date().toISOString()
-        })
-      });
-
-      if (!response.ok && response.status !== 404) {
-        throw new Error(`Failed to join challenge: ${response.status}`);
-      }
-
-      // If streaks/verify doesn't work, simulate success
-      const result = response.ok ? await response.json() : {
-        success: true,
-        message: 'Challenge joined (backend endpoint being implemented)',
-        challengeId,
-        userId: userData._id || userData.id,
-        joinedAt: new Date().toISOString()
-      };
-
-      return result;
-
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  // REAL: Get user's challenges from database - UPDATED
-  getUserChallenges: async () => {
-
-    const token = getAuthToken();
-
-    if (!token) {
-      return [];
-    }
-
-    try {
-      // Get user data
-      const userResponse = await fetch(`${BACKEND_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!userResponse.ok) {
-        return [];
-      }
-
-      const userData = await userResponse.json();
-
-      const userId = userData._id || userData.id;
-
-      if (!userId) {
-        return [];
-      }
-
-      // Try to get user's challenges from backend
-      // First check if user has challenges in their profile
-      if (userData.joinedChallenges && Array.isArray(userData.joinedChallenges)) {
-        return userData.joinedChallenges;
-      }
-
-      // Try to fetch from challenges endpoint
-      try {
-        const challengesResponse = await fetch(`${BACKEND_URL}/user/challenges`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (challengesResponse.ok) {
-          const challenges = await challengesResponse.json();
-          return challenges;
-        }
-      } catch (endpointError) {
-      }
-
-      // Try to get streak data which might include challenges
-      try {
-        const streakResponse = await fetch(`${BACKEND_URL}/streaks/user/${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (streakResponse.ok) {
-          const streakData = await streakResponse.json();
-
-          // Convert streak data to challenge format
-          if (streakData.currentStreak > 0) {
-            const streakChallenge = {
-              id: 'daily-streak-challenge',
-              title: 'Daily Outdoor Streak',
-              description: `Current streak: ${streakData.currentStreak} days`,
-              progress: Math.min(100, (streakData.currentStreak / 30) * 100),
-              joinedAt: new Date().toISOString(),
-              type: 'streak',
-              challengeId: 'streak-challenge'
-            };
-
-            // Check if streak data has additional challenges
-            const additionalChallenges = streakData.challenges || streakData.activeChallenges || [];
-
-            return [streakChallenge, ...additionalChallenges];
-          }
-        }
-      } catch (streakError) {
-      }
-
-      // Return empty array (no challenges yet)
-      return [];
-
-    } catch (error) {
-      return []; // Return empty array on error
-    }
-  },
-
-  // REAL: Save streak to database
-  saveStreakData: async (streakData) => {
-
-    const token = getAuthToken();
-
-    if (!token) {
-      throw new Error('No auth token available');
-    }
-
-    const response = await fetch(`${BACKEND_URL}/streaks/update`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        ...streakData,
-        updatedAt: new Date().toISOString()
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to save streak: ${response.status}`);
-    }
-
-    return await response.json();
-  },
-
-  // REAL: Update daily progress
-  updateDailyProgress: async (challengeId, progress) => {
-
-    const token = getAuthToken();
-
-    if (!token) {
-      throw new Error('No auth token available');
-    }
-
-    const response = await fetch(`${BACKEND_URL}/challenges/${challengeId}/progress`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        date: new Date().toISOString().split('T')[0],
-        completed: true,
-        progress,
-        timestamp: new Date().toISOString()
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to update progress: ${response.status}`);
-    }
-
-    return await response.json();
-  }
-};
 
 /**
  * Challenges Page with Real Backend Integration
@@ -269,8 +34,7 @@ const Challenges = () => {
       setError(null);
 
       // Get challenges from backend
-      const challengesResponse = await challengeService.getChallenges();
-      const challengesData = challengesResponse.challenges || challengesResponse.data || [];
+      const challengesData = await challengeService.getAvailableChallenges();
       setChallenges(challengesData);
 
       // Load user's joined challenges if authenticated
@@ -357,10 +121,15 @@ const Challenges = () => {
     challengeService.transformChallenge(challenge)
   );
 
-  const transformedUserChallenges = userChallenges.map(userChallenge => ({
-    ...challengeService.transformChallenge(userChallenge.challengeId || userChallenge),
-    userProgress: userChallenge.userProgress || userChallenge.progress
-  }));
+  // Transform user challenges and get the challenge IDs for comparison
+  const transformedUserChallenges = userChallenges.map(userChallenge => 
+    challengeService.transformUserChallenge(userChallenge)
+  );
+  
+  // Get set of joined challenge IDs for quick lookup
+  const joinedChallengeIds = new Set(
+    transformedUserChallenges.map(uc => uc.challengeId || uc.id)
+  );
 
   if (isLoading) {
     return (
@@ -484,11 +253,11 @@ const Challenges = () => {
                   <div className="challenge-actions">
                     <Button
                       onClick={() => handleJoinChallenge(challenge.id)}
-                      disabled={isJoining || transformedUserChallenges.some(uc => uc.id === challenge.id)}
+                      disabled={isJoining || joinedChallengeIds.has(challenge.id)}
                       loading={isJoining}
                       fullWidth
                     >
-                      {transformedUserChallenges.some(uc => uc.id === challenge.id)
+                      {joinedChallengeIds.has(challenge.id)
                         ? 'Already Joined'
                         : 'Join Challenge'
                       }

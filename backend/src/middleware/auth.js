@@ -1,4 +1,7 @@
-const jwt = require('jsonwebtoken');
+import React from 'react';
+  
+
+  const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
 /**
@@ -39,7 +42,7 @@ const authenticateToken = async (req, res, next) => {
     let isSupabaseToken = false;
 
     try {
-      decoded = jwt.decode(token);
+      decoded = jwt.decode(token) || jwt.decode(token, { complete: true });
 
       if (!decoded) {
         return res.status(401).json({

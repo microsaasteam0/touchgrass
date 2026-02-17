@@ -1,6 +1,9 @@
 import React from 'react';
   
   
+  import React from 'react';
+  
+  
   
   
   import React, { useState, useEffect } from 'react';
@@ -217,12 +220,12 @@ export const chatModalState = atom({
 // ==============================
 class ChatService {
   constructor() {
-    this.API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    this.API_URL = process.env.REACT_APP_API_URL || 'https://touchgrass-backend.onrender.com/api';
     this.socket = null;
   }
 
   connectSocket(token) {
-    this.socket = new WebSocket(`ws://localhost:5000?token=${token}`);
+    this.socket = new WebSocket(`wss://touchgrass-backend.onrender.com?token=${token}`);
     
     this.socket.onopen = () => {
     };

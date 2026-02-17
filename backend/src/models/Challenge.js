@@ -154,6 +154,7 @@ const challengeSchema = new mongoose.Schema({
   },
   metadata: {
     challengeCode: String, // For invite links
+    isBuiltIn: { type: Boolean, default: false },
     tags: [String],
     bannerImage: String,
     themeColor: String,

@@ -5,9 +5,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     allowedHosts: [
-      'touchgrass2.onrender.com',  // Your frontend domain
-      'touchgrass-backend.onrender.com',  // Your backend
-      'touchgrass-7.onrender.com'  // Your other backend
+      'touchgrass2.onrender.com',
+      'touchgrass-backend.onrender.com',
+      'touchgrass-7.onrender.com'
     ],
     proxy: {
       '/api': {
@@ -15,7 +15,16 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       }
-    }
+    },
+    // Fix WebSocket/HMR connection issues
+    hmr: {
+      clientPort: 3000,
+      port: 3000,
+      protocol: 'ws'
+    },
+    // Allow connecting from any host in development
+    host: '0.0.0.0',
+    strictPort: false
   },
   build: {
     outDir: 'dist',

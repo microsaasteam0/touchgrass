@@ -1,178 +1,5 @@
-// import React, { createContext, useState, useContext, useEffect } from 'react';
-// import { useAuth } from './AuthContext';
-// import { toast } from 'react-toastify';
-
-// const StreakContext = createContext({});
-
-// export const useStreak = () => useContext(StreakContext);
-
-// export const StreakProvider = ({ children }) => {
-//   const { user, isAuthenticated } = useAuth();
-//   const [currentStreak, setCurrentStreak] = useState(0);
-//   const [longestStreak, setLongestStreak] = useState(0);
-//   const [totalDays, setTotalDays] = useState(0);
-//   const [todaysVerification, setTodaysVerification] = useState(null);
-//   const [streakHistory, setStreakHistory] = useState([]);
-//   const [loading, setLoading] = useState(false);
-
-//   useEffect(() => {
-//     if (isAuthenticated && user) {
-//       loadStreakData();
-//     }
-//   }, [isAuthenticated, user]);
-
-//   const loadStreakData = async () => {
-//     try {
-//       setLoading(true);
-      
-//       // Mock API call - replace with real API
-//       const response = await fetch('/api/streaks/current', {
-//         headers: {
-//           'Authorization': `Bearer ${localStorage.getItem('token')}`
-//         }
-//       });
-
-//       if (response.ok) {
-//         const data = await response.json();
-        
-//         if (data.status === 'active') {
-//           setCurrentStreak(data.currentStreak || 0);
-//           setLongestStreak(data.longestStreak || 0);
-//           setTotalDays(data.totalDays || 0);
-//           setTodaysVerification(data.todaysVerification);
-//           setStreakHistory(data.history || []);
-//         }
-//       }
-//     } catch (error) {
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const verifyToday = async (verificationData) => {
-//     try {
-//       setLoading(true);
-      
-//       const response = await fetch('/api/streaks/verify', {
-//         method: 'POST',
-//         headers: {
-//           'Authorization': `Bearer ${localStorage.getItem('token')}`,
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(verificationData),
-//       });
-
-//       if (!response.ok) {
-//         throw new Error('Verification failed');
-//       }
-
-//       const data = await response.json();
-      
-//       setCurrentStreak(data.streak);
-//       setTodaysVerification(data.verification);
-      
-//       // Check for streak milestones
-//       checkStreakMilestone(data.streak);
-      
-//       toast.success('✅ Verification successful! Your streak continues.', {
-//         icon: '🔥',
-//       });
-      
-//       return { success: true, data };
-//     } catch (error) {
-//       toast.error('Verification failed. Please try again.');
-//       return { success: false, error: error.message };
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const acceptShame = async (shameMessage) => {
-//     try {
-//       setLoading(true);
-      
-//       const response = await fetch('/api/streaks/shame', {
-//         method: 'POST',
-//         headers: {
-//           'Authorization': `Bearer ${localStorage.getItem('token')}`,
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify({ shameMessage }),
-//       });
-
-//       if (!response.ok) {
-//         throw new Error('Failed to accept shame');
-//       }
-
-//       const data = await response.json();
-      
-//       setCurrentStreak(data.streak);
-      
-//       toast('😔 Shame accepted. Your streak continues...', {
-//         icon: '😈',
-//         style: {
-//           background: '#7f1d1d',
-//           color: '#fff'
-//         }
-//       });
-      
-//       return { success: true, data };
-//     } catch (error) {
-//       toast.error('Failed to accept shame.');
-//       return { success: false, error: error.message };
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const checkStreakMilestone = (streak) => {
-//     const milestones = [7, 30, 100, 365];
-    
-//     if (milestones.includes(streak)) {
-//       const event = new CustomEvent('achievement-unlocked', {
-//         detail: { streak }
-//       });
-//       window.dispatchEvent(event);
-      
-//       toast.success(`🎉 ${streak}-day milestone achieved!`, {
-//         icon: '🏆',
-//         autoClose: 5000,
-//       });
-//     }
-//   };
-
-//   const getStreakStats = () => {
-//     return {
-//       currentStreak,
-//       longestStreak,
-//       totalDays,
-//       todaysVerification,
-//       streakHistory,
-//       consistencyScore: totalDays > 0 ? Math.round((longestStreak / totalDays) * 100) : 0,
-//     };
-//   };
-
-//   const value = {
-//     currentStreak,
-//     longestStreak,
-//     totalDays,
-//     todaysVerification,
-//     streakHistory,
-//     loading,
-//     verifyToday,
-//     acceptShame,
-//     getStreakStats,
-//     loadStreakData,
-//   };
-
-//   return (
-//     <StreakContext.Provider value={value}>
-//       {children}
-//     </StreakContext.Provider>
-//   );
-// };
-
- import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import streakService from '../services/streakservice';
 
 const StreakContext = createContext();
 
@@ -180,138 +7,126 @@ export const useStreak = () => useContext(StreakContext);
 
 export const StreakProvider = ({ children }) => {
   const [streakData, setStreakData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  
-  // Disable API for now - use localStorage only
-  const USE_API = false;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const getAuthToken = () => {
-    const tokens = [
-      localStorage.getItem('touchgrass_token'),
-      localStorage.getItem('supabase.auth.token'),
-      localStorage.getItem('sb-auth-token')
-    ];
-    
-    const token = tokens.find(t => t !== null && t !== 'undefined');
-    
-    if (token) {
-      try {
-        const parsed = JSON.parse(token);
-        return parsed.access_token || token;
-      } catch {
-        return token;
-      }
-    }
-    
-    return null;
-  };
-
-  const getUserFromStorage = () => {
+  // Load streak data from service
+  const loadStreakData = useCallback(async () => {
     try {
-      const userData = localStorage.getItem('touchgrass_user');
-      if (userData) {
-        return JSON.parse(userData);
-      }
-    } catch (error) {
-    }
-    return null;
-  };
-
-  const loadStreakData = async () => {
-    const user = getUserFromStorage();
-    const username = user?.username || 'default';
-    
-    // If API is disabled, use localStorage
-    if (!USE_API || !getAuthToken()) {
-      const streakKey = `touchgrass_streak_${username}`;
-      const storedData = localStorage.getItem(streakKey);
-      
-      if (storedData) {
-        try {
-          return JSON.parse(storedData);
-        } catch (e) {
-        }
-      }
-      
-      // Create default streak data
-      const defaultStreak = {
-        currentStreak: 0,
-        longestStreak: 0,
-        totalDays: 0,
-        totalOutdoorTime: 0,
-        challengeWins: 0,
-        history: [],
-        startDate: new Date().toISOString(),
-        todayVerified: false,
-        shareCount: 0,
-        viralScore: 0,
-        lastVerification: null
-      };
-      
-      localStorage.setItem(streakKey, JSON.stringify(defaultStreak));
-      return defaultStreak;
-    }
-
-    try {
-      const token = getAuthToken();
-      const response = await fetch('http://localhost:5001/api/streaks/current', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const streakData = data?.streak || data;
-        
-        // Store in localStorage for offline use
-        const streakKey = `touchgrass_streak_${username}`;
-        localStorage.setItem(streakKey, JSON.stringify(streakData));
-        
-        return streakData;
-      }
-      
-      // Fallback to localStorage
-      const streakKey = `touchgrass_streak_${username}`;
-      const storedData = localStorage.getItem(streakKey);
-      if (storedData) {
-        return JSON.parse(storedData);
-      }
-      
-      return null;
-    } catch (error) {
-      const streakKey = `touchgrass_streak_${username}`;
-      const storedData = localStorage.getItem(streakKey);
-      if (storedData) {
-        return JSON.parse(storedData);
-      }
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    const initializeStreak = async () => {
       setLoading(true);
-      try {
-        const data = await loadStreakData();
-        setStreakData(data);
-      } catch (error) {
-      } finally {
-        setLoading(false);
+      setError(null);
+      const data = await streakService.getStreakData();
+      setStreakData(data);
+      return data;
+    } catch (err) {
+      console.error('Error loading streak data:', err);
+      setError(err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Verify today's streak
+  const verifyToday = useCallback(async (verificationData) => {
+    try {
+      const result = await streakService.verifyToday(verificationData);
+      if (result.success) {
+        // Reload streak data after verification
+        await loadStreakData();
+      }
+      return result;
+    } catch (err) {
+      console.error('Error verifying streak:', err);
+      return { success: false, error: err.message };
+    }
+  }, [loadStreakData]);
+
+  // Sync with API
+  const syncWithAPI = useCallback(async () => {
+    try {
+      const success = await streakService.syncWithAPI();
+      if (success) {
+        await loadStreakData();
+      }
+      return success;
+    } catch (err) {
+      console.error('Error syncing with API:', err);
+      return false;
+    }
+  }, [loadStreakData]);
+
+  // Get stats for display
+  const getStatsForDisplay = useCallback(async () => {
+    return await streakService.getStatsForDisplay();
+  }, []);
+
+  // Clear cache and refresh
+  const refreshStreak = useCallback(async () => {
+    streakService.clearCache();
+    return await loadStreakData();
+  }, [loadStreakData]);
+
+  // Subscribe to streak changes
+  useEffect(() => {
+    const unsubscribe = streakService.subscribe(() => {
+      loadStreakData();
+    });
+    
+    return unsubscribe;
+  }, [loadStreakData]);
+
+  // Initial load
+  useEffect(() => {
+    loadStreakData();
+  }, [loadStreakData]);
+
+  // Listen for storage changes (other tabs)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key && e.key.startsWith('touchgrass_streak_')) {
+        streakService.clearCache();
+        loadStreakData();
       }
     };
 
-    initializeStreak();
-  }, []);
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [loadStreakData]);
+
+  // Listen for auth changes
+  useEffect(() => {
+    const handleAuthChange = () => {
+      streakService.clearCache();
+      loadStreakData();
+    };
+
+    window.addEventListener('auth-state-changed', handleAuthChange);
+    return () => window.removeEventListener('auth-state-changed', handleAuthChange);
+  }, [loadStreakData]);
+
+  const value = {
+    streakData,
+    loading,
+    error,
+    loadStreakData,
+    verifyToday,
+    syncWithAPI,
+    getStatsForDisplay,
+    refreshStreak,
+    // Convenience getters
+    currentStreak: streakData?.currentStreak || 0,
+    longestStreak: streakData?.longestStreak || 0,
+    totalDays: streakData?.totalDays || 0,
+    todayVerified: streakData?.todayVerified || false,
+    status: streakData?.status || 'active'
+  };
 
   return (
-    <StreakContext.Provider value={{
-      streakData,
-      loading,
-      loadStreakData
-    }}>
+    <StreakContext.Provider value={value}>
       {children}
     </StreakContext.Provider>
   );
 };
+
+export default StreakContext;

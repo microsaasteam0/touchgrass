@@ -3388,6 +3388,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../contexts/AuthContext';
+import ChallengeService from '../services/challengeService';
+import RealChallengeService from '../services/realChallengeService';
 import {
   Trophy, Users, TrendingUp, Calendar, Target, Sparkles,
   Clock, Award, Activity, Camera, CheckCircle2, Plus,
@@ -3738,6 +3740,762 @@ const TOUCH_GRASS_CHALLENGES = [
     createdBy: "system",
     status: "active",
     joinedUsers: []
+  },
+  {
+    id: 'challenge-16',
+    name: "Morning Cold Shower",
+    type: "discipline",
+    description: "Take a cold shower outdoors each morning. Build mental toughness.",
+    duration: 14,
+    rules: [
+      "Cold water only",
+      "Outdoor shower preferred",
+      "2 minutes minimum",
+      "No warm water"
+    ],
+    difficulty: "hard",
+    icon: "🚿",
+    category: "discipline",
+    participants: 290,
+    maxParticipants: 1500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-17',
+    name: "Bird Watching Log",
+    type: "awareness",
+    description: "Identify and log 5 different bird species daily. Connect with wildlife.",
+    duration: 21,
+    rules: [
+      "5 bird species daily",
+      "Log in journal or app",
+      "Note behaviors",
+      "Take photos if possible"
+    ],
+    difficulty: "easy",
+    icon: "🐦",
+    category: "nature",
+    participants: 380,
+    maxParticipants: 2000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-18',
+    name: "Forest Bathing",
+    type: "mindfulness",
+    description: "Spend 30 minutes in a forest or wooded area. Practice shinrin-yoku.",
+    duration: 14,
+    rules: [
+      "30 min forest time",
+      "All 5 senses engaged",
+      "No phone interaction",
+      "Slow, deliberate pace"
+    ],
+    difficulty: "medium",
+    icon: "🌲",
+    category: "mindfulness",
+    participants: 450,
+    maxParticipants: 2500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-19',
+    name: "Outdoor Meal Planning",
+    type: "routine",
+    description: "Plan and prepare one outdoor meal daily. Eat mindfully in nature.",
+    duration: 7,
+    rules: [
+      "One outdoor meal",
+      "Sit outside to eat",
+      "No distractions",
+      "Appreciate the food"
+    ],
+    difficulty: "easy",
+    icon: "🍽️",
+    category: "routine",
+    participants: 620,
+    maxParticipants: 3000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-20',
+    name: "Rock Pool Exploration",
+    type: "exploration",
+    description: "Visit rock pools and document marine life. Discover ocean treasures.",
+    duration: 7,
+    rules: [
+      "Visit 2 rock pools",
+      "Document 5 species",
+      "Respect wildlife",
+      "Leave no trace"
+    ],
+    difficulty: "medium",
+    icon: "🦀",
+    category: "exploration",
+    participants: 180,
+    maxParticipants: 1000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-21',
+    name: "Sunrise Running",
+    type: "fitness",
+    description: "Run at sunrise for 30 minutes. Start your day with energy.",
+    duration: 21,
+    rules: [
+      "30 min run at sunrise",
+      "Outdoors only",
+      "Track distance",
+      "No missing days"
+    ],
+    difficulty: "hard",
+    icon: "🌅",
+    category: "fitness",
+    participants: 540,
+    maxParticipants: 3000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-22',
+    name: "Garden Meditation",
+    type: "mindfulness",
+    description: "Meditate in your garden for 15 minutes. Find peace at home.",
+    duration: 30,
+    rules: [
+      "15 min garden meditation",
+      "Same time daily",
+      "Focus on plants",
+      "No indoor fallback"
+    ],
+    difficulty: "easy",
+    icon: "🌻",
+    category: "mindfulness",
+    participants: 380,
+    maxParticipants: 2000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-23',
+    name: "Beachcombing Adventure",
+    type: "exploration",
+    description: "Walk along the beach for 30 minutes daily. Collect interesting finds.",
+    duration: 14,
+    rules: [
+      "30 min beach walk",
+      "Collect one item",
+      "Document findings",
+      "Respect wildlife"
+    ],
+    difficulty: "easy",
+    icon: "🏖️",
+    category: "exploration",
+    participants: 290,
+    maxParticipants: 1500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-24',
+    name: "Stargazing Session",
+    type: "awareness",
+    description: "Spend 20 minutes outdoors stargazing each night. Learn about the cosmos.",
+    duration: 21,
+    rules: [
+      "20 min stargazing",
+      "Identify 3 constellations",
+      "Note moon phase",
+      "No telescope needed"
+    ],
+    difficulty: "easy",
+    icon: "⭐",
+    category: "awareness",
+    participants: 420,
+    maxParticipants: 2500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-25',
+    name: "Outdoor Yoga Flow",
+    type: "fitness",
+    description: "Practice yoga outdoors for 30 minutes every morning.",
+    duration: 30,
+    rules: [
+      "30 min outdoor yoga",
+      "Sunrise preferred",
+      "No interruptions",
+      "Full body routine"
+    ],
+    difficulty: "medium",
+    icon: "🧘‍♀️",
+    category: "fitness",
+    participants: 680,
+    maxParticipants: 3500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-26',
+    name: "Sound Map Creation",
+    type: "awareness",
+    description: "Create a sound map of different outdoor locations. Train your auditory awareness.",
+    duration: 7,
+    rules: [
+      "Visit 3 different locations",
+      "Map sounds heard",
+      "Identify 5+ sounds each",
+      "Note time of day"
+    ],
+    difficulty: "medium",
+    icon: "🎵",
+    category: "awareness",
+    participants: 210,
+    maxParticipants: 1200,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-27',
+    name: "Outdoor Journaling",
+    type: "mindfulness",
+    description: "Write in your journal outside for 20 minutes daily. Clear your mind in nature.",
+    duration: 30,
+    rules: [
+      "20 minutes outdoor writing",
+      "Nature observation notes",
+      "Gratitude entry",
+      "No indoor writing"
+    ],
+    difficulty: "easy",
+    icon: "📝",
+    category: "mindfulness",
+    participants: 410,
+    maxParticipants: 2200,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-28',
+    name: "Geocaching Adventure",
+    type: "exploration",
+    description: "Find 10 geocaches in your area. Turn exploration into a treasure hunt.",
+    duration: 14,
+    rules: [
+      "Find 10 geocaches",
+      "Log each find",
+      "Take proof photos",
+      "Explore new areas"
+    ],
+    difficulty: "medium",
+    icon: "🗝️",
+    category: "exploration",
+    participants: 180,
+    maxParticipants: 1000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-29',
+    name: "Outdoor Nap",
+    type: "rest",
+    description: "Take a 20-minute outdoor nap in a hammock or bench. Rediscover restful sleep.",
+    duration: 7,
+    rules: [
+      "20 min outdoor rest",
+      "Nature sounds only",
+      "No indoor naps",
+      "Fresh air required"
+    ],
+    difficulty: "easy",
+    icon: "😴",
+    category: "rest",
+    participants: 340,
+    maxParticipants: 1800,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-30',
+    name: "Photography Walk",
+    type: "creativity",
+    description: "Take 50 photos during your outdoor walk. Train your photographer's eye.",
+    duration: 14,
+    rules: [
+      "50 photos minimum",
+      "Must be outdoors",
+      "Different subjects",
+      "Review and select best"
+    ],
+    difficulty: "easy",
+    icon: "📸",
+    category: "creativity",
+    participants: 560,
+    maxParticipants: 3000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-31',
+    name: "Mountain Trail Hiking",
+    type: "fitness",
+    description: "Hike a different mountain trail each week. Conquer heights and build strength.",
+    duration: 7,
+    rules: [
+      "1 trail per week",
+      "Document the climb",
+      "Note flora and fauna",
+      "Reach the summit"
+    ],
+    difficulty: "hard",
+    icon: "🏔️",
+    category: "fitness",
+    participants: 390,
+    maxParticipants: 2000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-32',
+    name: "Dawn Chorus Listening",
+    type: "awareness",
+    description: "Wake up early to listen to birdsong at dawn. Connect with morning energy.",
+    duration: 21,
+    rules: [
+      "Listen at sunrise",
+      "Identify 3 bird songs",
+      "No phone interaction",
+      "Document species heard"
+    ],
+    difficulty: "easy",
+    icon: "🐤",
+    category: "awareness",
+    participants: 250,
+    maxParticipants: 1500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-33',
+    name: "Wildflower Counting",
+    type: "learning",
+    description: "Identify and count different wildflower species in your area.",
+    duration: 30,
+    rules: [
+      "Find 10 species",
+      "Photo documentation",
+      "Note locations",
+      "Learn medicinal uses"
+    ],
+    difficulty: "easy",
+    icon: "🌸",
+    category: "learning",
+    participants: 180,
+    maxParticipants: 1000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-34',
+    name: "River Walk Meditation",
+    type: "mindfulness",
+    description: "Walk alongside a river for 30 minutes while meditating on the water flow.",
+    duration: 14,
+    rules: [
+      "30 min riverside walk",
+      "Focus on water sounds",
+      "No headphones",
+      "Mindful breathing"
+    ],
+    difficulty: "medium",
+    icon: "🌊",
+    category: "mindfulness",
+    participants: 320,
+    maxParticipants: 1800,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-35',
+    name: "Cloud Watching",
+    type: "creativity",
+    description: "Spend 15 minutes daily watching clouds. Let your imagination soar.",
+    duration: 7,
+    rules: [
+      "15 min cloud watching",
+      "Identify cloud types",
+      "Sketch formations",
+      "No indoor viewing"
+    ],
+    difficulty: "easy",
+    icon: "☁️",
+    category: "creativity",
+    participants: 410,
+    maxParticipants: 2200,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-36',
+    name: "Urban Nature Hunt",
+    type: "exploration",
+    description: "Find 10 examples of nature thriving in urban areas. Discover hidden green spaces.",
+    duration: 14,
+    rules: [
+      "Find 10 urban plants",
+      "Photo documentation",
+      "Map locations",
+      "Note species"
+    ],
+    difficulty: "medium",
+    icon: "🌿",
+    category: "exploration",
+    participants: 290,
+    maxParticipants: 1600,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-37',
+    name: "Sunset Yoga",
+    type: "fitness",
+    description: "Practice yoga at sunset for 20 minutes. Wind down with nature.",
+    duration: 21,
+    rules: [
+      "20 min sunset yoga",
+      "Outdoors only",
+      "Gratitude practice",
+      "No indoor fallback"
+    ],
+    difficulty: "easy",
+    icon: "🧘‍♂️",
+    category: "fitness",
+    participants: 520,
+    maxParticipants: 2800,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-38',
+    name: "Morning Dew Walk",
+    type: "awareness",
+    description: "Walk through grass covered in morning dew. Feel the freshness of the day.",
+    duration: 14,
+    rules: [
+      "Walk at dawn",
+      "Barefoot preferred",
+      "Feel the dew",
+      "Document the experience"
+    ],
+    difficulty: "easy",
+    icon: "💧",
+    category: "awareness",
+    participants: 340,
+    maxParticipants: 1800,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-39',
+    name: "Full Moon Vigil",
+    type: "awareness",
+    description: "Spend one night each month under the full moon. Connect with lunar energy.",
+    duration: 1,
+    rules: [
+      "1 hour full moon viewing",
+      "Outdoors only",
+      "Meditate on moonlight",
+      "Journal the experience"
+    ],
+    difficulty: "easy",
+    icon: "🌕",
+    category: "awareness",
+    participants: 280,
+    maxParticipants: 1500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-40',
+    name: "Outdoor Reading Habit",
+    type: "learning",
+    description: "Read 30 minutes outside daily. Combine learning with nature.",
+    duration: 30,
+    rules: [
+      "30 min outdoor reading",
+      "Different locations",
+      "Finish one book",
+      "Note insights"
+    ],
+    difficulty: "easy",
+    icon: "📚",
+    category: "learning",
+    participants: 450,
+    maxParticipants: 2500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-41',
+    name: "Nature Sound Bath",
+    type: "mindfulness",
+    description: "Listen to nature sounds for 20 minutes daily. Let nature heal your mind.",
+    duration: 21,
+    rules: [
+      "20 min nature sounds",
+      "Eyes closed",
+      "No interruptions",
+      "Focus on breathing"
+    ],
+    difficulty: "easy",
+    icon: "🎧",
+    category: "mindfulness",
+    participants: 380,
+    maxParticipants: 2000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-42',
+    name: "Trail Running",
+    type: "fitness",
+    description: "Run on natural trails for 25 minutes. Connect with earth while jogging.",
+    duration: 14,
+    rules: [
+      "25 min trail running",
+      "Natural surfaces only",
+      "No pavement",
+      "Document distance"
+    ],
+    difficulty: "hard",
+    icon: "👟",
+    category: "fitness",
+    participants: 420,
+    maxParticipants: 2200,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-43',
+    name: "Morning Stretch Outdoors",
+    type: "fitness",
+    description: "Stretch for 15 minutes outdoors each morning. Wake up your body with nature.",
+    duration: 30,
+    rules: [
+      "15 min outdoor stretching",
+      "Sunrise preferred",
+      "Full body routine",
+      "No indoor fallback"
+    ],
+    difficulty: "easy",
+    icon: "🤸",
+    category: "fitness",
+    participants: 580,
+    maxParticipants: 3000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-44',
+    name: "Wildlife Photography",
+    type: "creativity",
+    description: "Capture 25 photos of wildlife in their natural habitat.",
+    duration: 14,
+    rules: [
+      "25 wildlife photos",
+      "Must be wild animals",
+      "No zoos or pets",
+      "Document species"
+    ],
+    difficulty: "medium",
+    icon: "🦊",
+    category: "creativity",
+    participants: 310,
+    maxParticipants: 1700,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-45',
+    name: "Outdoor Meditation Trail",
+    type: "mindfulness",
+    description: "Walk a meditation trail for 20 minutes. Combine movement with mindfulness.",
+    duration: 21,
+    rules: [
+      "20 min meditation walk",
+      "Set intentions",
+      "Mindful steps",
+      "Nature observations"
+    ],
+    difficulty: "medium",
+    icon: "🚶",
+    category: "mindfulness",
+    participants: 360,
+    maxParticipants: 2000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-46',
+    name: "Sunrise Salutation",
+    type: "fitness",
+    description: "Greet the sunrise with 15 minutes of yoga and stretching.",
+    duration: 30,
+    rules: [
+      "15 min at sunrise",
+      "Outdoor practice",
+      "Gratitude journaling",
+      "No missing days"
+    ],
+    difficulty: "easy",
+    icon: "🙏",
+    category: "fitness",
+    participants: 490,
+    maxParticipants: 2600,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-47',
+    name: "Nature Sketching",
+    type: "creativity",
+    description: "Sketch one nature scene outdoors daily. Train your artistic eye.",
+    duration: 30,
+    rules: [
+      "1 nature sketch daily",
+      "Outdoors only",
+      "Use any medium",
+      "Document location"
+    ],
+    difficulty: "easy",
+    icon: "✏️",
+    category: "creativity",
+    participants: 280,
+    maxParticipants: 1500,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-48',
+    name: "Hilltop Meditation",
+    type: "mindfulness",
+    description: "Climb to a hilltop and meditate for 20 minutes. Rise above and find clarity.",
+    duration: 14,
+    rules: [
+      "Find a hill or elevation",
+      "20 min meditation",
+      "View while meditating",
+      "Reflect on climb"
+    ],
+    difficulty: "medium",
+    icon: "⛰️",
+    category: "mindfulness",
+    participants: 220,
+    maxParticipants: 1200,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-49',
+    name: "Night Walk Adventure",
+    type: "awareness",
+    description: "Take a 20-minute walk after dark. Discover a different side of nature.",
+    duration: 7,
+    rules: [
+      "20 min night walking",
+      "Stay safe",
+      "Observe nocturnal life",
+      "Look at stars"
+    ],
+    difficulty: "medium",
+    icon: "🌙",
+    category: "awareness",
+    participants: 260,
+    maxParticipants: 1400,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-50',
+    name: "Picnic Planning",
+    type: "routine",
+    description: "Have a picnic outdoors once a week. Make dining an adventure.",
+    duration: 7,
+    rules: [
+      "1 outdoor picnic weekly",
+      "New location each time",
+      "Homemade food preferred",
+      "Enjoy the view"
+    ],
+    difficulty: "easy",
+    icon: "🧺",
+    category: "routine",
+    participants: 420,
+    maxParticipants: 2300,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
+  },
+  {
+    id: 'challenge-51',
+    name: "Outdoor Work Session",
+    type: "productivity",
+    description: "Work outdoors for 2 hours daily. Boost productivity with fresh air.",
+    duration: 14,
+    rules: [
+      "2 hours outdoor work",
+      "Laptop outdoors",
+      "Nature background",
+      "Document focus levels"
+    ],
+    difficulty: "medium",
+    icon: "💻",
+    category: "productivity",
+    participants: 350,
+    maxParticipants: 2000,
+    createdBy: "system",
+    status: "active",
+    joinedUsers: []
   }
 ];
 
@@ -3821,7 +4579,7 @@ class ChallengeStorageService {
 }
 
 // ==================== CHALLENGE SERVICE ====================
-const ChallengeService = {
+const MockChallengeService = {
   async getChallenges() {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -4065,6 +4823,7 @@ const Challenges = () => {
   const [showChallengeDetails, setShowChallengeDetails] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [dailyCheckins, setDailyCheckins] = useState([]);
   const [newChallenge, setNewChallenge] = useState({
     name: '',
     description: '',
@@ -4075,6 +4834,7 @@ const Challenges = () => {
     category: 'custom',
     icon: '🌱'
   });
+  const [error, setError] = useState(null);
 
   const categories = [
     { id: 'all', name: 'All Categories', icon: <Globe size={16} /> },
@@ -4096,22 +4856,47 @@ const Challenges = () => {
 
   const loadData = async () => {
     setIsLoading(true);
-    
+
     try {
-      const challengesResponse = await ChallengeService.getChallenges();
-      if (challengesResponse.success) {
-        setChallenges(challengesResponse.data);
+      // Load all available challenges from backend
+      const challengesResponse = await RealChallengeService.getChallenges();
+      console.log('Challenges response:', challengesResponse);
+      
+      let loadedChallenges = [];
+      if (challengesResponse && challengesResponse.challenges && Array.isArray(challengesResponse.challenges) && challengesResponse.challenges.length > 0) {
+        loadedChallenges = challengesResponse.challenges;
+        setChallenges(loadedChallenges);
+      } else if (challenges.length > 0) {
+        // Keep existing challenges if API fails
+        loadedChallenges = challenges;
+      } else {
+        // Fallback to default challenges
+        loadedChallenges = TOUCH_GRASS_CHALLENGES;
+        setChallenges(loadedChallenges);
       }
 
       if (user) {
-        const userResponse = await ChallengeService.getUserChallenges(user.id);
-        if (userResponse.success) {
-          setUserChallenges(userResponse.data);
+        // Load user's joined challenges from backend
+        const userResponse = await RealChallengeService.getMyChallenges();
+        console.log('User challenges response:', userResponse);
+        if (userResponse && userResponse.success && Array.isArray(userResponse.challenges)) {
+          setUserChallenges(userResponse.challenges);
+        }
+
+        // Load daily check-ins for today
+        const today = new Date().toISOString().split('T')[0];
+        const checkinsResponse = await RealChallengeService.getDailyCheckins(today);
+        console.log('Daily checkins response:', checkinsResponse);
+        if (checkinsResponse && checkinsResponse.success && Array.isArray(checkinsResponse.data)) {
+          setDailyCheckins(checkinsResponse.data);
         }
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('Failed to load challenges');
+      // Don't clear challenges on error, keep existing data
+      if (challenges.length === 0) {
+        setChallenges(TOUCH_GRASS_CHALLENGES);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -4126,7 +4911,7 @@ const Challenges = () => {
 
     setIsJoining(true);
     try {
-      const response = await ChallengeService.joinChallenge(challenge.id, user.id);
+      const response = await RealChallengeService.joinChallenge(challenge.id);
       
       if (response.success) {
         toast.success(`Joined "${challenge.name}"!`);
@@ -4151,16 +4936,25 @@ const Challenges = () => {
 
     setIsVerifying(true);
     try {
-      const response = await ChallengeService.verifyProgress(challengeId, user.id, {
+      // Use RealChallengeService which calls the real backend API
+      const response = await RealChallengeService.verifyProgress(challengeId, user.id, {
         notes: "Verified via TouchGrass app"
       });
 
       if (response.success) {
         toast.success('Progress verified! Keep going!');
         
-        const userResponse = await ChallengeService.getUserChallenges(user.id);
+        // Reload user challenges and daily checkins to get updated data from backend
+        const userResponse = await RealChallengeService.getMyChallenges();
         if (userResponse.success) {
-          setUserChallenges(userResponse.data);
+          setUserChallenges(userResponse.challenges);
+        }
+        
+        // Reload daily check-ins
+        const today = new Date().toISOString().split('T')[0];
+        const checkinsResponse = await RealChallengeService.getDailyCheckins(today);
+        if (checkinsResponse.success) {
+          setDailyCheckins(checkinsResponse.data);
         }
 
         const progress = response.data;
@@ -4168,9 +4962,10 @@ const Challenges = () => {
           toast.success(`🎉 Amazing! ${progress.streak}-day streak!`);
         }
       } else {
-        toast.error(response.message);
+        toast.error(response.message || 'Failed to verify progress');
       }
     } catch (error) {
+      console.error('Error verifying progress:', error);
       toast.error('Failed to verify progress');
     } finally {
       setIsVerifying(false);
@@ -4190,7 +4985,7 @@ const Challenges = () => {
 
     setIsJoining(true);
     try {
-      const response = await ChallengeService.createChallenge(user.id, newChallenge);
+      const response = await RealChallengeService.createChallenge(user.id, newChallenge);
       
       if (response.success) {
         toast.success('Challenge created successfully!');
@@ -4218,36 +5013,107 @@ const Challenges = () => {
     }
   };
 
-  const filteredChallenges = challenges.filter(challenge => {
-    if (activeTab === 'my-challenges') {
-      return userChallenges.some(c => c.id === challenge.id);
-    }
+  // Helper function to check if IDs match (handles both id and _id from MongoDB)
+  const idsMatch = (id1, id2) => {
+    if (!id1 || !id2) return false;
+    // Convert to string for comparison
+    return String(id1) === String(id2);
+  };
 
-    if (searchQuery && !challenge.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !challenge.description.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
+  // For 'my-challenges' tab, show userChallenges directly
+  // For other tabs, filter from the main challenges array
+  const filteredChallenges = activeTab === 'my-challenges' 
+    ? userChallenges // Show user's joined challenges directly
+    : challenges.filter(challenge => {
+        if (searchQuery && !challenge.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !challenge.description.toLowerCase().includes(searchQuery.toLowerCase())) {
+          return false;
+        }
 
-    if (filterDifficulty !== 'all' && challenge.difficulty !== filterDifficulty) {
-      return false;
-    }
+        if (filterDifficulty !== 'all' && challenge.difficulty !== filterDifficulty) {
+          return false;
+        }
 
-    if (filterCategory !== 'all' && challenge.category !== filterCategory) {
-      return false;
-    }
+        if (filterCategory !== 'all' && challenge.category !== filterCategory) {
+          return false;
+        }
 
-    return true;
-  });
+        return true;
+      });
 
   const hasUserJoinedChallenge = (challengeId) => {
     if (!user) return false;
-    return userChallenges.some(c => c.id === challengeId);
+    return userChallenges.some(c => 
+      idsMatch(c.id, challengeId) || 
+      idsMatch(c._id, challengeId) ||
+      idsMatch(c.challengeId, challengeId)
+    );
   };
 
   const getUserProgress = (challengeId) => {
     if (!user) return { streak: 0, progress: 0 };
-    const userChallenge = userChallenges.find(c => c.id === challengeId);
-    return userChallenge?.userProgress || { streak: 0, progress: 0 };
+    const userChallenge = userChallenges.find(c => 
+      idsMatch(c.id, challengeId) || 
+      idsMatch(c._id, challengeId) ||
+      idsMatch(c.challengeId, challengeId)
+    );
+    if (!userChallenge) return { streak: 0, progress: 0 };
+    
+    // Use backend data directly - totalProgress is the number of days completed
+    return {
+      streak: userChallenge.currentStreak || userChallenge.streak || 0,
+      progress: userChallenge.totalProgress || userChallenge.progress || 0,
+      totalDays: userChallenge.totalDays || userChallenge.totalProgress || 0,
+      currentStreak: userChallenge.currentStreak || 0,
+      totalProgress: userChallenge.totalProgress || 0
+    };
+  };
+
+  // Check if user has already verified today for a SPECIFIC challenge
+  const hasVerifiedToday = (challengeId) => {
+    if (!user) return false;
+    
+    // Find the specific userChallenge that matches this challengeId
+    const userChallenge = userChallenges.find(c => 
+      idsMatch(c.id, challengeId) || 
+      idsMatch(c._id, challengeId) ||
+      idsMatch(c.challengeId, challengeId)
+    );
+    if (!userChallenge) return false;
+    
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check completedToday flag from transformChallenge - THIS IS THE KEY
+    if (userChallenge.completedToday === true) {
+      return true;
+    }
+    
+    // Check dailyProgress object for today's date - per challenge
+    if (userChallenge.dailyProgress && userChallenge.dailyProgress[today]) {
+      const dayData = userChallenge.dailyProgress[today];
+      // dailyProgress can be boolean or object with completed property
+      if (dayData === true || (typeof dayData === 'object' && dayData?.completed === true)) {
+        return true;
+      }
+    }
+    
+    // Check completedDays array - per challenge
+    if (userChallenge.completedDays && Array.isArray(userChallenge.completedDays)) {
+      if (userChallenge.completedDays.includes(today)) {
+        return true;
+      }
+    }
+    
+    // Check lastActivity for today's date - per challenge
+    if (userChallenge.lastActivity) {
+      const lastActivityDate = new Date(userChallenge.lastActivity).toISOString().split('T')[0];
+      if (lastActivityDate === today) {
+        return true;
+      }
+    }
+    
+    return false;
   };
 
   const stats = {
@@ -5214,13 +6080,13 @@ const Challenges = () => {
 
                     <div className="rules-preview">
                       <div className="rules-title">Rules:</div>
-                      {challenge.rules.slice(0, 2).map((rule, i) => (
+                      {(Array.isArray(challenge.rules) ? challenge.rules.slice(0, 2) : []).map((rule, i) => (
                         <div key={i} className="rule-item">
                           <div className="rule-dot"></div>
-                          <span className="rule-text">{rule}</span>
+                          <span className="rule-text">{typeof rule === 'string' ? rule : JSON.stringify(rule)}</span>
                         </div>
                       ))}
-                      {challenge.rules.length > 2 && (
+                      {Array.isArray(challenge.rules) && challenge.rules.length > 2 && (
                         <div className="text-xs text-gray-500 mt-1">
                           +{challenge.rules.length - 2} more rules
                         </div>
@@ -5251,17 +6117,22 @@ const Challenges = () => {
                         <>
                           <button
                             onClick={() => handleVerifyProgress(challenge.id)}
-                            disabled={isVerifying}
-                            className="action-button verify-button"
+                            disabled={isVerifying || hasVerifiedToday(challenge.id)}
+                            className={`action-button ${hasVerifiedToday(challenge.id) ? 'button-success' : 'verify-button'}`}
                           >
                             {isVerifying ? (
                               <>
                                 <Loader2 size={16} className="animate-spin" />
                                 Verifying...
                               </>
-                            ) : (
+                            ) : hasVerifiedToday(challenge.id) ? (
                               <>
                                 <CheckCircle size={16} />
+                                Done Today
+                              </>
+                            ) : (
+                              <>
+                                <Camera size={16} />
                                 Verify Today
                               </>
                             )}
@@ -5505,13 +6376,18 @@ const Challenges = () => {
                   </div>
                   <button
                     onClick={() => handleVerifyProgress(selectedChallenge.id)}
-                    disabled={isVerifying}
-                    className="action-button verify-button mt-4"
+                    disabled={isVerifying || hasVerifiedToday(selectedChallenge.id)}
+                    className={`action-button ${hasVerifiedToday(selectedChallenge.id) ? 'button-success' : 'verify-button'} mt-4`}
                   >
                     {isVerifying ? (
                       <>
                         <Loader2 size={16} className="animate-spin" />
                         Verifying...
+                      </>
+                    ) : hasVerifiedToday(selectedChallenge.id) ? (
+                      <>
+                        <CheckCircle size={16} />
+                        Done Today
                       </>
                     ) : (
                       <>
