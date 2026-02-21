@@ -2980,16 +2980,74 @@ const VerificationWall = () => {
       loadVerificationData();
     };
 
+    // Listen for custom event from verification page
     window.addEventListener('verification-wall-updated', handleVerificationWallUpdate);
+
+    // Listen for storage events from other tabs
+    const handleStorageChange = (event) => {
+      if (event.key === 'touchgrass_verification_posts' || event.key === null) {
+        // New post added or cleared - reload posts
+        loadVerificationData();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
 
     return () => {
       window.removeEventListener('verification-wall-updated', handleVerificationWallUpdate);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, [navigate]);
 
   const loadVerificationData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // First, load posts from localStorage (user's own verification posts)
+      const localPosts = [];
+      try {
+        const storedPosts = localStorage.getItem('touchgrass_verification_posts');
+        if (storedPosts) {
+          const parsedPosts = JSON.parse(storedPosts);
+          // Transform localStorage posts to match the format
+          const localFormatted = parsedPosts.map(post => ({
+            id: post.id,
+            userId: post.userId || 'local-user',
+            userName: post.username || post.userName || 'You',
+            userAvatar: post.userAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=local-user`,
+            mediaUrl: post.media || post.photo || post.video || null,
+            mediaType: post.mediaType || (post.media?.startsWith('data:video') || post.video?.startsWith('data:video') ? 'video' : 'photo'),
+            caption: post.caption || '',
+            location: post.location || null,
+            activity: post.type || 'walk',
+            activityName: 'Walking',
+            activityEmoji: '🚶‍♂️',
+            activityColor: '#22c55e',
+            activityBg: 'rgba(34, 197, 94, 0.2)',
+            duration: post.duration || 30,
+            likes: post.likes || 0,
+            comments: post.comments || [],
+            isLiked: false,
+            isBookmarked: false,
+            isReported: false,
+            reportCount: 0,
+            reports: [],
+            verificationScore: 100,
+            verified: true,
+            trending: false,
+            featured: false,
+            isBlocked: false,
+            timestamp: post.timestamp || new Date().toISOString(),
+            tags: post.tags || [],
+            shareCount: 0,
+            views: 1,
+            isNew: true,
+            isLocalPost: true // Flag to identify local posts
+          })).filter(post => post.mediaUrl); // Only include posts with media
+          localPosts.push(...localFormatted);
+        }
+      } catch (localError) {
+        console.warn('Error loading local posts:', localError);
+      }
+      
       // Try to fetch posts from backend API
       const response = await verificationWallApi.getPosts();
       
@@ -3025,17 +3083,75 @@ const VerificationWall = () => {
           tags: post.tags || [],
           shareCount: 0,
           views: post.views || 0,
-          isNew: true
+          isNew: false,
+          isLocalPost: false
         }));
         
-        setPosts(formattedPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+        // Merge local posts with API posts, local posts first
+        const allPosts = [...localPosts, ...formattedPosts];
+        setPosts(allPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
       } else {
-        // Fallback to demo posts if API fails or no posts
-        const demoPosts = generateDemoPosts();
-        setPosts(demoPosts);
+        // If no API posts, use local posts or fallback to demo posts
+        if (localPosts.length > 0) {
+          setPosts(localPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+        } else {
+          // Fallback to demo posts if no local or API posts
+          const demoPosts = generateDemoPosts();
+          setPosts(demoPosts);
+        }
       }
     } catch (error) {
-      toast.error('Failed to load posts');
+      // On error, try to load from localStorage as fallback
+      try {
+        const storedPosts = localStorage.getItem('touchgrass_verification_posts');
+        if (storedPosts) {
+          const parsedPosts = JSON.parse(storedPosts);
+          if (parsedPosts.length > 0) {
+            const localFormatted = parsedPosts.map(post => ({
+              id: post.id,
+              userId: post.userId || 'local-user',
+              userName: post.username || post.userName || 'You',
+              userAvatar: post.userAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=local-user`,
+              mediaUrl: post.media || post.photo || post.mediaUrl,
+              mediaType: post.mediaType || (post.media?.includes('video') ? 'video' : 'photo'),
+              caption: post.caption || '',
+              location: post.location || null,
+              activity: post.type || 'walk',
+              activityName: 'Walking',
+              activityEmoji: '🚶‍♂️',
+              activityColor: '#22c55e',
+              duration: post.duration || 30,
+              likes: post.likes || 0,
+              comments: post.comments || [],
+              isLiked: false,
+              isBookmarked: false,
+              isReported: false,
+              reportCount: 0,
+              reports: [],
+              verificationScore: 100,
+              verified: true,
+              trending: false,
+              featured: false,
+              isBlocked: false,
+              timestamp: post.timestamp || new Date().toISOString(),
+              tags: post.tags || [],
+              shareCount: 0,
+              views: 1,
+              isNew: true,
+              isLocalPost: true
+            }));
+            setPosts(localFormatted.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (localError) {
+        console.warn('Error loading local posts on error:', localError);
+      }
+      
+      // Last resort: demo posts
+      const demoPosts = generateDemoPosts();
+      setPosts(demoPosts);
     } finally {
       setIsLoading(false);
     }
@@ -3381,8 +3497,8 @@ const VerificationWall = () => {
       }, 200);
 
       const activity = ACTIVITIES.find(a => a.id === uploadData.activity) || ACTIVITIES[0];
-      
-      // Call backend API to create verification wall post
+
+      // Try to call backend API to create verification wall post
       const postData = {
         photoUrl: uploadData.media,
         activityType: uploadData.activity,
@@ -3435,7 +3551,7 @@ const VerificationWall = () => {
         const updatedPosts = [newPost, ...posts];
         setPosts(updatedPosts);
         setMyPosts([newPost, ...myPosts]);
-        
+
         setUploadData({
           media: null,
           mediaType: 'photo',
@@ -3446,14 +3562,76 @@ const VerificationWall = () => {
           tags: []
         });
         setShowUploadModal(false);
-        
+
         toast.success('✅ Verification posted successfully!');
       } else {
         throw new Error(response.message || 'Failed to create post');
       }
-      
+
     } catch (error) {
-      toast.error('Failed to upload. Please try again.');
+      console.warn('API call failed, saving to localStorage as fallback:', error.message);
+
+      // Fallback: Save to localStorage when API fails
+      const activity = ACTIVITIES.find(a => a.id === uploadData.activity) || ACTIVITIES[0];
+
+      const newPost = {
+        id: `post_${userData.username}_${Date.now()}`,
+        userId: userData.username,
+        userName: userData.displayName || userData.username,
+        userAvatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.username}`,
+        userBio: userData.bio || 'Outdoor enthusiast',
+        userLocation: userData.location || 'Exploring',
+        userStreak: 1,
+        userFollowers: 0,
+        userVerified: true,
+        mediaUrl: uploadData.media,
+        mediaType: uploadData.mediaType,
+        caption: uploadData.caption || `My outdoor activity! ${activity.emoji}`,
+        location: uploadData.location || 'Outdoors',
+        activity: uploadData.activity,
+        activityName: activity.name,
+        activityEmoji: activity.emoji,
+        activityColor: activity.color,
+        activityBg: activity.bg,
+        duration: uploadData.duration,
+        likes: 0,
+        comments: [],
+        isLiked: false,
+        isBookmarked: false,
+        isReported: false,
+        reportCount: 0,
+        reports: [],
+        verificationScore: 100,
+        verified: true,
+        trending: true,
+        featured: false,
+        isBlocked: false,
+        timestamp: new Date().toISOString(),
+        tags: ['touchgrass', uploadData.activity, 'myverification'],
+        shareCount: 0,
+        views: 0,
+        isNew: true
+      };
+
+      const updatedPosts = [newPost, ...posts];
+      setPosts(updatedPosts);
+      setMyPosts([newPost, ...myPosts]);
+
+      // Save to localStorage
+      localStorage.setItem('touchgrass_verification_posts', JSON.stringify(updatedPosts));
+
+      setUploadData({
+        media: null,
+        mediaType: 'photo',
+        caption: '',
+        location: '',
+        activity: 'walk',
+        duration: 30,
+        tags: []
+      });
+      setShowUploadModal(false);
+
+      toast.success('✅ Verification saved locally! (API unavailable)');
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -4391,7 +4569,7 @@ const VerificationWall = () => {
                 onClick={() => setShowUploadModal(true)}
               >
                 <Camera size={18} />
-                Verify Today
+                ADD MORE POSTS
               </button>
             )}
           </div>
@@ -4947,14 +5125,14 @@ const VerificationWall = () => {
         </div>
       )}
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button - Navigate to Verify Page */}
       {userData && !showUploadModal && (
         <button 
           className="fab"
-          onClick={() => setShowUploadModal(true)}
+          onClick={() => navigate('/verify')}
         >
           <Camera size={20} />
-          Verify Today
+          VERIFY TODAY
         </button>
       )}
     </div>

@@ -7,7 +7,7 @@ import {
   Search, Shield, Globe, TrendingUp,
   Flame, Crown, ChevronDown, ExternalLink,
   Home, BarChart, MessageSquare, Target,
-  CheckCircle, Users as UsersIcon
+  CheckCircle, Users as UsersIcon, Image
 } from 'lucide-react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { authState, logout } from '../../state/auth';
@@ -94,6 +94,7 @@ const Navbar = () => {
     { path: '/', label: 'Home', icon: <Home size={18} /> },
     { path: '/dashboard', label: 'Dashboard', icon: <BarChart size={18} /> },
     { path: '/verify', label: 'Verify', icon: <CheckCircle size={18} /> },
+    { path: '/verification-wall', label: 'Wall', icon: <Image size={18} /> },
     { path: '/profile', label: 'Profile', icon: <User size={18} /> },
     { path: '/leaderboard', label: 'Leaderboard', icon: <Trophy size={18} /> },
     { path: '/chat', label: 'Chat', icon: <MessageSquare size={18} /> },

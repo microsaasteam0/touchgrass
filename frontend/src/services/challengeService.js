@@ -101,8 +101,7 @@ class ChallengeService {
       requiresVerification: challenge.settings?.verificationRequired || true,
       isCustom: challenge.metadata?.isBuiltIn ? false : true,
       isBuiltIn: challenge.metadata?.isBuiltIn || false,
-      metadata: challenge.metadata || {},
-      settings: challenge.settings || {}
+      metadata: challenge.metadata || {}
     };
   }
 
@@ -119,7 +118,18 @@ class ChallengeService {
     if (completedToday === undefined && userChallenge.dailyProgress) {
       completedToday = userChallenge.dailyProgress[today]?.completed || false;
     }
-    
+
+    // Calculate progress percentage (totalProgress / duration * 100)
+    const duration = userChallenge.duration || 30;
+    const totalProgress = userChallenge.totalProgress || 0;
+    const progressPercentage = Math.min(100, Math.round((totalProgress / duration) * 100));
+
+    // Calculate days remaining
+    const daysRemaining = Math.max(0, duration - totalProgress);
+
+    // Calculate daily progress rate (percentage per day)
+    const dailyProgressRate = Math.round((1 / duration) * 100);
+
     return {
       id: challengeId,
       challengeId: challengeId, // Keep both for compatibility
@@ -127,7 +137,7 @@ class ChallengeService {
       name: userChallenge.name,
       type: userChallenge.type,
       description: userChallenge.description,
-      duration: userChallenge.duration || 7,
+      duration: duration,
       difficulty: userChallenge.difficulty,
       rules: userChallenge.rules || [],
       participants: userChallenge.participants || 0,
@@ -136,12 +146,14 @@ class ChallengeService {
       createdBy: userChallenge.createdBy,
       createdAt: userChallenge.createdAt,
       xpReward: userChallenge.xpReward || 0,
-      dailyProgressRate: userChallenge.dailyProgressRate,
+      dailyProgressRate: dailyProgressRate,
       requiresVerification: userChallenge.requiresVerification || true,
       isCustom: userChallenge.isCustom || false,
       joinedAt: userChallenge.joinedAt,
-      progress: userChallenge.totalProgress || userChallenge.progress || 0,
-      totalProgress: userChallenge.totalProgress || 0,
+      // Progress - use backend values if available, otherwise calculate
+      progress: userChallenge.progressPercentage || progressPercentage,
+      progressPercentage: userChallenge.progressPercentage || progressPercentage,
+      totalProgress: totalProgress,
       currentStreak: userChallenge.currentStreak || 0,
       longestStreak: userChallenge.longestStreak || 0,
       autoProgress: userChallenge.autoProgress || 0,
@@ -153,12 +165,16 @@ class ChallengeService {
       lastUpdated: userChallenge.lastUpdated,
       lastActivity: userChallenge.lastActivity,
       lastAutoProgressUpdate: userChallenge.lastAutoProgressUpdate,
-      totalDays: userChallenge.totalDays || 0,
+      totalDays: userChallenge.totalDays || totalProgress,
       xpEarned: userChallenge.xpEarned || 0,
       milestones: userChallenge.milestones || [],
       achievedMilestones: userChallenge.achievedMilestones || [],
       metadata: userChallenge.metadata || {},
-      settings: userChallenge.settings || {}
+      // New enhanced fields from backend
+      daysRemaining: userChallenge.daysRemaining || daysRemaining,
+      expectedProgress: userChallenge.expectedProgress || 0,
+      isOnTrack: userChallenge.isOnTrack || (totalProgress >= Math.floor(duration * 0.8)),
+      isCompleted: userChallenge.isCompleted || (totalProgress >= duration)
     };
   }
   // Get all available challenges from backend

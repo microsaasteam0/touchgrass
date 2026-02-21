@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { authenticateToken: auth } = require('../middleware/auth');
 const User = require('../models/user');
 const Streak = require('../models/Streak');
 const redis = require('redis');

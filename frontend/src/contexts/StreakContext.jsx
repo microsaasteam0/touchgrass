@@ -1,3 +1,5 @@
+// /Users/apple/Documents/touchgrass/frontend/src/contexts/StreakContext.jsx
+
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import streakService from '../services/streakservice';
 
@@ -9,14 +11,25 @@ export const StreakProvider = ({ children }) => {
   const [streakData, setStreakData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [canVerify, setCanVerify] = useState({ canVerify: true, hoursRemaining: 0 });
 
-  // Load streak data from service
+  // Load streak data
   const loadStreakData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await streakService.getStreakData();
+      const data = await streakService.getCurrentStreak();
       setStreakData(data);
+      
+      // Check if user can verify
+      if (data) {
+        setCanVerify({
+          canVerify: data.canVerify !== false,
+          hoursRemaining: data.hoursRemaining || 0,
+          nextVerificationTime: data.nextVerificationTime
+        });
+      }
+      
       return data;
     } catch (err) {
       console.error('Error loading streak data:', err);
@@ -32,7 +45,6 @@ export const StreakProvider = ({ children }) => {
     try {
       const result = await streakService.verifyToday(verificationData);
       if (result.success) {
-        // Reload streak data after verification
         await loadStreakData();
       }
       return result;
@@ -42,84 +54,114 @@ export const StreakProvider = ({ children }) => {
     }
   }, [loadStreakData]);
 
-  // Sync with API
-  const syncWithAPI = useCallback(async () => {
+  // Check if user can verify
+  const checkCanVerify = useCallback(async () => {
     try {
-      const success = await streakService.syncWithAPI();
-      if (success) {
+      const status = await streakService.checkCanVerify();
+      setCanVerify(status);
+      return status;
+    } catch (err) {
+      console.error('Error checking verify status:', err);
+      return { canVerify: true, hoursRemaining: 0 };
+    }
+  }, []);
+
+  // Use freeze token
+  const useFreezeToken = useCallback(async (reason) => {
+    try {
+      const result = await streakService.useFreezeToken(reason);
+      if (result.success) {
         await loadStreakData();
       }
-      return success;
+      return result;
     } catch (err) {
-      console.error('Error syncing with API:', err);
-      return false;
+      console.error('Error using freeze token:', err);
+      return { success: false, error: err.message };
     }
   }, [loadStreakData]);
 
-  // Get stats for display
-  const getStatsForDisplay = useCallback(async () => {
-    return await streakService.getStatsForDisplay();
+  // Get streak history
+  const getHistory = useCallback(async (limit = 30, offset = 0) => {
+    try {
+      return await streakService.getHistory(limit, offset);
+    } catch (err) {
+      console.error('Error getting history:', err);
+      return { history: [], total: 0, hasMore: false };
+    }
   }, []);
 
-  // Clear cache and refresh
+  // Get calendar data
+  const getCalendarData = useCallback(async (year, month) => {
+    try {
+      return await streakService.getCalendarData(year, month);
+    } catch (err) {
+      console.error('Error getting calendar data:', err);
+      return { calendar: [], stats: {} };
+    }
+  }, []);
+
+  // Refresh streak data
   const refreshStreak = useCallback(async () => {
     streakService.clearCache();
     return await loadStreakData();
   }, [loadStreakData]);
 
-  // Subscribe to streak changes
-  useEffect(() => {
-    const unsubscribe = streakService.subscribe(() => {
-      loadStreakData();
-    });
-    
-    return unsubscribe;
-  }, [loadStreakData]);
-
   // Initial load
   useEffect(() => {
     loadStreakData();
-  }, [loadStreakData]);
-
-  // Listen for storage changes (other tabs)
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key && e.key.startsWith('touchgrass_streak_')) {
-        streakService.clearCache();
-        loadStreakData();
+    checkCanVerify();
+    
+    // Check every minute if we're in cooldown
+    const interval = setInterval(() => {
+      if (canVerify.hoursRemaining > 0) {
+        checkCanVerify();
       }
-    };
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [loadStreakData, checkCanVerify, canVerify.hoursRemaining]);
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [loadStreakData]);
+  // Add convenience getters to streakData for backward compatibility
+  const streakDataWithGetters = streakData ? {
+    ...streakData,
+    currentStreak: streakData.current || 0,
+    longestStreak: streakData.longest || 0,
+    totalDays: streakData.totalDays || 0,
+    todayVerified: streakData.todayVerified || false
+  } : null;
 
   // Listen for auth changes
   useEffect(() => {
     const handleAuthChange = () => {
       streakService.clearCache();
       loadStreakData();
+      checkCanVerify();
     };
 
     window.addEventListener('auth-state-changed', handleAuthChange);
     return () => window.removeEventListener('auth-state-changed', handleAuthChange);
-  }, [loadStreakData]);
+  }, [loadStreakData, checkCanVerify]);
 
   const value = {
-    streakData,
+    streakData: streakDataWithGetters,
     loading,
     error,
     loadStreakData,
     verifyToday,
-    syncWithAPI,
-    getStatsForDisplay,
+    useFreezeToken,
+    getHistory,
+    getCalendarData,
     refreshStreak,
+    checkCanVerify,
+    canVerify,
     // Convenience getters
-    currentStreak: streakData?.currentStreak || 0,
-    longestStreak: streakData?.longestStreak || 0,
+    currentStreak: streakData?.current || 0,
+    longestStreak: streakData?.longest || 0,
     totalDays: streakData?.totalDays || 0,
     todayVerified: streakData?.todayVerified || false,
-    status: streakData?.status || 'active'
+    status: streakData?.status || 'active',
+    lastVerification: streakData?.lastVerification,
+    nextVerificationTime: streakData?.nextVerificationTime
   };
 
   return (

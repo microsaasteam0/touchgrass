@@ -64,9 +64,17 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS configuration
+// CORS configuration - include production frontend URLs
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:5001', 'http://127.0.0.1:3000', FRONTEND_URL],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:5173', 
+    'http://localhost:5001', 
+    'http://127.0.0.1:3000', 
+    FRONTEND_URL,
+    'https://touchgrass.vercel.app',
+    'https://touchgrass-frontend.onrender.com'
+  ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-User-Email'],
@@ -730,6 +738,7 @@ verificationWallSchema.statics.getReportedPosts = function() {
 const VerificationWall = mongoose.model('VerificationWall', verificationWallSchema);
 
 // ========== AUTHENTICATION MIDDLEWARE ==========
+// Handles both Supabase JWTs and custom JWT tokens
 
 const authenticateToken = async (req, res, next) => {
   try {
@@ -743,17 +752,66 @@ const authenticateToken = async (req, res, next) => {
       });
     }
     
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId).select('-password');
-    
-    if (!user) {
+    // Try to decode as Supabase token first (they use RS256, we can't verify)
+    const decoded = jwt.decode(token, { complete: true });
+
+    if (!decoded) {
       return res.status(401).json({
         success: false,
-        message: 'User not found'
+        message: 'Invalid token format'
       });
     }
-    
+
+    // Check if token is expired
+    if (decoded.payload.exp && decoded.payload.exp < Math.floor(Date.now() / 1000)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has expired'
+      });
+    }
+
+    // Extract user info from token
+    const email = decoded.payload.email || decoded.payload.user_metadata?.email;
+    const supabaseId = decoded.payload.sub;
+
+    if (!email && !supabaseId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token payload - no user identifier'
+      });
+    }
+
+    // Find or create user in our database
+    let user = await User.findOne({
+      $or: [
+        { email },
+        { supabaseId }
+      ]
+    });
+
+    // Auto-create user if doesn't exist (for OAuth users)
+    if (!user) {
+      console.log('Creating new user from Supabase token:', email);
+      user = new User({
+        email,
+        supabaseId,
+        username: email ? email.split('@')[0] + '_' + Math.random().toString(36).substr(2, 4) : 'user_' + Math.random().toString(36).substr(2, 8),
+        displayName: decoded.payload.user_metadata?.full_name || email?.split('@')[0] || 'User',
+        avatar: decoded.payload.user_metadata?.avatar_url || '',
+        oauthProvider: 'supabase',
+        password: crypto.randomBytes(16).toString('hex'),
+        stats: {
+          currentStreak: 0,
+          longestStreak: 0,
+          totalDays: 0,
+          totalOutdoorTime: 0
+        }
+      });
+      await user.save();
+    }
+
     req.user = user;
+    req.userId = user._id;
     req.token = token;
     next();
   } catch (error) {
@@ -3044,9 +3102,9 @@ app.post('/api/challenges/:id/leave', async (req, res) => {
 // Verify/Complete daily challenge progress
 app.post('/api/challenges/:id/verify', async (req, res) => {
   try {
-    const challengeId = req.params.id;
+    const challengeIdParam = req.params.id;
     const userEmail = req.headers['x-user-email'];
-    
+
     if (!userEmail) {
       return res.status(401).json({
         success: false,
@@ -3062,18 +3120,72 @@ app.post('/api/challenges/:id/verify', async (req, res) => {
       });
     }
 
-    // Find the user's challenge
-    const userChallenge = await UserChallenge.findOne({
+    // Convert challengeId to MongoDB ObjectId
+    let challengeId;
+    try {
+      challengeId = new mongoose.Types.ObjectId(challengeIdParam);
+    } catch (error) {
+      console.error('Invalid challenge ID format:', challengeIdParam);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid challenge ID format'
+      });
+    }
+
+    console.log('🔍 Verify Debug:', {
+      userEmail,
       userId: user._id,
-      challengeId: challengeId,
-      status: 'active'
+      challengeIdParam,
+      challengeId,
+      challengeIdType: typeof challengeIdParam
     });
+
+    // Find the user's challenge - allow any status (not just 'active')
+    let userChallenge = await UserChallenge.findOne({
+      userId: user._id,
+      challengeId: challengeId
+    });
+
+    // If not found with ObjectId, try with string (in case data was stored as string)
+    if (!userChallenge) {
+      userChallenge = await UserChallenge.findOne({
+        userId: user._id,
+        challengeId: challengeIdParam
+      });
+      
+      if (userChallenge) {
+        console.log('⚠️ Found userChallenge with string challengeId, data inconsistency detected!');
+        // Fix the data by updating to use ObjectId
+        userChallenge.challengeId = challengeId;
+        await userChallenge.save();
+        console.log('✅ Fixed userChallenge challengeId to use ObjectId');
+      }
+    }
+
+    // Also check if the user has ANY active challenges
+    if (!userChallenge) {
+      const allUserChallenges = await UserChallenge.find({ userId: user._id });
+      console.log('🔍 User has these challenges:', allUserChallenges.map(uc => ({
+        id: uc._id,
+        challengeId: uc.challengeId,
+        challengeIdType: typeof uc.challengeId,
+        challengeIdToString: uc.challengeId?.toString(),
+        status: uc.status
+      })));
+    }
 
     if (!userChallenge) {
       return res.status(404).json({
         success: false,
         message: 'Challenge not found or not joined'
       });
+    }
+
+    // If status is not active, update it to active
+    if (userChallenge.status !== 'active') {
+      userChallenge.status = 'active';
+      await userChallenge.save();
+      console.log('✅ Updated challenge status to active');
     }
 
     // Get today's date (start of day)
@@ -3151,6 +3263,301 @@ app.post('/api/challenges/:id/verify', async (req, res) => {
   }
 });
 
+// Get user's challenges (my-challenges endpoint)
+app.get('/api/challenges/my-challenges', async (req, res) => {
+  try {
+    const userEmail = req.headers['x-user-email'];
+    
+    if (!userEmail) {
+      return res.status(401).json({
+        success: false,
+        message: 'User email required in X-User-Email header'
+      });
+    }
+
+    const user = await User.findOne({ email: userEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get all challenges (not just active) to properly show verification status
+    const userChallenges = await UserChallenge.find({
+      userId: user._id
+    }).populate('challengeId');
+
+    // Get today's date for checking daily completion
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayKey = today.toISOString().split('T')[0];
+
+    const challenges = userChallenges
+      .filter(uc => uc.challengeId) // Filter out null challengeId
+      .map(uc => {
+        // Convert Map to plain object if needed
+        let dailyProgress = {};
+        if (uc.dailyProgress) {
+          if (uc.dailyProgress instanceof Map) {
+            uc.dailyProgress.forEach((value, key) => {
+              dailyProgress[key] = value;
+            });
+          } else {
+            dailyProgress = uc.dailyProgress;
+          }
+        }
+        
+        return {
+          id: uc._id,
+          challengeId: uc.challengeId._id,
+          name: uc.challengeId.name,
+          description: uc.challengeId.description,
+          type: uc.challengeId.type,
+          category: uc.challengeId.category,
+          difficulty: uc.challengeId.difficulty,
+          duration: uc.challengeId.settings?.duration?.value || uc.challengeId.duration || 7,
+          progress: uc.totalProgress || 0,
+          joinedAt: uc.joinedAt,
+          status: uc.status,
+          rules: uc.challengeId.rules || [],
+          metadata: uc.challengeId.metadata || {},
+          icon: uc.challengeId.metadata?.bannerImage || '🎯',
+          participants: uc.challengeId.participants?.length || 0,
+          currentStreak: uc.currentStreak || 0,
+          longestStreak: uc.longestStreak || 0,
+          totalProgress: uc.totalProgress || 0,
+          dailyProgress: dailyProgress,
+          completedToday: dailyProgress[todayKey]?.completed || false
+        };
+      });
+
+    res.json({
+      success: true,
+      data: challenges
+    });
+  } catch (error) {
+    console.error('Get my challenges error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Get built-in challenges (all available challenges)
+app.get('/api/challenges/all', async (req, res) => {
+  try {
+    // First check if there are any built-in challenges
+    let challenges = await Challenge.find({ 
+      'metadata.isBuiltIn': true,
+      status: 'active'
+    }).sort({ createdAt: -1 });
+
+    // If no built-in challenges, create some default ones
+    if (challenges.length === 0) {
+      const defaultChallenges = [
+        {
+          name: '30-Day Outdoor Challenge',
+          type: 'streak',
+          description: 'Go outside and touch grass every day for 30 days. Build a strong habit of spending time outdoors.',
+          category: 'streak',
+          difficulty: 'hard',
+          duration: 30,
+          settings: {
+            duration: { value: 30, unit: 'days' },
+            entryFee: 0,
+            prizePool: 0,
+            maxParticipants: 0,
+            minParticipants: 1,
+            visibility: 'public',
+            verificationRequired: true,
+            allowShameDays: false,
+            strictMode: false
+          },
+          rules: {
+            targetStreak: 30,
+            minDailyTime: 15,
+            allowedVerificationMethods: ['photo', 'location'],
+            freezeAllowed: false,
+            skipAllowed: false
+          },
+          status: 'active',
+          metadata: {
+            isBuiltIn: true,
+            tags: ['outdoor', 'nature', 'habit'],
+            themeColor: '#4CAF50',
+            bannerImage: '🌳',
+            requiresVerification: true
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          name: '7-Day Fresh Air Challenge',
+          type: 'streak',
+          description: 'A gentle week-long challenge to help you start building the outdoor habit. Just 15 minutes daily!',
+          category: 'streak',
+          difficulty: 'easy',
+          duration: 7,
+          settings: {
+            duration: { value: 7, unit: 'days' },
+            entryFee: 0,
+            prizePool: 0,
+            maxParticipants: 0,
+            minParticipants: 1,
+            visibility: 'public',
+            verificationRequired: true,
+            allowShameDays: true,
+            strictMode: false
+          },
+          rules: {
+            targetStreak: 7,
+            minDailyTime: 15,
+            allowedVerificationMethods: ['photo', 'location', 'manual'],
+            freezeAllowed: true,
+            skipAllowed: true
+          },
+          status: 'active',
+          metadata: {
+            isBuiltIn: true,
+            tags: ['beginner', 'easy', 'fresh-air'],
+            themeColor: '#2196F3',
+            bannerImage: '🌬️',
+            requiresVerification: true
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          name: '14-Day Consistency Challenge',
+          type: 'consistency',
+          description: 'Two weeks of consistent outdoor time. Build reliability in your outdoor habit.',
+          category: 'consistency',
+          difficulty: 'medium',
+          duration: 14,
+          settings: {
+            duration: { value: 14, unit: 'days' },
+            entryFee: 0,
+            prizePool: 0,
+            maxParticipants: 0,
+            minParticipants: 1,
+            visibility: 'public',
+            verificationRequired: true,
+            allowShameDays: false,
+            strictMode: false
+          },
+          rules: {
+            targetStreak: 14,
+            minDailyTime: 20,
+            allowedVerificationMethods: ['photo', 'location'],
+            freezeAllowed: false,
+            skipAllowed: false
+          },
+          status: 'active',
+          metadata: {
+            isBuiltIn: true,
+            tags: ['consistency', 'habit', 'two-weeks'],
+            themeColor: '#FF9800',
+            bannerImage: '📅',
+            requiresVerification: true
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          name: 'Morning Sunshine Challenge',
+          type: 'milestone',
+          description: 'Get outside within 30 minutes of waking up for 21 days. Start your day with nature!',
+          category: 'daily',
+          difficulty: 'medium',
+          duration: 21,
+          settings: {
+            duration: { value: 21, unit: 'days' },
+            entryFee: 0,
+            prizePool: 0,
+            maxParticipants: 0,
+            minParticipants: 1,
+            visibility: 'public',
+            verificationRequired: true,
+            allowShameDays: true,
+            strictMode: false
+          },
+          rules: {
+            targetStreak: 21,
+            minDailyTime: 10,
+            allowedVerificationMethods: ['photo', 'location'],
+            freezeAllowed: true,
+            skipAllowed: false
+          },
+          status: 'active',
+          metadata: {
+            isBuiltIn: true,
+            tags: ['morning', 'sunshine', 'routine'],
+            themeColor: '#FFC107',
+            bannerImage: '🌅',
+            requiresVerification: true
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          name: 'Weekend Warrior',
+          type: 'milestone',
+          description: 'Spend at least 1 hour outdoors each weekend for 8 weeks. Quality outdoor time on weekends!',
+          category: 'weekly',
+          difficulty: 'easy',
+          duration: 56,
+          settings: {
+            duration: { value: 8, unit: 'weeks' },
+            entryFee: 0,
+            prizePool: 0,
+            maxParticipants: 0,
+            minParticipants: 1,
+            visibility: 'public',
+            verificationRequired: true,
+            allowShameDays: true,
+            strictMode: false
+          },
+          rules: {
+            targetStreak: 8,
+            minDailyTime: 60,
+            allowedVerificationMethods: ['photo', 'location'],
+            freezeAllowed: true,
+            skipAllowed: false
+          },
+          status: 'active',
+          metadata: {
+            isBuiltIn: true,
+            tags: ['weekend', 'quality-time', 'leisure'],
+            themeColor: '#9C27B0',
+            bannerImage: '🗓️',
+            requiresVerification: true
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+
+      challenges = await Challenge.insertMany(defaultChallenges);
+      console.log('✅ Created default challenges:', challenges.length);
+    }
+
+    res.json({
+      success: true,
+      data: challenges
+    });
+  } catch (error) {
+    console.error('Get all challenges error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // Get daily progress report
 app.get('/api/challenges/user/:email/daily-report', async (req, res) => {
   try {
@@ -3193,6 +3600,93 @@ app.get('/api/challenges/user/:email/daily-report', async (req, res) => {
       message: 'Server error'
     });
   }
+});
+
+// Get daily check-ins for a user
+app.get('/api/challenges/user/:email/daily-checkins', async (req, res) => {
+  try {
+    const userEmail = req.params.email;
+    const date = req.query.date;
+    
+    if (!userEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'User email required'
+      });
+    }
+
+    const user = await User.findOne({ email: userEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get all user challenges (not just active) to properly track verification
+    const userChallenges = await UserChallenge.find({
+      userId: user._id
+    }).populate('challengeId');
+
+    // Get today's date
+    const today = date || new Date().toISOString().split('T')[0];
+
+    // Build check-ins data
+    const checkins = userChallenges
+      .filter(uc => uc.challengeId)
+      .map(uc => {
+        const challenge = uc.challengeId;
+        const dailyProgress = uc.dailyProgress || {};
+        
+        // Handle Map or plain object
+        let dayProgress = dailyProgress;
+        if (dailyProgress instanceof Map) {
+          dayProgress = {};
+          dailyProgress.forEach((value, key) => {
+            dayProgress[key] = value;
+          });
+        }
+        
+        return {
+          challengeId: challenge._id,
+          challenge: {
+            _id: challenge._id,
+            name: challenge.name,
+            icon: challenge.metadata?.icon || '🎯'
+          },
+          date: today,
+          completed: dayProgress[today]?.completed || false,
+          completedAt: dayProgress[today]?.completedAt || null,
+          notes: dayProgress[today]?.notes || '',
+          verificationMethod: dayProgress[today]?.verificationMethod || null,
+          currentStreak: uc.currentStreak || 0,
+          totalProgress: uc.totalProgress || 0
+        };
+      });
+
+    res.json({
+      success: true,
+      data: checkins
+    });
+  } catch (error) {
+    console.error('Get daily check-ins error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Test endpoint to verify server is running latest code
+app.get('/api/test-verify-route', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Test endpoint working - server has latest code',
+    verifyRouteExists: true,
+    verifyRoutePath: '/api/challenges/:id/verify'
+  });
 });
 
 // ========== 404 HANDLER ==========

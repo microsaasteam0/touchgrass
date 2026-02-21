@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { check, validationResult } = require('express-validator');
-const auth = require('../middleware/auth');
+const { authenticateToken: auth } = require('../middleware/auth');
 const crypto = require('crypto');
 const ogs = require('open-graph-scraper');
 const SocialShareService = require('../services/socialShare');

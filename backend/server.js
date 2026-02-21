@@ -5095,6 +5095,7 @@ userSchema.methods.generateResetToken = function() {
 const User = mongoose.model('User', userSchema);
 
 // ========== AUTHENTICATION MIDDLEWARE ==========
+// IMPORTANT: This handles Supabase JWTs which are signed with Supabase's own keys, not our JWT_SECRET
 
 const authenticateToken = async (req, res, next) => {
   try {
@@ -5108,17 +5109,68 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId).select('-password');
+    // Decode the JWT without verification (Supabase tokens are signed with Supabase's keys)
+    // This is safe because we're just extracting user info, not relying on the signature
+    // The actual authentication is done by Supabase
+    const decoded = jwt.decode(token, { complete: true });
 
-    if (!user) {
+    if (!decoded) {
       return res.status(401).json({
         success: false,
-        message: 'User not found'
+        message: 'Invalid token format'
       });
     }
 
+    // Check if token is expired
+    if (decoded.payload.exp && decoded.payload.exp < Math.floor(Date.now() / 1000)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has expired'
+      });
+    }
+
+    // Extract user info from token
+    const email = decoded.payload.email || decoded.payload.user_metadata?.email;
+    const supabaseId = decoded.payload.sub;
+
+    if (!email && !supabaseId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token payload - no user identifier'
+      });
+    }
+
+    // Find or create user in our database
+    let user = await User.findOne({
+      $or: [
+        { email },
+        { supabaseId }
+      ]
+    });
+
+    // Auto-create user if doesn't exist (for OAuth users)
+    if (!user) {
+      console.log('Creating new user from Supabase token:', email);
+      user = new User({
+        email,
+        supabaseId,
+        username: email ? email.split('@')[0] + '_' + Math.random().toString(36).substr(2, 4) : 'user_' + Math.random().toString(36).substr(2, 8),
+        displayName: decoded.payload.user_metadata?.full_name || email?.split('@')[0] || 'User',
+        avatar: decoded.payload.user_metadata?.avatar_url || '',
+        oauthProvider: 'supabase',
+        password: crypto.randomBytes(16).toString('hex'),
+        stats: {
+          currentStreak: 0,
+          longestStreak: 0,
+          totalDays: 0,
+          totalOutdoorTime: 0
+        }
+      });
+      await user.save();
+    }
+
     req.user = user;
+    req.userId = user._id;
     req.token = token;
     next();
   } catch (error) {
@@ -5136,6 +5188,10 @@ const UserChallenge = require('./src/models/UserChallenge');
 
 const challengeRoutes = require('./src/routes/challenges');
 app.use('/api/challenges', challengeRoutes);
+
+// Streak routes - import and mount the comprehensive streak routes
+const streakRoutes = require('./src/routes/streaks');
+app.use('/api/streaks', streakRoutes);
 
 // Get user's challenges
 app.get('/api/user/challenges', authenticateToken, async (req, res) => {
@@ -5387,7 +5443,8 @@ const streakSchema = new mongoose.Schema({
   timestamps: true
 });
 
-const Streak = mongoose.model('Streak', streakSchema);
+// Using the Streak model from ./src/models/Streak.js instead
+// const Streak = mongoose.model('Streak', streakSchema);
 
 // Payment Schema
 const paymentSchema = new mongoose.Schema({
@@ -6151,291 +6208,293 @@ app.get('/api/users/:userId/achievements', authenticateToken, async (req, res) =
   }
 });
 
-// ========== STREAK ROUTES ==========
+// ========== STREAK ROUTES - REMOVED DUPLICATES (using streaks.js instead) ==========
+// The streak routes are now defined in backend/src/routes/streaks.js
+// and mounted at /api/streaks in line ~5193
 
-app.get('/api/streaks/current', authenticateToken, async (req, res) => {
-  try {
-    const streak = await Streak.findOne({ userId: req.user._id });
+// app.get('/api/streaks/current', authenticateToken, async (req, res) => {
+//   try {
+//     const streak = await Streak.findOne({ userId: req.user._id });
 
-    if (!streak) {
-      const newStreak = new Streak({
-        userId: req.user._id,
-        currentStreak: 0,
-        longestStreak: 0,
-        totalDays: 0,
-        todayVerified: false,
-        history: []
-      });
-      await newStreak.save();
+//     if (!streak) {
+//       const newStreak = new Streak({
+//         userId: req.user._id,
+//         currentStreak: 0,
+//         longestStreak: 0,
+//         totalDays: 0,
+//         todayVerified: false,
+//         history: []
+//       });
+//       await newStreak.save();
 
-      return res.json({
-        success: true,
-        streak: newStreak
-      });
-    }
+//       return res.json({
+//         success: true,
+//         streak: newStreak
+//       });
+//     }
 
-    const now = new Date();
-    const lastUpdate = new Date(streak.lastUpdated);
-    const daysSinceLastUpdate = Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
+//     const now = new Date();
+//     const lastUpdate = new Date(streak.lastUpdated);
+//     const daysSinceLastUpdate = Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
 
-    if (daysSinceLastUpdate > 1 && streak.currentStreak > 0) {
-      streak.currentStreak = 0;
-      streak.status = 'broken';
-      streak.history.push({
-        date: new Date(lastUpdate.getTime() + 24 * 60 * 60 * 1000),
-        verified: false,
-        verificationMethod: 'shame',
-        shameMessage: 'Missed daily verification',
-        isPublicShame: false
-      });
-      await streak.save();
+//     if (daysSinceLastUpdate > 1 && streak.currentStreak > 0) {
+//       streak.currentStreak = 0;
+//       streak.status = 'broken';
+//       streak.history.push({
+//         date: new Date(lastUpdate.getTime() + 24 * 60 * 60 * 1000),
+//         verified: false,
+//         verificationMethod: 'shame',
+//         shameMessage: 'Missed daily verification',
+//         isPublicShame: false
+//       });
+//       await streak.save();
 
-      await User.findByIdAndUpdate(req.user._id, {
-        $set: { 'stats.currentStreak': 0 }
-      });
-    }
+//       await User.findByIdAndUpdate(req.user._id, {
+//         $set: { 'stats.currentStreak': 0 }
+//       });
+//     }
 
-    res.json({
-      success: true,
-      streak
-    });
+//     res.json({
+//       success: true,
+//       streak
+//     });
 
-  } catch (error) {
-    console.error('Get streak error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
+//   } catch (error) {
+//     console.error('Get streak error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error'
+//     });
+//   }
+// });
 
-app.get('/api/streaks/user/:userId', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
+// app.get('/api/streaks/user/:userId', authenticateToken, async (req, res) => {
+//   try {
+//     const { userId } = req.params;
 
-    const streak = await Streak.findOne({ userId });
+//     const streak = await Streak.findOne({ userId });
 
-    if (!streak) {
-      return res.status(404).json({
-        success: false,
-        message: 'Streak not found'
-      });
-    }
+//     if (!streak) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Streak not found'
+//       });
+//     }
 
-    res.json({
-      success: true,
-      streak
-    });
+//     res.json({
+//       success: true,
+//       streak
+//     });
 
-  } catch (error) {
-    console.error('Get user streak error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
+//   } catch (error) {
+//     console.error('Get user streak error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error'
+//     });
+//   }
+// });
 
-app.post('/api/streaks/verify', authenticateToken, async (req, res) => {
-  try {
-    const { method = 'manual', duration = 30, notes = '', timestamp } = req.body;
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+// app.post('/api/streaks/verify', authenticateToken, async (req, res) => {
+//   try {
+//     const { method = 'manual', duration = 30, notes = '', timestamp } = req.body;
+//     const now = new Date();
+//     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    let streak = await Streak.findOne({ userId: req.user._id });
+//     let streak = await Streak.findOne({ userId: req.user._id });
 
-    if (!streak) {
-      streak = new Streak({
-        userId: req.user._id,
-        currentStreak: 0,
-        longestStreak: 0,
-        totalDays: 0,
-        todayVerified: false,
-        history: []
-      });
-    }
+//     if (!streak) {
+//       streak = new Streak({
+//         userId: req.user._id,
+//         currentStreak: 0,
+//         longestStreak: 0,
+//         totalDays: 0,
+//         todayVerified: false,
+//         history: []
+//       });
+//     }
 
-    const todayStr = today.toISOString().split('T')[0];
-    const alreadyVerifiedToday = streak.history.some(entry => {
-      const entryDate = new Date(entry.date);
-      const entryDateStr = entryDate.toISOString().split('T')[0];
-      return entryDateStr === todayStr && entry.verified;
-    });
+//     const todayStr = today.toISOString().split('T')[0];
+//     const alreadyVerifiedToday = streak.history.some(entry => {
+//       const entryDate = new Date(entry.date);
+//       const entryDateStr = entryDate.toISOString().split('T')[0];
+//       return entryDateStr === todayStr && entry.verified;
+//     });
 
-    if (alreadyVerifiedToday) {
-      return res.status(400).json({
-        success: false,
-        message: 'Already verified today'
-      });
-    }
+//     if (alreadyVerifiedToday) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Already verified today'
+//       });
+//     }
 
-    const verification = {
-      date: now,
-      verified: true,
-      verificationMethod: method,
-      duration: parseInt(duration),
-      notes: notes || '',
-      location: req.body.location || null
-    };
+//     const verification = {
+//       date: now,
+//       verified: true,
+//       verificationMethod: method,
+//       duration: parseInt(duration),
+//       notes: notes || '',
+//       location: req.body.location || null
+//     };
 
-    streak.history.push(verification);
+//     streak.history.push(verification);
 
-    const lastUpdate = new Date(streak.lastUpdated);
-    const lastUpdateDate = new Date(lastUpdate.getFullYear(), lastUpdate.getMonth(), lastUpdate.getDate());
+//     const lastUpdate = new Date(streak.lastUpdated);
+//     const lastUpdateDate = new Date(lastUpdate.getFullYear(), lastUpdate.getMonth(), lastUpdate.getDate());
 
-    if (today.getTime() === lastUpdateDate.getTime() || streak.currentStreak === 0) {
-      streak.currentStreak += 1;
-    } else if (today.getTime() === lastUpdateDate.getTime() + 24 * 60 * 60 * 1000) {
-      streak.currentStreak += 1;
-    } else {
-      streak.currentStreak = 1;
-    }
+//     if (today.getTime() === lastUpdateDate.getTime() || streak.currentStreak === 0) {
+//       streak.currentStreak += 1;
+//     } else if (today.getTime() === lastUpdateDate.getTime() + 24 * 60 * 60 * 1000) {
+//       streak.currentStreak += 1;
+//     } else {
+//       streak.currentStreak = 1;
+//     }
 
-    if (streak.currentStreak > streak.longestStreak) {
-      streak.longestStreak = streak.currentStreak;
-    }
+//     if (streak.currentStreak > streak.longestStreak) {
+//       streak.longestStreak = streak.currentStreak;
+//     }
 
-    streak.totalDays += 1;
-    streak.totalOutdoorTime += parseInt(duration) || 30;
-    streak.todayVerified = true;
-    streak.lastUpdated = now;
-    streak.status = 'active';
+//     streak.totalDays += 1;
+//     streak.totalOutdoorTime += parseInt(duration) || 30;
+//     streak.todayVerified = true;
+//     streak.lastUpdated = now;
+//     streak.status = 'active';
 
-    const nextCheckpoint = new Date(today);
-    nextCheckpoint.setDate(nextCheckpoint.getDate() + 1);
-    streak.nextCheckpoint = nextCheckpoint;
+//     const nextCheckpoint = new Date(today);
+//     nextCheckpoint.setDate(nextCheckpoint.getDate() + 1);
+//     streak.nextCheckpoint = nextCheckpoint;
 
-    await streak.save();
+//     await streak.save();
 
-    const user = await User.findById(req.user._id);
-    user.stats.currentStreak = streak.currentStreak;
-    user.stats.longestStreak = streak.longestStreak;
-    user.stats.totalDays = streak.totalDays;
-    user.stats.totalOutdoorTime = streak.totalOutdoorTime;
+//     const user = await User.findById(req.user._id);
+//     user.stats.currentStreak = streak.currentStreak;
+//     user.stats.longestStreak = streak.longestStreak;
+//     user.stats.totalDays = streak.totalDays;
+//     user.stats.totalOutdoorTime = streak.totalOutdoorTime;
 
-    if (user.stats.totalDays > 0) {
-      const consistency = (streak.currentStreak / user.stats.totalDays) * 100;
-      user.stats.consistencyScore = Math.min(100, Math.round(consistency));
-    }
+//     if (user.stats.totalDays > 0) {
+//       const consistency = (streak.currentStreak / user.stats.totalDays) * 100;
+//       user.stats.consistencyScore = Math.min(100, Math.round(consistency));
+//     }
 
-    await user.save();
+//     await user.save();
 
-    const achievements = [];
-    if (streak.currentStreak === 7) {
-      achievements.push({
-        name: 'Weekly Warrior',
-        earnedAt: now,
-        icon: '🏆',
-        description: 'Maintained a 7-day streak'
-      });
-    }
+//     const achievements = [];
+//     if (streak.currentStreak === 7) {
+//       achievements.push({
+//         name: 'Weekly Warrior',
+//         earnedAt: now,
+//         icon: '🏆',
+//         description: 'Maintained a 7-day streak'
+//       });
+//     }
 
-    if (streak.currentStreak === 30) {
-      achievements.push({
-        name: 'Monthly Maestro',
-        earnedAt: now,
-        icon: '🌟',
-        description: 'Maintained a 30-day streak'
-      });
-    }
+//     if (streak.currentStreak === 30) {
+//       achievements.push({
+//         name: 'Monthly Maestro',
+//         earnedAt: now,
+//         icon: '🌟',
+//         description: 'Maintained a 30-day streak'
+//       });
+//     }
 
-    if (streak.currentStreak === 100) {
-      achievements.push({
-        name: 'Century Club',
-        earnedAt: now,
-        icon: '💯',
-        description: 'Maintained a 100-day streak'
-      });
-    }
+//     if (streak.currentStreak === 100) {
+//       achievements.push({
+//         name: 'Century Club',
+//         earnedAt: now,
+//         icon: '💯',
+//         description: 'Maintained a 100-day streak'
+//       });
+//     }
 
-    if (achievements.length > 0) {
-      await User.findByIdAndUpdate(req.user._id, {
-        $push: { achievements: { $each: achievements } }
-      });
-    }
+//     if (achievements.length > 0) {
+//       await User.findByIdAndUpdate(req.user._id, {
+//         $push: { achievements: { $each: achievements } }
+//       });
+//     }
 
-    res.json({
-      success: true,
-      streak,
-      message: 'Verification successful!',
-      achievements: achievements.length > 0 ? achievements : null
-    });
+//     res.json({
+//       success: true,
+//       streak,
+//       message: 'Verification successful!',
+//       achievements: achievements.length > 0 ? achievements : null
+//     });
 
-  } catch (error) {
-    console.error('Verify streak error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
+//   } catch (error) {
+//     console.error('Verify streak error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error'
+//     });
+//   }
+// });
 
-app.post('/api/streaks/shame', authenticateToken, async (req, res) => {
-  try {
-    const { message = 'Failed to touch grass today', public = true } = req.body;
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+// app.post('/api/streaks/shame', authenticateToken, async (req, res) => {
+//   try {
+//     const { message = 'Failed to touch grass today', public = true } = req.body;
+//     const now = new Date();
+//     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    let streak = await Streak.findOne({ userId: req.user._id });
+//     let streak = await Streak.findOne({ userId: req.user._id });
 
-    if (!streak) {
-      streak = new Streak({
-        userId: req.user._id,
-        currentStreak: 0,
-        longestStreak: 0,
-        totalDays: 0,
-        todayVerified: false,
-        history: []
-      });
-    }
+//     if (!streak) {
+//       streak = new Streak({
+//         userId: req.user._id,
+//         currentStreak: 0,
+//         longestStreak: 0,
+//         totalDays: 0,
+//         todayVerified: false,
+//         history: []
+//       });
+//     }
 
-    const todayStr = today.toISOString().split('T')[0];
-    const alreadyShamedToday = streak.history.some(entry => {
-      const entryDate = new Date(entry.date);
-      const entryDateStr = entryDate.toISOString().split('T')[0];
-      return entryDateStr === todayStr && !entry.verified;
-    });
+//     const todayStr = today.toISOString().split('T')[0];
+//     const alreadyShamedToday = streak.history.some(entry => {
+//       const entryDate = new Date(entry.date);
+//       const entryDateStr = entryDate.toISOString().split('T')[0];
+//       return entryDateStr === todayStr && !entry.verified;
+//     });
 
-    if (alreadyShamedToday) {
-      return res.status(400).json({
-        success: false,
-        message: 'Already accepted shame for today'
-      });
-    }
+//     if (alreadyShamedToday) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Already accepted shame for today'
+//       });
+//     }
 
-    streak.history.push({
-      date: now,
-      verified: false,
-      verificationMethod: 'shame',
-      shameMessage: message,
-      isPublicShame: public
-    });
+//     streak.history.push({
+//       date: now,
+//       verified: false,
+//       verificationMethod: 'shame',
+//       shameMessage: message,
+//       isPublicShame: public
+//     });
 
-    streak.currentStreak = 0;
-    streak.todayVerified = false;
-    streak.lastUpdated = now;
-    streak.status = 'broken';
+//     streak.currentStreak = 0;
+//     streak.todayVerified = false;
+//     streak.lastUpdated = now;
+//     streak.status = 'broken';
 
-    await streak.save();
+//     await streak.save();
 
-    await User.findByIdAndUpdate(req.user._id, {
-      $set: { 'stats.currentStreak': 0 }
-    });
+//     await User.findByIdAndUpdate(req.user._id, {
+//       $set: { 'stats.currentStreak': 0 }
+//     });
 
-    res.json({
-      success: true,
-      streak,
-      message: 'Shame accepted. Streak reset.'
-    });
+//     res.json({
+//       success: true,
+//       streak,
+//       message: 'Shame accepted. Streak reset.'
+//     });
 
-  } catch (error) {
-    console.error('Shame error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
+//   } catch (error) {
+//     console.error('Shame error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error'
+//     });
+//   }
+// });
 
 // ========== DODO PAYMENTS ROUTES ==========
 

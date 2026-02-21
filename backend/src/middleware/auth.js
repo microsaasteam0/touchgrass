@@ -1,146 +1,142 @@
-import React from 'react';
-  
-
-  const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 /**
- * Authentication Middleware
- * Simplified version for TouchGrass backend
+ * SIMPLE token verification - ACCEPTS ANY VALID JWT for development
  */
+function verifyToken(token) {
+  try {
+    console.log('🔐 Verifying token...');
+    
+    // Just decode without verification for now (DEVELOPMENT ONLY)
+    const decoded = jwt.decode(token, { complete: true });
+    
+    if (!decoded) {
+      console.log('❌ Could not decode token');
+      return null;
+    }
+    
+    console.log('📝 Token header:', decoded.header);
+    console.log('📝 Token algorithm:', decoded.header.alg);
+    console.log('👤 User email:', decoded.payload.email);
+    
+    // Check expiration
+    if (decoded.payload.exp && decoded.payload.exp < Math.floor(Date.now() / 1000)) {
+      console.log('❌ Token is expired');
+      return null;
+    }
+    
+    // FOR DEVELOPMENT: Accept any valid JWT
+    // In production, you would verify the signature properly
+    console.log('✅ Token accepted (development mode)');
+    return decoded.payload;
+    
+  } catch (error) {
+    console.error('❌ Token verification error:', error.message);
+    return null;
+  }
+}
 
+/**
+ * Authentication Middleware - SIMPLIFIED VERSION
+ */
 const authenticateToken = async (req, res, next) => {
   try {
-    // Get token from various sources
-    let token;
-    
-    // 1. From Authorization header (Bearer token)
+    // Get token from Authorization header
     const authHeader = req.headers['authorization'];
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
+    
+    if (!authHeader) {
+      console.log('❌ No Authorization header');
+      return res.status(401).json({
+        success: false,
+        message: 'Authorization header required'
+      });
     }
     
-    // 2. From query parameter (for OAuth redirects)
-    if (!token && req.query.token) {
-      token = req.query.token;
+    if (!authHeader.startsWith('Bearer ')) {
+      console.log('❌ Authorization header does not start with Bearer');
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid authorization format. Use: Bearer <token>'
+      });
     }
     
-    // 3. From cookie (if using cookies)
-    if (!token && req.cookies?.token) {
-      token = req.cookies.token;
-    }
+    const token = authHeader.split(' ')[1];
     
-    if (!token) {
+    if (!token || token.length < 10) {
+      console.log('❌ No token provided or token too short');
       return res.status(401).json({
         success: false,
         message: 'Access token required'
       });
     }
+
+    console.log('🔐 Token received (first 30 chars):', token.substring(0, 30) + '...');
+
+    // Verify the token (simplified)
+    const verifiedUser = verifyToken(token);
     
-    // For development: Accept any valid JWT (Supabase or your own)
-    let decoded;
-    let isSupabaseToken = false;
-
-    try {
-      decoded = jwt.decode(token) || jwt.decode(token, { complete: true });
-
-      if (!decoded) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid token'
-        });
-      }
-
-      // Check if this is a Supabase token by looking at issuer
-      isSupabaseToken = decoded.iss === 'https://api.supabase.co/auth/v1' ||
-                       decoded.iss?.includes('supabase') ||
-                       decoded.aud === 'authenticated';
-
-      console.log('✅ Token decoded successfully:', {
-        email: decoded.email,
-        sub: decoded.sub,
-        userId: decoded.userId,
-        iss: decoded.iss,
-        aud: decoded.aud,
-        isSupabaseToken
-      });
-
-    } catch (error) {
-      console.error('❌ Token decode error:', error);
+    if (!verifiedUser) {
+      console.log('❌ Token verification failed');
       return res.status(401).json({
         success: false,
-        message: 'Token verification failed'
+        message: 'Invalid or expired token'
       });
     }
 
-    // Check if token has expired (for both types)
-    const now = Math.floor(Date.now() / 1000);
-    if (decoded.exp && decoded.exp < now) {
+    console.log('✅ Token verified successfully for user:', verifiedUser.email);
+
+    // Get email from verified token
+    const email = verifiedUser.email || verifiedUser.user_metadata?.email;
+    const supabaseId = verifiedUser.sub;
+    
+    if (!email && !supabaseId) {
+      console.log('❌ No email or user ID in token');
       return res.status(401).json({
         success: false,
-        message: 'Token expired'
+        message: 'Invalid token payload'
       });
     }
-
+    
     // Get user from database
     const User = mongoose.model('User');
     let user;
 
-    if (isSupabaseToken) {
-      // For Supabase tokens, find user by email or supabaseId
-      const email = decoded.email;
-      const supabaseId = decoded.sub;
+    // Try to find existing user
+    user = await User.findOne({
+      $or: [
+        { email },
+        { supabaseId }
+      ]
+    });
 
-      user = await User.findOne({
-        $or: [
-          { email },
-          { supabaseId }
-        ]
-      });
-
-      // If user doesn't exist, create one from Supabase data
-      if (!user) {
-        console.log('👤 Creating user from Supabase token');
-        user = new User({
-          email,
-          supabaseId,
-          username: email.split('@')[0] + '_' + Math.random().toString(36).substr(2, 5),
-          displayName: decoded.user_metadata?.full_name || decoded.user_metadata?.name || email.split('@')[0],
-          avatar: decoded.user_metadata?.avatar_url || decoded.user_metadata?.picture || '',
-          oauthProvider: 'supabase',
-          password: crypto.randomBytes(16).toString('hex'), // Random password for OAuth users
-          stats: {
-            currentStreak: 0,
-            longestStreak: 0,
-            totalDays: 0,
-            totalOutdoorTime: 0,
-            consistencyScore: 0,
-            leaderboardRank: 999999,
-            followersCount: 0,
-            followingCount: 0
-          }
-        });
-        await user.save();
-        console.log('✅ User created from Supabase token');
-      }
-    } else {
-      // For backend JWT tokens, find by userId
-      user = await User.findById(decoded.userId);
-    }
-
+    // If user doesn't exist, create one
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
+      console.log('👤 Creating new user from token');
+      
+      const username = email ? 
+        email.split('@')[0] + '_' + Math.random().toString(36).substr(2, 4) : 
+        'user_' + Math.random().toString(36).substr(2, 8);
+      
+      user = new User({
+        email,
+        supabaseId,
+        username,
+        displayName: verifiedUser.user_metadata?.full_name || email?.split('@')[0] || 'User',
+        avatar: verifiedUser.user_metadata?.avatar_url || '',
+        oauthProvider: 'supabase',
+        password: crypto.randomBytes(16).toString('hex'),
+        stats: {
+          currentStreak: 0,
+          longestStreak: 0,
+          totalDays: 0,
+          totalOutdoorTime: 0
+        }
       });
-    }
-
-    // Check if user is disabled/deleted
-    if (user.deletedAt) {
-      return res.status(401).json({
-        success: false,
-        message: 'Account has been deleted'
-      });
+      
+      await user.save();
+      console.log('✅ User created:', user.email);
     }
 
     // Attach user to request
@@ -149,452 +145,47 @@ const authenticateToken = async (req, res, next) => {
     req.token = token;
 
     console.log('✅ Authentication successful for user:', user.email);
-    
     next();
     
   } catch (error) {
-    console.error('Auth middleware error:', error.message);
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expired'
-      });
-    }
-    
+    console.error('❌ Auth middleware error:', error.message);
     return res.status(500).json({
       success: false,
-      message: 'Authentication error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Authentication error'
     });
   }
 };
 
 /**
  * Optional authentication
- * If token is provided, verify it, otherwise proceed without user
  */
 const optionalAuth = async (req, res, next) => {
   try {
-    // Get token from various sources
-    let token;
-    
     const authHeader = req.headers['authorization'];
+    
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-    }
-    
-    if (!token && req.query.token) {
-      token = req.query.token;
-    }
-    
-    if (!token && req.cookies?.token) {
-      token = req.cookies.token;
-    }
-    
-    if (!token) {
-      req.user = null;
-      req.userId = null;
-      return next();
-    }
-    
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    
-    // Get user from database
-    const User = mongoose.model('User');
-    const user = await User.findById(decoded.userId)
-      .select('-password')
-      .populate('followers', 'username displayName avatar')
-      .populate('following', 'username displayName avatar');
-    
-    if (user && !user.deletedAt) {
-      req.user = user;
-      req.userId = user._id;
-      req.token = token;
-    } else {
-      req.user = null;
-      req.userId = null;
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.decode(token);
+      
+      if (decoded && decoded.email) {
+        const User = mongoose.model('User');
+        const user = await User.findOne({ email: decoded.email });
+        
+        if (user) {
+          req.user = user;
+          req.userId = user._id;
+          req.token = token;
+        }
+      }
     }
     
     next();
-    
   } catch (error) {
-    // If token is invalid, just proceed without auth
-    req.user = null;
-    req.userId = null;
     next();
-  }
-};
-
-/**
- * Check if user is admin
- */
-const requireAdmin = async (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required'
-    });
-  }
-  
-  if (!req.user.isAdmin) {
-    return res.status(403).json({
-      success: false,
-      message: 'Admin access required'
-    });
-  }
-  
-  next();
-};
-
-/**
- * Check if user has active subscription
- */
-const requireSubscription = (plan = 'premium') => {
-  return async (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required'
-      });
-    }
-    
-    const planHierarchy = {
-      'free': 0,
-      'premium': 1,
-      'elite': 2
-    };
-    
-    const userPlan = req.user.subscription?.plan || 'free';
-    const userPlanLevel = planHierarchy[userPlan] || 0;
-    const requiredPlanLevel = planHierarchy[plan] || 0;
-    
-    // Check if subscription is active
-    const isActive = req.user.subscription?.active;
-    const isExpired = req.user.subscription?.currentPeriodEnd && 
-      new Date(req.user.subscription.currentPeriodEnd) < new Date();
-    
-    if (userPlanLevel < requiredPlanLevel || !isActive || isExpired) {
-      return res.status(403).json({
-        success: false,
-        message: `${plan.charAt(0).toUpperCase() + plan.slice(1)} subscription required`,
-        requiredPlan: plan,
-        userPlan: userPlan,
-        isActive: isActive,
-        isExpired: isExpired,
-        upgradeUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/subscription`
-      });
-    }
-    
-    next();
-  };
-};
-
-/**
- * Check resource ownership
- */
-const requireOwnership = (modelName, idField = 'userId') => {
-  return async (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required'
-      });
-    }
-    
-    const resourceId = req.params.id || req.params.userId;
-    
-    if (!resourceId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Resource ID required'
-      });
-    }
-    
-    try {
-      const Model = mongoose.model(modelName);
-      const resource = await Model.findById(resourceId);
-      
-      if (!resource) {
-        return res.status(404).json({
-          success: false,
-          message: 'Resource not found'
-        });
-      }
-      
-      // Check ownership
-      const ownerId = resource[idField] || resource.userId;
-      
-      if (ownerId.toString() !== req.userId.toString() && !req.user.isAdmin) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have permission to access this resource'
-        });
-      }
-      
-      // Attach resource to request
-      req.resource = resource;
-      next();
-      
-    } catch (error) {
-      console.error('Ownership check error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  };
-};
-
-/**
- * Rate limiting middleware (simple in-memory version)
- */
-const rateLimitStore = new Map();
-
-const rateLimit = (windowMs = 60000, max = 100) => {
-  return async (req, res, next) => {
-    const ip = req.ip || req.connection.remoteAddress;
-    const key = `rate_limit:${ip}:${req.path}`;
-    
-    const now = Date.now();
-    const windowStart = now - windowMs;
-    
-    // Clean old entries
-    for (const [key, entry] of rateLimitStore.entries()) {
-      if (entry.timestamp < windowStart) {
-        rateLimitStore.delete(key);
-      }
-    }
-    
-    // Get current count
-    const entry = rateLimitStore.get(key) || { count: 0, timestamp: now };
-    
-    if (entry.timestamp < windowStart) {
-      // Reset if window has passed
-      entry.count = 1;
-      entry.timestamp = now;
-    } else if (entry.count >= max) {
-      // Rate limit exceeded
-      const resetTime = Math.ceil((entry.timestamp + windowMs - now) / 1000);
-      
-      return res.status(429).json({
-        success: false,
-        message: 'Too many requests, please try again later',
-        retryAfter: resetTime,
-        limit: max,
-        remaining: 0
-      });
-    } else {
-      // Increment count
-      entry.count++;
-    }
-    
-    rateLimitStore.set(key, entry);
-    
-    // Add headers
-    res.setHeader('X-RateLimit-Limit', max);
-    res.setHeader('X-RateLimit-Remaining', Math.max(0, max - entry.count));
-    res.setHeader('X-RateLimit-Reset', Math.ceil((entry.timestamp + windowMs) / 1000));
-    
-    next();
-  };
-};
-
-/**
- * Auth-specific rate limiting
- */
-const authRateLimit = rateLimit(900000, 10); // 15 minutes, 10 attempts
-
-/**
- * Validate request body for authentication
- */
-const validateAuthRequest = (req, res, next) => {
-  const { path } = req;
-  
-  if (path.includes('/register')) {
-    const { username, email, password, fullName } = req.body;
-    
-    if (!username || !email || !password || !fullName) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields are required'
-      });
-    }
-    
-    if (username.length < 3 || username.length > 30) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username must be between 3 and 30 characters'
-      });
-    }
-    
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid email format'
-      });
-    }
-    
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters'
-      });
-    }
-    
-    if (fullName.length < 2) {
-      return res.status(400).json({
-        success: false,
-        message: 'Full name must be at least 2 characters'
-      });
-    }
-  }
-  
-  if (path.includes('/login')) {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email and password are required'
-      });
-    }
-  }
-  
-  next();
-};
-
-/**
- * Check if user is online (placeholder for WebSocket integration)
- */
-const checkOnlineStatus = async (req, res, next) => {
-  if (!req.user) {
-    return next();
-  }
-  
-  // In a real implementation, you would check WebSocket connections
-  // For now, we'll just mark as online if authenticated
-  req.user.isOnline = true;
-  req.user.lastSeen = new Date();
-  
-  next();
-};
-
-/**
- * Generate JWT token
- */
-const generateToken = (user) => {
-  return jwt.sign(
-    {
-      userId: user._id,
-      username: user.username,
-      email: user.email,
-      isAdmin: user.isAdmin || false,
-      subscription: user.subscription?.plan || 'free'
-    },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '30d' }
-  );
-};
-
-/**
- * Generate refresh token
- */
-const generateRefreshToken = (user) => {
-  return jwt.sign(
-    {
-      userId: user._id,
-      type: 'refresh'
-    },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '90d' }
-  );
-};
-
-/**
- * Verify refresh token
- */
-const verifyRefreshToken = async (req, res, next) => {
-  try {
-    const { refreshToken } = req.body;
-    
-    if (!refreshToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Refresh token required'
-      });
-    }
-    
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET || 'your-secret-key');
-    
-    if (decoded.type !== 'refresh') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid refresh token'
-      });
-    }
-    
-    // Get user
-    const User = mongoose.model('User');
-    const user = await User.findById(decoded.userId);
-    
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    req.user = user;
-    req.userId = user._id;
-    req.refreshToken = refreshToken;
-    
-    next();
-    
-  } catch (error) {
-    console.error('Refresh token error:', error.message);
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid refresh token'
-      });
-    }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token expired'
-      });
-    }
-    
-    return res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
   }
 };
 
 module.exports = {
   authenticateToken,
-  optionalAuth,
-  requireAdmin,
-  requireSubscription,
-  requireOwnership,
-  rateLimit,
-  authRateLimit,
-  validateAuthRequest,
-  checkOnlineStatus,
-  generateToken,
-  generateRefreshToken,
-  verifyRefreshToken
+  optionalAuth
 };

@@ -25,6 +25,7 @@ const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AuthCallback = lazy(() => import('./pages/AuthCallBack'));
+const VerificationWall = lazy(() => import('./pages/VerificationWall'));
 
 // Lazy load SupportWidget
 const SupportWidget = lazy(() => import('./components/ui/SupportWidget'));
@@ -333,6 +334,14 @@ function AppContent() {
             </RouteTransition>
           } />
           
+          <Route path="/verification-wall" element={
+            <RouteTransition animation="fade">
+              <Suspense fallback={<LoadingScreen />}>
+                <VerificationWall />
+              </Suspense>
+            </RouteTransition>
+          } />
+          
           {/* IMPORTANT: AuthCallback must NOT be wrapped in PublicRoute */}
           <Route path="/auth/callback" element={
             <Suspense fallback={<LoadingScreen message="Processing callback..." />}>
@@ -397,6 +406,46 @@ function AppContent() {
               <RouteTransition animation="slideIn">
                 <Suspense fallback={<LoadingScreen />}>
                   <Challenges />
+                </Suspense>
+              </RouteTransition>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <RouteTransition animation="slideUp">
+                <Suspense fallback={<LoadingScreen />}>
+                  <Settings />
+                </Suspense>
+              </RouteTransition>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/subscription" element={
+            <ProtectedRoute>
+              <RouteTransition animation="fade">
+                <Suspense fallback={<LoadingScreen />}>
+                  <Subscription />
+                </Suspense>
+              </RouteTransition>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/payment" element={
+            <ProtectedRoute>
+              <RouteTransition animation="slideUp">
+                <Suspense fallback={<LoadingScreen />}>
+                  <PaymentPage />
+                </Suspense>
+              </RouteTransition>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/payment/success" element={
+            <ProtectedRoute>
+              <RouteTransition animation="fade">
+                <Suspense fallback={<LoadingScreen />}>
+                  <PaymentSuccess />
                 </Suspense>
               </RouteTransition>
             </ProtectedRoute>

@@ -28,9 +28,57 @@ const Search = lazyLoad('Search');
 const NotFound = lazyLoad('NotFound');
 
 // Import VerificationWall separately since it's not using lazyLoad
-const VerificationWall = lazy(() => import('./pages/VerificationWall').then(module => ({
-  default: module.default
-})));
+import LoadingSpinner from './components/layout/LoadingSpinner';
+import { Component } from 'react';
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('VerificationWall Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+          <div className="text-center p-8">
+            <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
+            <p className="text-gray-400 mb-4">{this.state.error?.message}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const VerificationWallWrapper = () => {
+  const VerificationWall = lazy(() => import('./pages/VerificationWall').then(module => ({
+    default: module.default
+  })));
+  
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingSpinner />}>
+        <VerificationWall />
+      </Suspense>
+    </ErrorBoundary>
+  );
+};
 
 // New authentication pages
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword').then(module => ({
@@ -241,7 +289,7 @@ const routesConfig = [
   },
   {
     path: '/verification-wall',
-    element: VerificationWall,
+    element: <VerificationWallWrapper />,
     name: 'Verification Wall',
     public: true,
     animation: 'default',

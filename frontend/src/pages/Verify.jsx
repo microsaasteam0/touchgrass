@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useStreak } from '../contexts/StreakContext';
 import streakService from '../services/streakservice';
+import { verificationWallApi } from '../services/api';
 import { 
   Camera, 
   Video, 
@@ -22,7 +22,14 @@ import {
   Image as ImageIcon,
   Mic,
   Zap,
-  Loader2
+  Loader2,
+  MapPin,
+  Hash,
+  Globe,
+  Smile,
+  Link as LinkIcon,
+  Image,
+  Film
 } from 'lucide-react';
 
 const Verify = () => {
@@ -56,6 +63,19 @@ const Verify = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [userData, setUserData] = useState(null);
   
+  // New state for verification wall features
+  const [caption, setCaption] = useState('');
+  const [location, setLocation] = useState('');
+  const [showLocationInput, setShowLocationInput] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [tags, setTags] = useState([]);
+  const [currentTag, setCurrentTag] = useState('');
+  const [showCaptionInput, setShowCaptionInput] = useState(false);
+  const [privacy, setPrivacy] = useState('public');
+  const [isAutoVerifying, setIsAutoVerifying] = useState(false);
+  const [mediaUploaded, setMediaUploaded] = useState(false);
+  const [canVerifyStatus, setCanVerifyStatus] = useState({ canVerify: true, hoursRemaining: 0 });
+  
   const cameraRef = useRef(null);
   const videoRecorderRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -64,6 +84,18 @@ const Verify = () => {
   const videoFileInputRef = useRef(null);
   const recordingTimerRef = useRef(null);
   const dropZoneRef = useRef(null);
+  const captionInputRef = useRef(null);
+  const autoVerifyTimerRef = useRef(null);
+
+  // Check if user can verify (cooldown check)
+  const checkCanVerifyStatus = async () => {
+    try {
+      const status = await streakService.checkCanVerify();
+      setCanVerifyStatus(status);
+    } catch (error) {
+      console.error('Error checking canVerify status:', error);
+    }
+  };
 
   const durations = [5, 15, 30, 60, 120];
   const roasts = [
@@ -80,6 +112,7 @@ const Verify = () => {
     loadLocalStreakData();
     setupDragAndDrop();
     calculateTimeLeft();
+    checkCanVerifyStatus();
     
     const timer = setInterval(calculateTimeLeft, 1000);
     
@@ -87,6 +120,9 @@ const Verify = () => {
       cleanupMediaStreams();
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
+      }
+      if (autoVerifyTimerRef.current) {
+        clearTimeout(autoVerifyTimerRef.current);
       }
       clearInterval(timer);
     };
@@ -103,23 +139,52 @@ const Verify = () => {
 
   const loadUserData = () => {
     try {
+      // Check for Supabase session first (which is what streakService uses)
+      const supabaseTokenKey = 'sb-lkrwoidwisbwktndxoca-auth-token';
+      const supabaseToken = localStorage.getItem(supabaseTokenKey);
+      
+      if (supabaseToken) {
+        // User is logged in via Supabase - parse the token to get user info
+        try {
+          const parsed = JSON.parse(supabaseToken);
+          if (parsed?.user) {
+            setUserData(parsed.user);
+            return;
+          }
+          // Try alternative format
+          const sessionData = JSON.parse(supabaseToken);
+          if (sessionData?.access_token) {
+            // User has a valid session
+            setUserData({ 
+              id: sessionData.user?.id || 'unknown',
+              username: sessionData.user?.email?.split('@')[0] || 'user',
+              email: sessionData.user?.email
+            });
+            return;
+          }
+        } catch (e) {
+          console.log('Could not parse Supabase token');
+        }
+      }
+      
+      // Fallback to touchgrass_user (legacy)
       const storedUser = localStorage.getItem('touchgrass_user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         setUserData(user);
       } else {
-        toast.error('Please login to verify');
-        navigate('/dashboard');
+        // Check if user has any auth - if so, allow them to proceed
+        // The streakService will handle the actual auth check
+        console.log('No local user found, but allowing verification to proceed');
       }
     } catch (error) {
+      console.error('Error loading user data:', error);
     }
   };
 
   const loadLocalStreakData = () => {
     try {
-      if (!userData) return;
-      
-      // Use context data first
+      // If we have context streak data from the app, use that
       if (contextStreakData) {
         setStreakData({
           current: currentStreak || 0,
@@ -130,20 +195,23 @@ const Verify = () => {
         return;
       }
       
-      // Fallback to localStorage
-      const streakKey = `touchgrass_streak_${userData.username}`;
-      const storedStreak = localStorage.getItem(streakKey);
-      
-      if (storedStreak) {
-        const streak = JSON.parse(storedStreak);
-        setStreakData({
-          current: streak.currentStreak || 0,
-          longest: streak.longestStreak || 0,
-          rank: Math.floor(Math.random() * 1000) + 1,
-          nextCheckpoint: '23:59:59'
-        });
+      // Try to get streak from userData if available
+      if (userData?.username) {
+        const streakKey = `touchgrass_streak_${userData.username}`;
+        const storedStreak = localStorage.getItem(streakKey);
+        
+        if (storedStreak) {
+          const streak = JSON.parse(storedStreak);
+          setStreakData({
+            current: streak.currentStreak || 0,
+            longest: streak.longestStreak || 0,
+            rank: Math.floor(Math.random() * 1000) + 1,
+            nextCheckpoint: '23:59:59'
+          });
+        }
       }
     } catch (error) {
+      console.error('Error loading streak data:', error);
     }
   };
 
@@ -279,6 +347,7 @@ const Verify = () => {
 
   const startCamera = (type = 'photo') => {
     cleanupMediaStreams();
+    setMediaUploaded(false);
     
     if (type === 'photo') {
       setShowCamera(true);
@@ -378,6 +447,207 @@ const Verify = () => {
     cleanupMediaStreams();
   };
 
+  const getCurrentLocation = () => {
+    setIsGettingLocation(true);
+    
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      setIsGettingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=18&addressdetails=1`
+          );
+          const data = await response.json();
+          
+          const locationName = data.display_name.split(',')[0] || 'Unknown location';
+          setLocation(locationName);
+          setShowLocationInput(true);
+          toast.success('Location detected!');
+        } catch (error) {
+          setLocation(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
+          setShowLocationInput(true);
+          toast.success('Location coordinates captured!');
+        } finally {
+          setIsGettingLocation(false);
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        toast.error('Could not get your location. You can enter it manually.');
+        setIsGettingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  const addTag = () => {
+    if (currentTag.trim() && !tags.includes(currentTag.trim())) {
+      setTags([...tags, currentTag.trim()]);
+      setCurrentTag('');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleTagKeyPress = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    }
+  };
+
+  const updateDashboardAndProfileStreak = () => {
+    // If no userData, we still allow verification to proceed - just skip local storage update
+    if (!userData) {
+      console.log('No userData, but API verification succeeded - returning mock streak');
+      // Return a mock streak object so the verification can proceed
+      return {
+        currentStreak: 1,
+        longestStreak: 1
+      };
+    }
+
+    const streakKey = `touchgrass_streak_${userData.username}`;
+    const existingStreak = localStorage.getItem(streakKey);
+    let streak = existingStreak ? JSON.parse(existingStreak) : {
+      currentStreak: 0,
+      longestStreak: 0,
+      lastVerificationDate: null,
+      verificationHistory: []
+    };
+
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    
+    console.log('Current streak before update:', streak);
+    console.log('Today:', today);
+    console.log('Last verification date:', streak.lastVerificationDate);
+    
+    // Check if already verified today
+    if (streak.lastVerificationDate === today) {
+      console.log('Already verified today');
+      toast.error('You have already verified today!');
+      return null;
+    }
+
+    // Update streak logic
+    let newStreakValue = streak.currentStreak;
+    
+    if (streak.lastVerificationDate === yesterday) {
+      // Consecutive day
+      newStreakValue = streak.currentStreak + 1;
+      console.log('Consecutive day! New streak:', newStreakValue);
+    } else {
+      // Streak broken or first verification
+      newStreakValue = 1;
+      console.log('New streak started:', newStreakValue);
+    }
+
+    // Update streak object
+    streak.currentStreak = newStreakValue;
+    
+    // Update longest streak if needed
+    if (newStreakValue > streak.longestStreak) {
+      streak.longestStreak = newStreakValue;
+    }
+
+    streak.lastVerificationDate = today;
+    
+    // Add to verification history
+    if (!streak.verificationHistory) {
+      streak.verificationHistory = [];
+    }
+    
+    streak.verificationHistory.push({
+      date: today,
+      type: verificationMethod,
+      duration: duration,
+      timestamp: new Date().toISOString()
+    });
+
+    // Keep only last 30 days of history
+    if (streak.verificationHistory.length > 30) {
+      streak.verificationHistory = streak.verificationHistory.slice(-30);
+    }
+
+    // Save to localStorage
+    localStorage.setItem(streakKey, JSON.stringify(streak));
+    console.log('✅ Streak updated:', streak);
+
+    // Update user data in multiple places
+    const userKey = `touchgrass_user_${userData.username}`;
+    const existingUser = localStorage.getItem(userKey);
+    if (existingUser) {
+      const user = JSON.parse(existingUser);
+      user.streak = streak.currentStreak;
+      user.longestStreak = streak.longestStreak;
+      user.lastActive = today;
+      localStorage.setItem(userKey, JSON.stringify(user));
+    }
+
+    // Update main user object
+    const mainUserKey = 'touchgrass_user';
+    const mainUser = localStorage.getItem(mainUserKey);
+    if (mainUser) {
+      const user = JSON.parse(mainUser);
+      user.streak = streak.currentStreak;
+      user.longestStreak = streak.longestStreak;
+      user.lastActive = today;
+      localStorage.setItem(mainUserKey, JSON.stringify(user));
+    }
+
+    // Update streak data in context
+    setStreakData(prev => ({
+      ...prev,
+      current: streak.currentStreak,
+      longest: streak.longestStreak
+    }));
+
+    return streak;
+  };
+
+  // Compress image to reduce size for localStorage
+  const compressImage = (base64Image, maxWidth = 800, quality = 0.6) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Calculate new dimensions while maintaining aspect ratio
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => {
+        // If image fails to load, return original
+        resolve(base64Image);
+      };
+      img.src = base64Image;
+    });
+  };
+
   const submitVerification = async (method) => {
     if (method === 'photo' && !photo && !video) {
       toast.error('Please upload a photo or video first');
@@ -392,28 +662,242 @@ const Verify = () => {
     setIsSubmitting(true);
     
     try {
-      // Use streak service to verify
-      const result = await streakService.verifyToday({
+      // Check if user can verify (skip check for testing - use force in API)
+      console.log('Checking if user can verify...');
+      const canVerifyStatus = await streakService.checkCanVerify();
+      console.log('Can verify status:', canVerifyStatus);
+      
+      // Check if user can verify - show toast if cooldown is active
+      if (!canVerifyStatus.canVerify) {
+        const hoursMsg = canVerifyStatus.hoursRemaining 
+          ? `${canVerifyStatus.hoursRemaining} hours` 
+          : 'a while';
+        toast.error(`⏰ You've already verified today! Please wait ${hoursMsg} before verifying again.`);
+        setIsSubmitting(false);
+        
+        // Refresh canVerify status
+        const newStatus = await streakService.checkCanVerify();
+        setCanVerifyStatus(newStatus);
+        return;
+      }
+
+      // Prepare verification data
+      const verificationData = {
         method: method,
         duration: method === 'photo' ? duration : 0,
         activity: 'Outdoor time',
-        shameMessage: method === 'shame' ? shameMessage : null
-      });
+        shameMessage: method === 'shame' ? shameMessage : null,
+        caption: caption || null,
+        location: location || null,
+        mediaUrl: method === 'photo' ? photo : video,
+        tags: tags.length > 0 ? tags : null,
+        privacy: privacy,
+        force: false // Let backend enforce 23-hour cooldown
+      };
+
+      console.log('Submitting verification:', verificationData);
+
+      // Submit verification
+      const result = await streakService.verifyToday(verificationData);
+      console.log('Verification result:', result);
       
       if (result.success) {
-        // Refresh streak data in context
+        console.log('✅ Verification successful!', result.streak);
+        
+        // Update canVerify status to false after successful verification
+        setCanVerifyStatus({ canVerify: false, hoursRemaining: 23 });
+        
+        // Dispatch event to update streak on dashboard and profile
+        window.dispatchEvent(new CustomEvent('streak-updated', { detail: { streak: result.streak } }));
+        
+        // Update dashboard and profile streaks (local storage)
+        const updatedStreak = updateDashboardAndProfileStreak();
+        console.log('Updated local streak:', updatedStreak);
+        
+        // Clear streak cache and reload from server to ensure consistency
+        streakService.clearCache();
+        await loadStreakData();
+        await refreshStreak();
+        console.log('Streak data reloaded from server');
+        
+        // Continue with success flow even if local update failed (server data is authoritative)
+        // if (!updatedStreak) {
+        //   setIsSubmitting(false);
+        //   return;
+        // }
+
+        // Create verification post for the wall
+        // Compress image first to prevent localStorage issues
+        let mediaToSave = video;
+        if (method === 'photo') {
+          try {
+            mediaToSave = await compressImage(photo);
+          } catch (e) {
+            mediaToSave = photo; // Fallback to original if compression fails
+          }
+        }
+        
+        const post = {
+          id: `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          userId: userData?.id || 'anonymous',
+          username: userData?.username || 'user',
+          userAvatar: userData?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.username || 'User')}&background=22c55e&color=fff`,
+          type: method,
+          media: mediaToSave,
+          mediaType: mediaType,
+          caption: caption || (method === 'shame' ? shameMessage : ''),
+          timestamp: new Date().toISOString(),
+          duration: method === 'photo' ? duration : 0,
+          location: location || null,
+          tags: tags,
+          likes: 0,
+          likedBy: [],
+          comments: 0,
+          streakDay: updatedStreak.currentStreak,
+          shameMessage: method === 'shame' ? shameMessage : null,
+          privacy: privacy,
+          verified: true
+        };
+
+        // Save to localStorage for the wall
+        const postsKey = 'touchgrass_verification_posts';
+        try {
+          const existingPosts = localStorage.getItem(postsKey);
+          let posts = existingPosts ? JSON.parse(existingPosts) : [];
+          
+          posts.unshift(post);
+          
+          if (posts.length > 50) {
+            posts = posts.slice(0, 50);
+          }
+          
+          localStorage.setItem(postsKey, JSON.stringify(posts));
+          console.log('✅ Post saved to verification wall');
+        } catch (storageError) {
+          console.warn('⚠️ LocalStorage error:', storageError.message);
+        }
+
+        // Dispatch custom event to notify verification wall to refresh
+        window.dispatchEvent(new CustomEvent('verification-wall-updated', { detail: { post } }));
+        
+        // Trigger storage event for other tabs
+        window.dispatchEvent(new Event('storage'));
+
+        // Save user posts
+        try {
+          const userPostsKey = `touchgrass_user_posts_${userData?.username}`;
+          const existingUserPosts = localStorage.getItem(userPostsKey);
+          let userPosts = existingUserPosts ? JSON.parse(existingUserPosts) : [];
+          userPosts.unshift(post);
+          if (userPosts.length > 30) userPosts = userPosts.slice(0, 30);
+          localStorage.setItem(userPostsKey, JSON.stringify(userPosts));
+        } catch (userStorageError) {
+          console.warn('⚠️ User posts storage error:', userStorageError.message);
+        }
+
+        // Update activity feed
+        try {
+          const feedKey = 'touchgrass_activity_feed';
+          const existingFeed = localStorage.getItem(feedKey);
+          let feed = existingFeed ? JSON.parse(existingFeed) : [];
+          
+          const activity = {
+            id: `activity_${Date.now()}`,
+            type: method === 'photo' ? 'verification' : 'shame',
+            username: userData?.username || 'user',
+            userAvatar: userData?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.username || 'User')}&background=22c55e&color=fff`,
+            timestamp: new Date().toISOString(),
+            duration: method === 'photo' ? duration : 0,
+            streakDay: updatedStreak.currentStreak,
+            caption: caption || (method === 'shame' ? shameMessage : ''),
+            postId: post.id
+          };
+          
+          feed.unshift(activity);
+          if (feed.length > 100) feed = feed.slice(0, 100);
+          localStorage.setItem(feedKey, JSON.stringify(feed));
+        } catch (feedError) {
+          console.warn('⚠️ Feed storage error:', feedError.message);
+        }
+
+        // Try to send to API
+        try {
+          // Format data for backend API
+          const wallPostData = {
+            photoUrl: method === 'photo' ? photo : video, // base64 or URL
+            activityType: 'walk', // default activity
+            duration: method === 'photo' ? duration : 30,
+            caption: caption || (method === 'shame' ? shameMessage : ''),
+            location: location || null,
+            tags: tags.length > 0 ? tags : []
+          };
+          
+          const apiResponse = await verificationWallApi.createPost(wallPostData);
+          console.log('✅ Verification wall API response:', apiResponse);
+          
+          // If API returns the created post, add it to local posts
+          if (apiResponse.success && apiResponse.post) {
+            const apiPost = {
+              id: apiResponse.post._id,
+              userId: apiResponse.post.userId._id || apiResponse.post.userId,
+              userName: apiResponse.post.userId.displayName || apiResponse.post.userId.username || 'User',
+              userAvatar: apiResponse.post.userId.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${apiResponse.post.userId._id || apiResponse.post.userId}`,
+              mediaUrl: apiResponse.post.photoUrl,
+              mediaType: apiResponse.post.photoUrl?.includes('video') ? 'video' : 'photo',
+              caption: apiResponse.post.caption,
+              location: apiResponse.post.location,
+              activity: apiResponse.post.activityType,
+              activityName: apiResponse.post.activityType,
+              activityEmoji: '🌱',
+              activityColor: '#22c55e',
+              duration: apiResponse.post.duration,
+              likes: apiResponse.post.likeCount || 0,
+              comments: [],
+              isLiked: false,
+              isBookmarked: false,
+              isReported: false,
+              reportCount: 0,
+              reports: [],
+              verificationScore: 100,
+              verified: true,
+              trending: false,
+              featured: false,
+              isBlocked: false,
+              timestamp: apiResponse.post.createdAt,
+              tags: apiResponse.post.tags || [],
+              shareCount: 0,
+              views: 0,
+              isNew: true
+            };
+            
+            // Add to localStorage posts
+            const postsKey = 'touchgrass_verification_posts';
+            const existingPosts = localStorage.getItem(postsKey);
+            let posts = existingPosts ? JSON.parse(existingPosts) : [];
+            posts.unshift(apiPost);
+            if (posts.length > 50) posts = posts.slice(0, 50);
+            localStorage.setItem(postsKey, JSON.stringify(posts));
+          }
+          
+          // Dispatch event to update verification wall
+          window.dispatchEvent(new Event('verification-wall-updated'));
+        } catch (wallError) {
+          console.warn('⚠️ Verification wall API error:', wallError.message);
+          // Even if API fails, the post is saved locally, so we continue
+        }
+
+        // Refresh streak data from context
         await refreshStreak();
         
         setIsSubmitting(false);
         setShowSuccess(true);
         
         if (method === 'photo') {
-          toast.success('🌱 Success! Your streak continues to grow');
+          toast.success(`🌱 Success! Your streak is now ${updatedStreak.currentStreak} days!`);
         } else {
           toast.success('😈 Shame accepted. Your streak continues...');
         }
         
-        // Navigate back to dashboard after success
         setTimeout(() => {
           navigate('/dashboard');
         }, 2000);
@@ -423,7 +907,7 @@ const Verify = () => {
       }
     } catch (error) {
       console.error('Verification error:', error);
-      toast.error('Failed to submit verification');
+      toast.error(error.message || 'Failed to submit verification');
       setIsSubmitting(false);
     }
   };
@@ -435,6 +919,10 @@ const Verify = () => {
       setVideo(null);
     }
     setMediaType('photo');
+    setMediaUploaded(false);
+    if (autoVerifyTimerRef.current) {
+      clearTimeout(autoVerifyTimerRef.current);
+    }
   };
 
   const styles = `
@@ -923,6 +1411,248 @@ const Verify = () => {
       color: white;
     }
 
+    .caption-section {
+      margin-bottom: 2rem;
+    }
+
+    .caption-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .caption-header h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+    }
+
+    .caption-toggle {
+      background: none;
+      border: none;
+      color: #00E5FF;
+      cursor: pointer;
+      font-size: 0.875rem;
+      text-decoration: underline;
+    }
+
+    .caption-input {
+      width: 100%;
+      padding: 1rem 1.25rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      color: white;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .caption-input:focus {
+      outline: none;
+      border-color: rgba(0, 229, 255, 0.3);
+      box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.1);
+    }
+
+    .caption-input::placeholder {
+      color: #71717a;
+    }
+
+    .location-section {
+      margin-bottom: 2rem;
+    }
+
+    .location-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .location-header h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+    }
+
+    .location-input-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .location-input {
+      flex: 1;
+      padding: 1rem 1.25rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      color: white;
+      font-size: 1rem;
+    }
+
+    .location-input:focus {
+      outline: none;
+      border-color: rgba(0, 229, 255, 0.3);
+    }
+
+    .location-button {
+      padding: 0 1.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .location-button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(0, 229, 255, 0.3);
+    }
+
+    .location-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .tags-section {
+      margin-bottom: 2rem;
+    }
+
+    .tags-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .tags-header h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+    }
+
+    .tags-input-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .tags-input {
+      flex: 1;
+      padding: 1rem 1.25rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      color: white;
+      font-size: 1rem;
+    }
+
+    .tags-input:focus {
+      outline: none;
+      border-color: rgba(0, 229, 255, 0.3);
+    }
+
+    .tags-add-button {
+      padding: 0 1.5rem;
+      background: rgba(0, 229, 255, 0.2);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 1rem;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tags-add-button:hover {
+      background: rgba(0, 229, 255, 0.3);
+    }
+
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.2);
+      border-radius: 2rem;
+      color: white;
+      font-size: 0.875rem;
+    }
+
+    .tag-remove {
+      background: none;
+      border: none;
+      color: #a1a1aa;
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    .tag-remove:hover {
+      color: #ef4444;
+    }
+
+    .privacy-section {
+      margin-bottom: 2rem;
+    }
+
+    .privacy-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .privacy-header h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+    }
+
+    .privacy-options {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .privacy-option {
+      flex: 1;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      color: #a1a1aa;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .privacy-option:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .privacy-option.selected {
+      background: rgba(0, 229, 255, 0.2);
+      border-color: rgba(0, 229, 255, 0.3);
+      color: white;
+    }
+
     .shame-input {
       width: 100%;
       min-height: 150px;
@@ -1111,31 +1841,165 @@ const Verify = () => {
       font-size: 1rem;
     }
 
-    /* Mobile-first responsive design */
-    @media (max-width: 320px) {
-      .verify-page {
-        padding: 0;
-      }
+    .fixed {
+      position: fixed;
+    }
 
+    .inset-0 {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+
+    .flex {
+      display: flex;
+    }
+
+    .items-center {
+      align-items: center;
+    }
+
+    .justify-center {
+      justify-content: center;
+    }
+
+    .z-50 {
+      z-index: 50;
+    }
+
+    .p-8 {
+      padding: 2rem;
+    }
+
+    .rounded-3xl {
+      border-radius: 1.5rem;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .text-6xl {
+      font-size: 4rem;
+    }
+
+    .mb-4 {
+      margin-bottom: 1rem;
+    }
+
+    .text-2xl {
+      font-size: 1.5rem;
+    }
+
+    .font-bold {
+      font-weight: 700;
+    }
+
+    .mb-2 {
+      margin-bottom: 0.5rem;
+    }
+
+    .text-gray-400 {
+      color: #9ca3af;
+    }
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
       .verify-container {
-        padding: 2rem 0.5rem 1rem;
+        padding: 4rem 1rem 2rem;
       }
 
       .verify-title {
-        font-size: 1.75rem;
-        line-height: 1.2;
+        font-size: 2.5rem;
       }
 
       .verify-subtitle {
-        font-size: 0.75rem;
-        line-height: 1.3;
-        margin-bottom: 1rem;
+        font-size: 1rem;
       }
 
       .verification-options {
         grid-template-columns: 1fr;
         gap: 1rem;
-        margin-bottom: 2rem;
+      }
+
+      .option-content {
+        padding: 2rem;
+      }
+
+      .option-icon {
+        font-size: 3rem;
+      }
+
+      .option-title {
+        font-size: 1.5rem;
+      }
+
+      .streak-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .stat-value {
+        font-size: 2rem;
+      }
+
+      .camera-container {
+        height: 300px;
+      }
+
+      .camera-controls {
+        flex-direction: column;
+        padding: 0 1rem;
+      }
+
+      .verify-button {
+        width: 100%;
+      }
+
+      .privacy-options {
+        flex-direction: column;
+      }
+
+      .location-input-group {
+        flex-direction: column;
+      }
+
+      .location-button {
+        width: 100%;
+        padding: 1rem;
+      }
+
+      .tags-input-group {
+        flex-direction: column;
+      }
+
+      .tags-add-button {
+        width: 100%;
+        padding: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .verify-container {
+        padding: 3rem 0.75rem 1.5rem;
+      }
+
+      .verify-title {
+        font-size: 2rem;
+      }
+
+      .verify-subtitle {
+        font-size: 0.875rem;
       }
 
       .option-content {
@@ -1144,189 +2008,60 @@ const Verify = () => {
 
       .option-icon {
         font-size: 2.5rem;
-        margin-bottom: 1rem;
       }
 
       .option-title {
         font-size: 1.25rem;
-        margin-bottom: 0.5rem;
-      }
-
-      .option-description {
-        font-size: 0.75rem;
-        line-height: 1.4;
-      }
-
-      .streak-stats {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-        margin-top: 2rem;
-      }
-
-      .stat-item {
-        padding: 1rem;
-      }
-
-      .stat-value {
-        font-size: 1.5rem;
-      }
-
-      .stat-label {
-        font-size: 0.5rem;
-        margin-top: 0.25rem;
-      }
-
-      .verify-form {
-        padding: 0;
-      }
-
-      .back-button {
-        padding: 0.5rem 1rem;
-        font-size: 0.75rem;
-        margin-bottom: 1rem;
-      }
-
-      .form-header {
-        margin-bottom: 1.5rem;
-      }
-
-      .form-title {
-        font-size: 1.25rem;
-      }
-
-      .form-subtitle {
-        font-size: 0.75rem;
-        max-width: none;
-        margin: 0 auto 0.5rem;
       }
 
       .instructions-panel {
-        padding: 1rem;
-        margin-bottom: 1rem;
+        padding: 1.5rem;
       }
 
       .instructions-title {
-        font-size: 1rem;
-        margin-bottom: 0.75rem;
+        font-size: 1.25rem;
       }
 
       .instruction-item {
-        padding: 0.375rem 0;
-        font-size: 0.75rem;
-      }
-
-      .media-upload-container {
-        margin-bottom: 1rem;
+        font-size: 0.875rem;
       }
 
       .upload-options {
         grid-template-columns: 1fr;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-      }
-
-      .upload-option {
-        padding: 0.875rem;
-        min-width: none;
-      }
-
-      .upload-option-icon {
-        font-size: 1.25rem;
-        margin-bottom: 0.25rem;
-      }
-
-      .upload-option-text {
-        font-size: 0.625rem;
       }
 
       .photo-upload-area {
-        padding: 1.5rem;
+        padding: 2rem;
         min-height: 200px;
       }
 
-      .upload-instructions {
-        gap: 0.75rem;
-      }
-
       .upload-icon {
-        font-size: 2rem;
+        font-size: 2.5rem;
       }
 
       .upload-text {
-        font-size: 0.875rem;
-      }
-
-      .upload-subtext {
-        font-size: 0.625rem;
-      }
-
-      .drag-drop-instruction {
-        font-size: 0.625rem;
-        padding: 0.375rem 0.75rem;
-      }
-
-      .camera-container {
-        height: 250px;
-        margin-bottom: 1rem;
-      }
-
-      .camera-controls {
-        bottom: 1rem;
-        gap: 0.5rem;
-      }
-
-      .recording-indicator {
-        top: 0.5rem;
-        left: 0.5rem;
-        padding: 0.375rem 0.75rem;
-        font-size: 0.75rem;
+        font-size: 1rem;
       }
 
       .duration-selector {
         grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
-        margin-bottom: 1rem;
       }
 
       .duration-option {
         padding: 0.75rem;
-        font-size: 0.75rem;
-      }
-
-      .shame-input {
-        padding: 1rem;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-      }
-
-      .roast-container {
-        padding: 1rem;
-        margin-bottom: 1rem;
-      }
-
-      .roast-icon {
-        font-size: 1.5rem;
-        margin-bottom: 0.75rem;
-      }
-
-      .roast-text {
         font-size: 0.875rem;
       }
 
       .action-buttons {
         flex-direction: column;
-        gap: 0.75rem;
-        margin-top: 1.5rem;
       }
 
       .verify-button {
         padding: 0.875rem 1.5rem;
         font-size: 0.875rem;
-        min-height: 44px;
       }
 
       .time-left {
-        margin-top: 1rem;
         padding: 1rem;
       }
 
@@ -1334,1316 +2069,6 @@ const Verify = () => {
         font-size: 0.875rem;
       }
     }
-
-    @media (min-width: 321px) and (max-width: 480px) {
-      .verify-container {
-        padding: 2.5rem 0.75rem 1.5rem;
-      }
-
-      .verify-title {
-        font-size: 2rem;
-        line-height: 1.2;
-      }
-
-      .verify-subtitle {
-        font-size: 0.8125rem;
-        line-height: 1.4;
-        margin-bottom: 1.25rem;
-      }
-
-      .verification-options {
-        grid-template-columns: 1fr;
-        gap: 1.25rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .option-content {
-        padding: 1.75rem;
-      }
-
-      .option-icon {
-        font-size: 2.75rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .option-title {
-        font-size: 1.375rem;
-        margin-bottom: 0.625rem;
-      }
-
-      .option-description {
-        font-size: 0.8125rem;
-        line-height: 1.5;
-      }
-
-      .streak-stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.875rem;
-        margin-top: 2.5rem;
-      }
-
-      .stat-item {
-        padding: 1.25rem;
-      }
-
-      .stat-value {
-        font-size: 1.75rem;
-      }
-
-      .stat-label {
-        font-size: 0.5625rem;
-        margin-top: 0.375rem;
-      }
-
-      .verify-form {
-        padding: 0;
-      }
-
-      .back-button {
-        padding: 0.625rem 1.25rem;
-        font-size: 0.8125rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .form-header {
-        margin-bottom: 1.75rem;
-      }
-
-      .form-title {
-        font-size: 1.375rem;
-      }
-
-      .form-subtitle {
-        font-size: 0.8125rem;
-        margin: 0 auto 0.625rem;
-      }
-
-      .instructions-panel {
-        padding: 1.25rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .instructions-title {
-        font-size: 1.125rem;
-        margin-bottom: 0.875rem;
-      }
-
-      .instruction-item {
-        padding: 0.4375rem 0;
-        font-size: 0.8125rem;
-      }
-
-      .media-upload-container {
-        margin-bottom: 1.25rem;
-      }
-
-      .upload-options {
-        grid-template-columns: 1fr;
-        gap: 0.625rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .upload-option {
-        padding: 1rem;
-      }
-
-      .upload-option-icon {
-        font-size: 1.375rem;
-        margin-bottom: 0.375rem;
-      }
-
-      .upload-option-text {
-        font-size: 0.6875rem;
-      }
-
-      .photo-upload-area {
-        padding: 1.75rem;
-        min-height: 225px;
-      }
-
-      .upload-instructions {
-        gap: 0.875rem;
-      }
-
-      .upload-icon {
-        font-size: 2.25rem;
-      }
-
-      .upload-text {
-        font-size: 0.9375rem;
-      }
-
-      .upload-subtext {
-        font-size: 0.6875rem;
-      }
-
-      .drag-drop-instruction {
-        font-size: 0.6875rem;
-        padding: 0.4375rem 0.875rem;
-      }
-
-      .camera-container {
-        height: 275px;
-        margin-bottom: 1.25rem;
-      }
-
-      .camera-controls {
-        bottom: 1.25rem;
-        gap: 0.625rem;
-      }
-
-      .recording-indicator {
-        top: 0.625rem;
-        left: 0.625rem;
-        padding: 0.4375rem 0.875rem;
-        font-size: 0.8125rem;
-      }
-
-      .duration-selector {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.625rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .duration-option {
-        padding: 0.875rem;
-        font-size: 0.8125rem;
-      }
-
-      .shame-input {
-        padding: 1.125rem;
-        font-size: 0.9375rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .roast-container {
-        padding: 1.25rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .roast-icon {
-        font-size: 1.625rem;
-        margin-bottom: 0.875rem;
-      }
-
-      .roast-text {
-        font-size: 0.9375rem;
-      }
-
-      .action-buttons {
-        flex-direction: column;
-        gap: 0.875rem;
-        margin-top: 1.75rem;
-      }
-
-      .verify-button {
-        padding: 1rem 1.75rem;
-        font-size: 0.9375rem;
-        min-height: 44px;
-      }
-
-      .time-left {
-        margin-top: 1.25rem;
-        padding: 1.25rem;
-      }
-
-      .time-left-text {
-        font-size: 0.9375rem;
-      }
-    }
-
-    @media (min-width: 481px) and (max-width: 640px) {
-      .verify-container {
-        padding: 3rem 1rem 2rem;
-      }
-
-      .verify-title {
-        font-size: 2.25rem;
-      }
-
-      .verify-subtitle {
-        font-size: 0.875rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .verification-options {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-        margin-bottom: 3rem;
-      }
-
-      .option-content {
-        padding: 2rem;
-      }
-
-      .option-icon {
-        font-size: 3rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .option-title {
-        font-size: 1.5rem;
-        margin-bottom: 0.75rem;
-      }
-
-      .option-description {
-        font-size: 0.875rem;
-      }
-
-      .streak-stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-top: 3rem;
-      }
-
-      .stat-item {
-        padding: 1.5rem;
-      }
-
-      .stat-value {
-        font-size: 2rem;
-      }
-
-      .stat-label {
-        font-size: 0.625rem;
-        margin-top: 0.5rem;
-      }
-
-      .verify-form {
-        padding: 0;
-      }
-
-      .back-button {
-        padding: 0.75rem 1.5rem;
-        font-size: 0.875rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .form-header {
-        margin-bottom: 2rem;
-      }
-
-      .form-title {
-        font-size: 1.5rem;
-      }
-
-      .form-subtitle {
-        font-size: 0.875rem;
-        margin: 0 auto 0.75rem;
-      }
-
-      .instructions-panel {
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .instructions-title {
-        font-size: 1.25rem;
-        margin-bottom: 1rem;
-      }
-
-      .instruction-item {
-        padding: 0.5rem 0;
-        font-size: 0.875rem;
-      }
-
-      .media-upload-container {
-        margin-bottom: 1.5rem;
-      }
-
-      .upload-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .upload-option {
-        padding: 1.125rem;
-      }
-
-      .upload-option-icon {
-        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
-      }
-
-      .upload-option-text {
-        font-size: 0.75rem;
-      }
-
-      .photo-upload-area {
-        padding: 2rem;
-        min-height: 250px;
-      }
-
-      .upload-instructions {
-        gap: 1rem;
-      }
-
-      .upload-icon {
-        font-size: 2.5rem;
-      }
-
-      .upload-text {
-        font-size: 1rem;
-      }
-
-      .upload-subtext {
-        font-size: 0.75rem;
-      }
-
-      .drag-drop-instruction {
-        font-size: 0.75rem;
-        padding: 0.5rem 1rem;
-      }
-
-      .camera-container {
-        height: 300px;
-        margin-bottom: 1.5rem;
-      }
-
-      .camera-controls {
-        bottom: 1.5rem;
-        gap: 0.75rem;
-      }
-
-      .recording-indicator {
-        top: 0.75rem;
-        left: 0.75rem;
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-      }
-
-      .duration-selector {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .duration-option {
-        padding: 1rem;
-        font-size: 0.875rem;
-      }
-
-      .shame-input {
-        padding: 1.25rem;
-        font-size: 1rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .roast-container {
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .roast-icon {
-        font-size: 1.75rem;
-        margin-bottom: 1rem;
-      }
-
-      .roast-text {
-        font-size: 1rem;
-      }
-
-      .action-buttons {
-        flex-direction: column;
-        gap: 1rem;
-        margin-top: 2rem;
-      }
-
-      .verify-button {
-        padding: 1.125rem 2rem;
-        font-size: 1rem;
-        min-height: 44px;
-      }
-
-      .time-left {
-        margin-top: 1.5rem;
-        padding: 1.5rem;
-      }
-
-      .time-left-text {
-        font-size: 1rem;
-      }
-    }
-
-    @media (min-width: 641px) and (max-width: 768px) {
-      .verify-container {
-        padding: 3.5rem 1.25rem 2.5rem;
-      }
-
-      .verify-title {
-        font-size: 2.5rem;
-      }
-
-      .verify-subtitle {
-        font-size: 0.9375rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .verification-options {
-        grid-template-columns: 1fr;
-        gap: 1.75rem;
-        margin-bottom: 3.5rem;
-      }
-
-      .option-content {
-        padding: 2.25rem;
-      }
-
-      .option-icon {
-        font-size: 3.25rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .option-title {
-        font-size: 1.625rem;
-        margin-bottom: 0.875rem;
-      }
-
-      .option-description {
-        font-size: 0.9375rem;
-      }
-
-      .streak-stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.25rem;
-        margin-top: 3.5rem;
-      }
-
-      .stat-item {
-        padding: 1.75rem;
-      }
-
-      .stat-value {
-        font-size: 2.25rem;
-      }
-
-      .stat-label {
-        font-size: 0.6875rem;
-        margin-top: 0.625rem;
-      }
-
-      .verify-form {
-        padding: 0;
-      }
-
-      .back-button {
-        padding: 0.875rem 1.75rem;
-        font-size: 0.9375rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .form-header {
-        margin-bottom: 2.25rem;
-      }
-
-      .form-title {
-        font-size: 1.625rem;
-      }
-
-      .form-subtitle {
-        font-size: 0.9375rem;
-        margin: 0 auto 0.875rem;
-      }
-
-      .instructions-panel {
-        padding: 1.75rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .instructions-title {
-        font-size: 1.375rem;
-        margin-bottom: 1.125rem;
-      }
-
-      .instruction-item {
-        padding: 0.5625rem 0;
-        font-size: 0.9375rem;
-      }
-
-      .media-upload-container {
-        margin-bottom: 1.75rem;
-      }
-
-      .upload-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.875rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .upload-option {
-        padding: 1.25rem;
-      }
-
-      .upload-option-icon {
-        font-size: 1.625rem;
-        margin-bottom: 0.625rem;
-      }
-
-      .upload-option-text {
-        font-size: 0.8125rem;
-      }
-
-      .photo-upload-area {
-        padding: 2.25rem;
-        min-height: 275px;
-      }
-
-      .upload-instructions {
-        gap: 1.125rem;
-      }
-
-      .upload-icon {
-        font-size: 2.75rem;
-      }
-
-      .upload-text {
-        font-size: 1.0625rem;
-      }
-
-      .upload-subtext {
-        font-size: 0.8125rem;
-      }
-
-      .drag-drop-instruction {
-        font-size: 0.8125rem;
-        padding: 0.5625rem 1.125rem;
-      }
-
-      .camera-container {
-        height: 325px;
-        margin-bottom: 1.75rem;
-      }
-
-      .camera-controls {
-        bottom: 1.75rem;
-        gap: 0.875rem;
-      }
-
-      .recording-indicator {
-        top: 0.875rem;
-        left: 0.875rem;
-        padding: 0.5625rem 1.125rem;
-        font-size: 0.9375rem;
-      }
-
-      .duration-selector {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.875rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .duration-option {
-        padding: 1.125rem;
-        font-size: 0.9375rem;
-      }
-
-      .shame-input {
-        padding: 1.375rem;
-        font-size: 1.0625rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .roast-container {
-        padding: 1.75rem;
-        margin-bottom: 1.75rem;
-      }
-
-      .roast-icon {
-        font-size: 1.875rem;
-        margin-bottom: 1.125rem;
-      }
-
-      .roast-text {
-        font-size: 1.0625rem;
-      }
-
-      .action-buttons {
-        flex-direction: column;
-        gap: 1.125rem;
-        margin-top: 2.25rem;
-      }
-
-      .verify-button {
-        padding: 1.25rem 2.25rem;
-        font-size: 1.0625rem;
-        min-height: 44px;
-      }
-
-      .time-left {
-        margin-top: 1.75rem;
-        padding: 1.75rem;
-      }
-
-      .time-left-text {
-        font-size: 1.0625rem;
-      }
-    }
-
-    @media (min-width: 769px) and (max-width: 1024px) {
-      .verify-container {
-        padding: 4rem 1.5rem 3rem;
-      }
-
-      .verify-title {
-        font-size: 2.75rem;
-      }
-
-      .verify-subtitle {
-        font-size: 1rem;
-        margin-bottom: 2rem;
-      }
-
-      .verification-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 2rem;
-        margin-bottom: 4rem;
-      }
-
-      .option-content {
-        padding: 2.5rem;
-      }
-
-      .option-icon {
-        font-size: 3.5rem;
-        margin-bottom: 2rem;
-      }
-
-      .option-title {
-        font-size: 1.75rem;
-        margin-bottom: 1rem;
-      }
-
-      .option-description {
-        font-size: 1rem;
-      }
-
-      .streak-stats {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1.5rem;
-        margin-top: 4rem;
-      }
-
-      .stat-item {
-        padding: 2rem;
-      }
-
-      .stat-value {
-        font-size: 2.5rem;
-      }
-
-      .stat-label {
-        font-size: 0.75rem;
-        margin-top: 0.75rem;
-      }
-
-      .verify-form {
-        padding: 0;
-      }
-
-      .back-button {
-        padding: 1rem 2rem;
-        font-size: 1rem;
-        margin-bottom: 2rem;
-      }
-
-      .form-header {
-        margin-bottom: 2.5rem;
-      }
-
-      .form-title {
-        font-size: 1.75rem;
-      }
-
-      .form-subtitle {
-        font-size: 1rem;
-        margin: 0 auto 1rem;
-      }
-
-      .instructions-panel {
-        padding: 2rem;
-        margin-bottom: 2rem;
-      }
-
-      .instructions-title {
-        font-size: 1.5rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .instruction-item {
-        padding: 0.625rem 0;
-        font-size: 1rem;
-      }
-
-      .media-upload-container {
-        margin-bottom: 2rem;
-      }
-
-      .upload-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-bottom: 2rem;
-      }
-
-      .upload-option {
-        padding: 1.5rem;
-      }
-
-      .upload-option-icon {
-        font-size: 1.75rem;
-        margin-bottom: 0.75rem;
-      }
-
-      .upload-option-text {
-        font-size: 0.875rem;
-      }
-
-      .photo-upload-area {
-        padding: 2.5rem;
-        min-height: 300px;
-      }
-
-      .upload-instructions {
-        gap: 1.25rem;
-      }
-
-      .upload-icon {
-        font-size: 3rem;
-      }
-
-      .upload-text {
-        font-size: 1.125rem;
-      }
-
-      .upload-subtext {
-        font-size: 0.875rem;
-      }
-
-      .drag-drop-instruction {
-        font-size: 0.875rem;
-        padding: 0.625rem 1.25rem;
-      }
-
-      .camera-container {
-        height: 350px;
-        margin-bottom: 2rem;
-      }
-
-      .camera-controls {
-        bottom: 2rem;
-        gap: 1rem;
-      }
-
-      .recording-indicator {
-        top: 1rem;
-        left: 1rem;
-        padding: 0.625rem 1.25rem;
-        font-size: 1rem;
-      }
-
-      .duration-selector {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin-bottom: 2rem;
-      }
-
-      .duration-option {
-        padding: 1.25rem;
-        font-size: 1rem;
-      }
-
-      .shame-input {
-        padding: 1.5rem;
-        font-size: 1.125rem;
-        margin-bottom: 2rem;
-      }
-
-      .roast-container {
-        padding: 2rem;
-        margin-bottom: 2rem;
-      }
-
-      .roast-icon {
-        font-size: 2rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .roast-text {
-        font-size: 1.125rem;
-      }
-
-      .action-buttons {
-        flex-direction: row;
-        gap: 1rem;
-        margin-top: 2.5rem;
-      }
-
-      .verify-button {
-        padding: 1.5rem 2.5rem;
-        font-size: 1.125rem;
-        min-height: 44px;
-      }
-
-      .time-left {
-        margin-top: 2rem;
-        padding: 2rem;
-      }
-
-      .time-left-text {
-        font-size: 1.125rem;
-      }
-    }
-
-    @media (min-width: 1025px) and (max-width: 1280px) {
-      .verify-container {
-        padding: 5rem 2rem 4rem;
-      }
-
-      .verify-title {
-        font-size: 3rem;
-      }
-
-      .verify-subtitle {
-        font-size: 1.0625rem;
-        margin-bottom: 2.25rem;
-      }
-
-      .verification-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 2.25rem;
-        margin-bottom: 4.5rem;
-      }
-
-      .option-content {
-        padding: 2.75rem;
-      }
-
-      .option-icon {
-        font-size: 3.75rem;
-        margin-bottom: 2.25rem;
-      }
-
-      .option-title {
-        font-size: 1.875rem;
-        margin-bottom: 1.125rem;
-      }
-
-      .option-description {
-        font-size: 1.0625rem;
-      }
-
-      .streak-stats {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1.75rem;
-        margin-top: 4.5rem;
-      }
-
-      .stat-item {
-        padding: 2.25rem;
-      }
-
-      .stat-value {
-        font-size: 2.75rem;
-      }
-
-      .stat-label {
-        font-size: 0.8125rem;
-        margin-top: 0.875rem;
-      }
-
-      .verify-form {
-        padding: 0;
-      }
-
-      .back-button {
-        padding: 1.125rem 2.25rem;
-        font-size: 1.0625rem;
-        margin-bottom: 2.25rem;
-      }
-
-      .form-header {
-        margin-bottom: 2.75rem;
-      }
-
-      .form-title {
-        font-size: 1.875rem;
-      }
-
-      .form-subtitle {
-        font-size: 1.0625rem;
-        margin: 0 auto 1.125rem;
-      }
-
-      .instructions-panel {
-        padding: 2.25rem;
-        margin-bottom: 2.25rem;
-      }
-
-      .instructions-title {
-        font-size: 1.625rem;
-        margin-bottom: 1.375rem;
-      }
-
-      .instruction-item {
-        padding: 0.6875rem 0;
-        font-size: 1.0625rem;
-      }
-
-      .media-upload-container {
-        margin-bottom: 2.25rem;
-      }
-
-      .upload-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.125rem;
-        margin-bottom: 2.25rem;
-      }
-
-      .upload-option {
-        padding: 1.625rem;
-      }
-
-      .upload-option-icon {
-        font-size: 1.875rem;
-        margin-bottom: 0.875rem;
-      }
-
-      .upload-option-text {
-        font-size: 0.9375rem;
-      }
-
-      .photo-upload-area {
-        padding: 2.75rem;
-        min-height: 325px;
-      }
-
-      .upload-instructions {
-        gap: 1.375rem;
-      }
-
-      .upload-icon {
-        font-size: 3.25rem;
-      }
-
-      .upload-text {
-        font-size: 1.1875rem;
-      }
-
-      .upload-subtext {
-        font-size: 0.9375rem;
-      }
-
-      .drag-drop-instruction {
-        font-size: 0.9375rem;
-        padding: 0.6875rem 1.375rem;
-      }
-
-      .camera-container {
-        height: 375px;
-        margin-bottom: 2.25rem;
-      }
-
-      .camera-controls {
-        bottom: 2.25rem;
-        gap: 1.125rem;
-      }
-
-      .recording-indicator {
-        top: 1.125rem;
-        left: 1.125rem;
-        padding: 0.6875rem 1.375rem;
-        font-size: 1.0625rem;
-      }
-
-      .duration-selector {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1.125rem;
-        margin-bottom: 2.25rem;
-      }
-
-      .duration-option {
-        padding: 1.375rem;
-        font-size: 1.0625rem;
-      }
-
-      .shame-input {
-        padding: 1.625rem;
-        font-size: 1.1875rem;
-        margin-bottom: 2.25rem;
-      }
-
-      .roast-container {
-        padding: 2.25rem;
-        margin-bottom: 2.25rem;
-      }
-
-      .roast-icon {
-        font-size: 2.125rem;
-        margin-bottom: 1.375rem;
-      }
-
-      .roast-text {
-        font-size: 1.1875rem;
-      }
-
-      .action-buttons {
-        flex-direction: row;
-        gap: 1.125rem;
-        margin-top: 2.75rem;
-      }
-
-      .verify-button {
-        padding: 1.625rem 2.75rem;
-        font-size: 1.1875rem;
-        min-height: 44px;
-      }
-
-      .time-left {
-        margin-top: 2.25rem;
-        padding: 2.25rem;
-      }
-
-      .time-left-text {
-        font-size: 1.1875rem;
-      }
-    }
-
-    @media (min-width: 1281px) {
-      .verify-container {
-        max-width: 1600px;
-        margin: 0 auto;
-        padding: 6rem 3rem 5rem;
-      }
-
-      .verify-title {
-        font-size: 3.5rem;
-      }
-
-      .verify-subtitle {
-        font-size: 1.125rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .verification-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 2.5rem;
-        margin-bottom: 5rem;
-      }
-
-      .option-content {
-        padding: 3rem;
-      }
-
-      .option-icon {
-        font-size: 4rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .option-title {
-        font-size: 2rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .option-description {
-        font-size: 1.125rem;
-      }
-
-      .streak-stats {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 2rem;
-        margin-top: 5rem;
-      }
-
-      .stat-item {
-        padding: 2.5rem;
-      }
-
-      .stat-value {
-        font-size: 3rem;
-      }
-
-      .stat-label {
-        font-size: 0.875rem;
-        margin-top: 1rem;
-      }
-
-      .verify-form {
-        padding: 0;
-      }
-
-      .back-button {
-        padding: 1.25rem 2.5rem;
-        font-size: 1.125rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .form-header {
-        margin-bottom: 3rem;
-      }
-
-      .form-title {
-        font-size: 2rem;
-      }
-
-      .form-subtitle {
-        font-size: 1.125rem;
-        margin: 0 auto 1.25rem;
-      }
-
-      .instructions-panel {
-        padding: 2.5rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .instructions-title {
-        font-size: 1.75rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .instruction-item {
-        padding: 0.75rem 0;
-        font-size: 1.125rem;
-      }
-
-      .media-upload-container {
-        margin-bottom: 2.5rem;
-      }
-
-      .upload-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.25rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .upload-option {
-        padding: 1.75rem;
-      }
-
-      .upload-option-icon {
-        font-size: 2rem;
-        margin-bottom: 1rem;
-      }
-
-      .upload-option-text {
-        font-size: 1rem;
-      }
-
-      .photo-upload-area {
-        padding: 3rem;
-        min-height: 350px;
-      }
-
-      .upload-instructions {
-        gap: 1.5rem;
-      }
-
-      .upload-icon {
-        font-size: 3.5rem;
-      }
-
-      .upload-text {
-        font-size: 1.25rem;
-      }
-
-      .upload-subtext {
-        font-size: 1rem;
-      }
-
-      .drag-drop-instruction {
-        font-size: 1rem;
-        padding: 0.75rem 1.5rem;
-      }
-
-      .camera-container {
-        height: 400px;
-        margin-bottom: 2.5rem;
-      }
-
-      .camera-controls {
-        bottom: 2.5rem;
-        gap: 1.25rem;
-      }
-
-      .recording-indicator {
-        top: 1.25rem;
-        left: 1.25rem;
-        padding: 0.75rem 1.5rem;
-        font-size: 1.125rem;
-      }
-
-      .duration-selector {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1.25rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .duration-option {
-        padding: 1.5rem;
-        font-size: 1.125rem;
-      }
-
-      .shame-input {
-        padding: 1.75rem;
-        font-size: 1.25rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .roast-container {
-        padding: 2.5rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .roast-icon {
-        font-size: 2.25rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .roast-text {
-        font-size: 1.25rem;
-      }
-
-      .action-buttons {
-        flex-direction: row;
-        gap: 1.25rem;
-        margin-top: 3rem;
-      }
-
-      .verify-button {
-        padding: 1.75rem 3rem;
-        font-size: 1.25rem;
-        min-height: 44px;
-      }
-
-      .time-left {
-        margin-top: 2.5rem;
-        padding: 2.5rem;
-      }
-
-      .time-left-text {
-        font-size: 1.25rem;
-      }
-    }
-
-    /* Touch-friendly interactions */
-    @media (max-width: 768px) {
-      .verification-option {
-        min-height: 44px;
-      }
-
-      .upload-option {
-        min-height: 44px;
-      }
-
-      .duration-option {
-        min-height: 44px;
-      }
-
-      .verify-button {
-        min-height: 44px;
-        touch-action: manipulation;
-      }
-
-      .back-button {
   `;
 
   return (
@@ -2713,10 +2138,10 @@ const Verify = () => {
                 <p className="stat-label">Longest Streak</p>
               </div>
               
-              <div className="stat-item glass">
+              {/* <div className="stat-item glass">
                 <h3 className="stat-value">#{streakData.rank}</h3>
                 <p className="stat-label">Global Rank</p>
-              </div>
+              </div> */}
               
               <div className="stat-item glass">
                 <h3 className="stat-value">{streakData.nextCheckpoint}</h3>
@@ -2734,10 +2159,20 @@ const Verify = () => {
                 setVideo(null);
                 setShowCamera(false);
                 setShowVideoRecorder(false);
+                setCaption('');
+                setLocation('');
+                setTags([]);
+                setPrivacy('public');
+                setShowLocationInput(false);
+                setShowCaptionInput(false);
                 setIsDragOver(false);
+                setMediaUploaded(false);
                 cleanupMediaStreams();
                 if (recordingTimerRef.current) {
                   clearInterval(recordingTimerRef.current);
+                }
+                if (autoVerifyTimerRef.current) {
+                  clearTimeout(autoVerifyTimerRef.current);
                 }
               }}
             >
@@ -2974,7 +2409,7 @@ const Verify = () => {
                     style={{ display: 'none' }}
                   />
                   
-                  {!showCamera && !showVideoRecorder && (
+                  {!showCamera && !showVideoRecorder && !photo && !video && (
                     <div style={{ 
                       display: 'flex', 
                       gap: '1rem', 
@@ -3001,6 +2436,130 @@ const Verify = () => {
                   )}
                 </div>
                 
+                {(photo || video) && (
+                  <>
+                    <div className="caption-section">
+                      <div className="caption-header">
+                        <Image size={20} color="#00E5FF" />
+                        <h3>Add a Caption</h3>
+                        <button 
+                          className="caption-toggle"
+                          onClick={() => setShowCaptionInput(!showCaptionInput)}
+                        >
+                          {showCaptionInput ? 'Hide' : 'Add Caption'}
+                        </button>
+                      </div>
+                      
+                      {showCaptionInput && (
+                        <input
+                          ref={captionInputRef}
+                          type="text"
+                          className="caption-input"
+                          placeholder="Write something about your outdoor adventure..."
+                          value={caption}
+                          onChange={(e) => setCaption(e.target.value)}
+                          maxLength={150}
+                        />
+                      )}
+                    </div>
+                    
+                    <div className="location-section">
+                      <div className="location-header">
+                        <MapPin size={20} color="#00E5FF" />
+                        <h3>Where were you?</h3>
+                        <button 
+                          className="caption-toggle"
+                          onClick={() => setShowLocationInput(!showLocationInput)}
+                        >
+                          {showLocationInput ? 'Hide' : 'Add Location'}
+                        </button>
+                      </div>
+                      
+                      {showLocationInput && (
+                        <div>
+                          <div className="location-input-group">
+                            <input
+                              type="text"
+                              className="location-input"
+                              placeholder="e.g., Central Park, NY"
+                              value={location}
+                              onChange={(e) => setLocation(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="tags-section">
+                      <div className="tags-header">
+                        <Hash size={20} color="#00E5FF" />
+                        <h3>Add Tags</h3>
+                      </div>
+                      
+                      <div className="tags-input-group">
+                        <input
+                          type="text"
+                          className="tags-input"
+                          placeholder="e.g., nature, hiking, sunset"
+                          value={currentTag}
+                          onChange={(e) => setCurrentTag(e.target.value)}
+                          onKeyPress={handleTagKeyPress}
+                        />
+                        <button
+                          className="tags-add-button"
+                          onClick={addTag}
+                        >
+                          Add
+                        </button>
+                      </div>
+                      
+                      {tags.length > 0 && (
+                        <div className="tags-container">
+                          {tags.map((tag, index) => (
+                            <span key={index} className="tag">
+                              #{tag}
+                              <button
+                                className="tag-remove"
+                                onClick={() => removeTag(tag)}
+                              >
+                                <X size={14} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="privacy-section">
+                      <div className="privacy-header">
+                        <Users size={20} color="#00E5FF" />
+                        <h3>Who can see this?</h3>
+                      </div>
+                      
+                      <div className="privacy-options">
+                        <button
+                          className={`privacy-option ${privacy === 'public' ? 'selected' : ''}`}
+                          onClick={() => setPrivacy('public')}
+                        >
+                          🌍 Public
+                        </button>
+                        <button
+                          className={`privacy-option ${privacy === 'friends' ? 'selected' : ''}`}
+                          onClick={() => setPrivacy('friends')}
+                        >
+                          👥 Friends
+                        </button>
+                        <button
+                          className={`privacy-option ${privacy === 'private' ? 'selected' : ''}`}
+                          onClick={() => setPrivacy('private')}
+                        >
+                          🔒 Private
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
                 <div style={{ marginBottom: '2rem' }}>
                   <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.25rem' }}>
                     ⏱️ How many minutes were you outside?
@@ -3018,29 +2577,50 @@ const Verify = () => {
                   </div>
                 </div>
                 
-                <div className="action-buttons">
-                  <button
-                    onClick={() => submitVerification('photo')}
-                    disabled={(!photo && !video) || isSubmitting}
-                    className="verify-button button-primary"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 size={20} className="animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      '🌱 Submit Verification'
-                    )}
-                  </button>
-                </div>
+                {/* Submit button - show Verified Today when can't verify */}
+                {!canVerifyStatus.canVerify && (
+                  <div className="action-buttons">
+                    <button
+                      disabled
+                      className="verify-button button-primary"
+                      style={{ opacity: 0.7 }}
+                    >
+                      <CheckCircle2 size={20} />
+                      Verified Today ({canVerifyStatus.hoursRemaining}h remaining)
+                    </button>
+                  </div>
+                )}
+                
+                {canVerifyStatus.canVerify && (photo || video) && !isSubmitting && (
+                  <div className="action-buttons">
+                    <button
+                      onClick={() => submitVerification('photo')}
+                      className="verify-button button-primary"
+                    >
+                      <CheckCircle2 size={20} />
+                      Submit Verification
+                    </button>
+                  </div>
+                )}
+                
+                {isSubmitting && (
+                  <div className="action-buttons">
+                    <button
+                      disabled
+                      className="verify-button button-primary"
+                    >
+                      <Loader2 size={20} className="animate-spin" />
+                      Verifying...
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               <>
                 <div className="form-header">
                   <h2 className="form-title text-gradient">Accept Your Digital Shame</h2>
                   <p className="form-subtitle">
-                    You chose to stay indoors. Write a public confession that will be displayed on your profile.
+                    You chose to stay indoors. Write a public confession that will be displayed on your profile and the verification wall.
                   </p>
                 </div>
                 
@@ -3068,6 +2648,28 @@ const Verify = () => {
                   {shameMessage.length}/200 characters
                 </div>
                 
+                <div className="privacy-section">
+                  <div className="privacy-header">
+                    <Users size={20} color="#ef4444" />
+                    <h3>Shame visibility</h3>
+                  </div>
+                  
+                  <div className="privacy-options">
+                    <button
+                      className={`privacy-option ${privacy === 'public' ? 'selected' : ''}`}
+                      onClick={() => setPrivacy('public')}
+                    >
+                      🌍 Public Shame
+                    </button>
+                    <button
+                      className={`privacy-option ${privacy === 'friends' ? 'selected' : ''}`}
+                      onClick={() => setPrivacy('friends')}
+                    >
+                      👥 Friends Only
+                    </button>
+                  </div>
+                </div>
+                
                 <div className="instructions-panel glass">
                   <h3 className="instructions-title">
                     <AlertCircle size={24} />
@@ -3080,6 +2682,10 @@ const Verify = () => {
                     </li>
                     <li className="instruction-item">
                       <span className="instruction-icon">👁️</span>
+                      Your confession will appear on the verification wall
+                    </li>
+                    <li className="instruction-item">
+                      <span className="instruction-icon">🏷️</span>
                       "Shame Day" badge on your profile for 24h
                     </li>
                     <li className="instruction-item">
@@ -3139,7 +2745,7 @@ const Verify = () => {
           >
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="text-2xl font-bold mb-2">Verification Complete!</h3>
-            <p className="text-gray-400">Redirecting to dashboard...</p>
+            <p className="text-gray-400">Your streak is now {streakData.current} days! Post shared to verification wall. Redirecting to dashboard...</p>
           </motion.div>
         </motion.div>
       )}

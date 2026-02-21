@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { check, validationResult } = require('express-validator');
-const auth = require('../middleware/auth');
+const { authenticateToken: auth } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');

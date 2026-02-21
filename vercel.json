@@ -16,8 +16,8 @@
       "dest": "/api/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "src": "/((?!api/).*)",
+      "dest": "/index.html"
     }
   ],
   "env": {

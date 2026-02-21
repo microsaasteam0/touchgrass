@@ -526,7 +526,9 @@ import React from 'react';
 // src/services/api.js
 import { supabase } from '../lib/supabase';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://touchgrass-backend.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api` 
+  : 'https://touchgrass-backend.onrender.com/api';
 
 // Helper to get auth token from Supabase
 const getAuthToken = async () => {
@@ -856,7 +858,13 @@ export const verificationWallApi = {
   toggleLike: (id) => api.post(`/verification-wall/${id}/like`),
   
   // Add comment to verification wall post
-  addComment: (id, data) => api.post(`/verification-wall/${id}/comment`, data),
+  addComment: (id, text) => api.post(`/verification-wall/${id}/comment`, { text }),
+  
+  // Report a verification wall post
+  reportPost: (id, reason, details) => api.post(`/verification-wall/${id}/report`, { reason, details }),
+  
+  // Delete a verification wall post
+  deletePost: (id) => api.delete(`/verification-wall/${id}`),
 };
 
 export const achievementsApi = {

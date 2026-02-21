@@ -4893,6 +4893,13 @@ const Dashboard = ({ onNavigate }) => {
     totalDays
   } = useStreak();
   const [showAchievement, setShowAchievement] = useState(false);
+
+  // Refresh streak data when component mounts to ensure we have latest data
+  useEffect(() => {
+    if (user) {
+      loadStreakData();
+    }
+  }, [user, loadStreakData]);
   const [showSocialShareModal, setShowSocialShareModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userData, setUserData] = useState(null);
@@ -5303,14 +5310,14 @@ const Dashboard = ({ onNavigate }) => {
           description: "Impact on community",
           icon: <TrendingUp size={24} />
         },
-        {
-          id: 6,
-          title: "Global Rank",
-          value: `#${Math.floor(Math.random() * 1000) + 1}`,
-          change: (currentStreakData?.currentStreak || 0) > 0 ? "↑12" : "0",
-          description: "Out of 50k users",
-          icon: <Users size={24} />
-        }
+        // {
+        //   id: 6,
+        //   title: "Global Rank",
+        //   value: `#${Math.floor(Math.random() * 1000) + 1}`,
+        //   change: (currentStreakData?.currentStreak || 0) > 0 ? "↑12" : "0",
+        //   description: "Out of 50k users",
+        //   icon: <Users size={24} />
+        // }
       ];
 
       const recentActivities = [];
@@ -5894,8 +5901,8 @@ You can also save this image and share it directly!`;
             {
               id: 1,
               title: "Current Streak",
-              value: streakData?.currentStreak || 0,
-              change: streakData?.todayVerified ? "+1" : "0",
+              value: currentStreak || 0,
+              change: todayVerified ? "+1" : "0",
               description: "Consecutive verified days",
               icon: <Flame size={24} />
             },
@@ -5931,14 +5938,14 @@ You can also save this image and share it directly!`;
               description: "Impact on community",
               icon: <TrendingUp size={24} />
             },
-            {
-              id: 6,
-              title: "Global Rank",
-              value: `#${Math.floor(Math.random() * 1000) + 1}`,
-              change: (streakData?.currentStreak || 0) > 0 ? "↑12" : "0",
-              description: "Out of 50k users",
-              icon: <Users size={24} />
-            }
+            // {
+            //   id: 6,
+            //   title: "Global Rank",
+            //   value: `#${Math.floor(Math.random() * 1000) + 1}`,
+            //   change: (currentStreak || 0) > 0 ? "↑12" : "0",
+            //   description: "k users",
+            //   icon: <Users size={24} />
+            // }
           ];
 
           const recentActivities = [];
@@ -6185,12 +6192,21 @@ You can also save this image and share it directly!`;
       }
     };
     
+    // Listen for streak updates from verification
+    const handleStreakUpdate = async () => {
+      if (user) {
+        await loadStreakData();
+      }
+    };
+    
     window.addEventListener('verification-complete', handleVerificationComplete);
+    window.addEventListener('streak-updated', handleStreakUpdate);
     
     return () => {
       window.removeEventListener('verification-complete', handleVerificationComplete);
+      window.removeEventListener('streak-updated', handleStreakUpdate);
     };
-  }, [completeVerification, navigateTo]);
+  }, [completeVerification, navigateTo, loadStreakData, user]);
 
   // Listen for auth state changes
   useEffect(() => {
@@ -9162,9 +9178,9 @@ if (isLoading && !userData) {
           <button className="dashboard-nav-link" onClick={() => navigateTo('profile')}>
             Profile
           </button>
-          <button className="dashboard-nav-link" onClick={() => navigateTo('leaderboard')}>
+          {/* <button className="dashboard-nav-link" onClick={() => navigateTo('leaderboard')}>
             Leaderboard
-          </button>
+          </button> */}
           <button className="dashboard-nav-link" onClick={() => navigateTo('settings')}>
             Settings
           </button>
@@ -9274,7 +9290,7 @@ if (isLoading && !userData) {
             <p className="streak-description">
               {userData ?
                 (streakData?.currentStreak > 0
-                  ? isTodayVerified
+                  ? (isTodayVerified || todayVerified)
                     ? `✅ Verified Today! You're on track to beat your longest streak of ${streakData.longestStreak} days.`
                     : `You're on a ${streakData.currentStreak}-day streak! Verify today to continue building discipline.`
                   : 'Begin your discipline journey today! Verify your first day to start your streak and unlock achievements.')
@@ -9285,12 +9301,12 @@ if (isLoading && !userData) {
               {userData ? (
                 <>
                   <button
-                    className={`dashboard-button ${isTodayVerified ? 'verified-button' : 'button-primary'} ${!isTodayVerified ? 'verification-pulse' : ''}`}
+                    className={`dashboard-button ${isTodayVerified || todayVerified ? 'verified-button' : 'button-primary'} ${!(isTodayVerified || todayVerified) ? 'verification-pulse' : ''}`}
                     onClick={handleVerify}
-                    disabled={isTodayVerified}
+                    disabled={isTodayVerified || todayVerified}
                   >
                     <Camera size={20} />
-                    {isTodayVerified ? (
+                    {(isTodayVerified || todayVerified) ? (
                       <>
                         <CheckCircle2 size={20} />
                         Verified Today
@@ -9356,15 +9372,14 @@ if (isLoading && !userData) {
               </div>
             </section>
 
-            {/* Active Challenges */}
-            <section className="activity-section glass">
+            
+            {/* <section className="activity-section glass">
               <div className="section-header">
                 <h2 className="section-title">
-                  <TargetIcon2 size={24} />
-                  Active Challenges
+                  
                 </h2>
                 <button className="view-all-button" onClick={() => navigateTo('challenges')}>
-                  View All
+               
                 </button>
               </div>
 
@@ -9409,7 +9424,7 @@ if (isLoading && !userData) {
                   </div>
                 )}
               </div>
-            </section>
+            </section> */}
 
             {/* Recent Activity - NO VIEW ALL BUTTON */}
             <section className="activity-section glass">

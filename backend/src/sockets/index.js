@@ -69,6 +69,7 @@ class SocketServer {
 
   /**
    * Global middleware for all connections
+   * Handles both Supabase JWTs and custom JWT tokens
    */
   async globalMiddleware(socket, next) {
     try {
@@ -83,8 +84,40 @@ class SocketServer {
         return next(new Error('Authentication required'));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId).select('_id username displayName avatar subscription');
+      // Try to decode as Supabase token first (they use RS256, we can't verify)
+      const decoded = jwt.decode(token, { complete: true });
+      
+      let user;
+      
+      if (decoded && decoded.payload) {
+        // This looks like a Supabase token (has 'sub' claim, uses RS256)
+        const email = decoded.payload.email || decoded.payload.user_metadata?.email;
+        const supabaseId = decoded.payload.sub;
+
+        // Check if token is expired
+        if (decoded.payload.exp && decoded.payload.exp < Math.floor(Date.now() / 1000)) {
+          return next(new Error('Token expired'));
+        }
+
+        // Find user by email or supabaseId
+        if (email || supabaseId) {
+          user = await User.findOne({
+            $or: [
+              { email },
+              { supabaseId }
+            ]
+          }).select('_id username displayName avatar subscription');
+        }
+      } else {
+        // Fallback: try to verify as custom JWT
+        try {
+          const customDecoded = jwt.verify(token, process.env.JWT_SECRET);
+          user = await User.findById(customDecoded.userId).select('_id username displayName avatar subscription');
+        } catch (verifyError) {
+          // Token is neither valid Supabase token nor valid custom token
+          console.error('Token verification failed:', verifyError.message);
+        }
+      }
       
       if (!user) {
         return next(new Error('User not found'));

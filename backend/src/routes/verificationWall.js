@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { authenticateToken: auth } = require('../middleware/auth');
 const { check, validationResult } = require('express-validator');
 const VerificationWall = require('../models/VerificationWall');
 const User = require('../models/user');
@@ -10,8 +10,8 @@ const User = require('../models/user');
 // @access  Private
 router.post('/', auth, [
   check('photoUrl', 'Photo URL is required').not().isEmpty(),
-  check('activityType', 'Activity type is required').isIn(['walk', 'run', 'hike', 'sports', 'gardening', 'picnic', 'meditation', 'reading', 'other']),
-  check('duration', 'Duration is required').isInt({ min: 1, max: 1440 }),
+  check('activityType', 'Activity type is required').optional(),
+  check('duration', 'Duration is required').optional(),
   check('caption', 'Caption must be less than 500 characters').optional().isLength({ max: 500 })
 ], async (req, res) => {
   try {
@@ -20,7 +20,7 @@ router.post('/', auth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { photoUrl, activityType, duration, location, caption, tags, streakId } = req.body;
+    const { photoUrl, activityType = 'other', duration = 30, location, caption, tags, streakId } = req.body;
 
     // Create verification wall post
     const wallPost = new VerificationWall({

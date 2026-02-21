@@ -1,13 +1,10 @@
-import React from 'react';
-  
-  
-  /**
- * TouchGrass Streak Service - Unified Streak Management
- * Ensures consistent streak data across all components
- * Fetches from backend API with localStorage fallback
- */
+// /Users/apple/Documents/touchgrass/frontend/src/services/streakService.js
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://touchgrass-backend.onrender.com';
+/**
+ * TouchGrass Streak Service - REAL DATA ONLY
+ * Fetches 100% real streak data from MongoDB
+ */
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001') + '/api'
 
 class StreakService {
   constructor() {
@@ -15,118 +12,51 @@ class StreakService {
     this.cacheTimestamp = null;
     this.cacheDuration = 30000; // 30 seconds cache
     this.listeners = new Set();
+    this.refreshPromise = null;
   }
 
   /**
-   * Get authentication token from storage
+   * Get auth token from Supabase session
    */
   getAuthToken() {
-    const tokenSources = [
-      () => localStorage.getItem('touchgrass_token'),
-      () => localStorage.getItem('touchgrass_access_token'),
-      () => localStorage.getItem('access_token'),
-      () => localStorage.getItem('supabase.auth.token'),
-      () => localStorage.getItem('sb-auth-token'),
-      () => {
-        const session = localStorage.getItem('sb-lkrwoidwisbwktndxoca-auth-token');
-        if (session) {
-          try {
-            const parsed = JSON.parse(session);
-            return parsed?.access_token || null;
-          } catch (e) {
-            return null;
-          }
-        }
-        return null;
-      }
-    ];
-
-    for (const source of tokenSources) {
-      try {
-        const token = source();
-        if (token && token !== 'undefined' && token !== 'null') {
-          // Handle JSON encoded tokens
-          if (token.startsWith('{') || token.startsWith('[')) {
-            try {
-              const parsed = JSON.parse(token);
-              return parsed.access_token || parsed.token || null;
-            } catch (e) {
-              continue;
-            }
-          }
-          return token;
-        }
-      } catch (e) {
-        continue;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Get user data from storage
-   */
-  getUserFromStorage() {
     try {
-      const userData = localStorage.getItem('touchgrass_user');
-      if (userData) {
-        return JSON.parse(userData);
-      }
-      
-      // Try auth state
-      const authState = localStorage.getItem('authState');
-      if (authState) {
-        const auth = JSON.parse(authState);
-        if (auth?.user) {
-          return auth.user;
+      // Try the REAL token storage
+      const realTokenKey = 'sb-lkrwoidwisbwktndxoca-auth-token';
+      const realTokenValue = localStorage.getItem(realTokenKey);
+      if (realTokenValue) {
+        try {
+          const parsed = JSON.parse(realTokenValue);
+          if (parsed?.access_token) {
+            return parsed.access_token;
+          }
+        } catch (e) {
+          return realTokenValue;
         }
       }
       
-      // Try Supabase session
-      const supabaseSession = localStorage.getItem('sb-lkrwoidwisbwktndxoca-auth-token');
-      if (supabaseSession) {
-        const session = JSON.parse(supabaseSession);
-        if (session?.user) {
-          return {
-            id: session.user.id,
-            email: session.user.email,
-            username: session.user.email?.split('@')[0] || 'user',
-            displayName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
-          };
-        }
+      // Try alternative token formats
+      const altTokenKey = 'supabase.auth.token';
+      const altTokenValue = localStorage.getItem(altTokenKey);
+      if (altTokenValue) {
+        try {
+          const parsed = JSON.parse(altTokenValue);
+          return parsed?.access_token || 
+                 parsed?.currentSession?.access_token || 
+                 parsed?.session?.access_token;
+        } catch (e) {}
       }
-    } catch (error) {
-      console.error('Error getting user from storage:', error);
+      
+      return null;
+    } catch (e) {
+      return null;
     }
-    return null;
   }
 
   /**
-   * Get local streak data from localStorage (fallback)
+   * Check if user is authenticated
    */
-  getLocalStreakData(username) {
-    try {
-      const streakKey = `touchgrass_streak_${username || 'default'}`;
-      const storedData = localStorage.getItem(streakKey);
-      if (storedData) {
-        return JSON.parse(storedData);
-      }
-    } catch (error) {
-      console.error('Error getting local streak data:', error);
-    }
-    return null;
-  }
-
-  /**
-   * Save streak data to localStorage
-   */
-  saveLocalStreakData(username, data) {
-    try {
-      const streakKey = `touchgrass_streak_${username || 'default'}`;
-      localStorage.setItem(streakKey, JSON.stringify(data));
-    } catch (error) {
-      console.error('Error saving local streak data:', error);
-    }
+  isAuthenticated() {
+    return !!this.getAuthToken();
   }
 
   /**
@@ -138,326 +68,412 @@ class StreakService {
   }
 
   /**
-   * Fetch streak data from backend API
+   * Refresh session token
    */
-  async fetchStreakFromAPI() {
-    const token = this.getAuthToken();
+  async refreshSession() {
+    if (this.refreshPromise) return this.refreshPromise;
     
-    if (!token) {
-      console.log('No auth token found, using local data');
-      return null;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/streaks/current`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data?.streak || data;
-      } else if (response.status === 401) {
-        console.log('Token expired or invalid');
-        return null;
-      } else {
-        console.log('API response not ok:', response.status);
-        return null;
-      }
-    } catch (error) {
-      console.error('Error fetching streak from API:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Verify today's streak
-   */
-  async verifyToday(verificationData) {
-    const token = this.getAuthToken();
-    const user = this.getUserFromStorage();
-    
-    if (!token) {
-      // Fallback to local verification
-      return this.verifyLocal(user?.username, verificationData);
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/streaks/verify`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(verificationData)
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+    this.refreshPromise = (async () => {
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const { data, error } = await supabase.auth.refreshSession();
         
-        // Update local storage with new streak data
-        if (data?.streak) {
-          this.saveLocalStreakData(user?.username, {
-            currentStreak: data.streak.current || data.streak.currentStreak,
-            longestStreak: data.streak.longest || data.streak.longestStreak,
-            totalDays: data.streak.totalDays || 0,
-            todayVerified: true,
-            lastVerification: new Date().toISOString(),
-            history: data.streak.history || []
-          });
-        }
+        if (error) throw error;
         
-        // Invalidate cache
-        this.cache = null;
-        this.cacheTimestamp = null;
-        
-        // Notify listeners
-        this.notifyListeners();
-        
-        return { success: true, data };
-      } else {
-        const errorData = await response.json();
-        return { success: false, error: errorData?.message || 'Verification failed' };
-      }
-    } catch (error) {
-      console.error('Error verifying streak:', error);
-      // Fallback to local verification
-      return this.verifyLocal(user?.username, verificationData);
-    }
-  }
-
-  /**
-   * Local verification fallback
-   */
-  verifyLocal(username, verificationData) {
-    try {
-      const streakData = this.getLocalStreakData(username) || {
-        currentStreak: 0,
-        longestStreak: 0,
-        totalDays: 0,
-        totalOutdoorTime: 0,
-        history: [],
-        todayVerified: false,
-        lastVerification: null
-      };
-
-      // Check if already verified today
-      if (streakData.todayVerified) {
-        return { success: false, error: 'Already verified today' };
-      }
-
-      const today = new Date().toDateString();
-      const lastVerification = streakData.lastVerification ? new Date(streakData.lastVerification) : null;
-      
-      // Check if streak should continue or reset
-      let newCurrentStreak = streakData.currentStreak;
-      if (lastVerification) {
-        const lastDate = new Date(lastVerification);
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        if (lastDate.toDateString() !== yesterday.toDateString() && 
-            lastDate.toDateString() !== today) {
-          // Streak broken - reset
-          newCurrentStreak = 0;
-        }
-      }
-
-      const updatedData = {
-        ...streakData,
-        currentStreak: newCurrentStreak + 1,
-        longestStreak: Math.max(streakData.longestStreak, newCurrentStreak + 1),
-        totalDays: (streakData.totalDays || 0) + 1,
-        totalOutdoorTime: (streakData.totalOutdoorTime || 0) + (verificationData.duration || 30),
-        todayVerified: true,
-        lastVerification: new Date().toISOString(),
-        history: [
-          ...(streakData.history || []),
-          {
-            date: new Date().toISOString(),
-            verified: true,
-            duration: verificationData.duration || 30,
-            activity: verificationData.activity || 'Outdoor time',
-            method: verificationData.method || 'manual'
+        if (data?.session?.access_token) {
+          // Update localStorage
+          const mainKey = 'sb-lkrwoidwisbwktndxoca-auth-token';
+          const existingMain = localStorage.getItem(mainKey);
+          if (existingMain) {
+            const parsed = JSON.parse(existingMain);
+            parsed.access_token = data.session.access_token;
+            parsed.expires_at = data.session.expires_at;
+            localStorage.setItem(mainKey, JSON.stringify(parsed));
           }
-        ]
-      };
+          
+          return data.session.access_token;
+        }
+        
+        return null;
+      } catch (error) {
+        console.error('❌ Error refreshing session:', error);
+        return null;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+    
+    return this.refreshPromise;
+  }
 
-      this.saveLocalStreakData(username, updatedData);
-      
-      // Invalidate cache
-      this.cache = null;
-      this.cacheTimestamp = null;
-      
-      // Notify listeners
-      this.notifyListeners();
+  /**
+   * Make authenticated API request
+   */
+  async makeRequest(endpoint, options = {}, retryCount = 0) {
+    const token = this.getAuthToken();
+    
+    if (!token) {
+      if (retryCount < 1) {
+        const newToken = await this.refreshSession();
+        if (newToken) {
+          return this.makeRequest(endpoint, options, retryCount + 1);
+        }
+      }
+      throw new Error('No auth token found - please log in');
+    }
 
-      return { 
-        success: true, 
-        data: { 
-          streak: updatedData,
-          message: `Day ${updatedData.currentStreak} verified!`
-        } 
-      };
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
+
+      if (response.status === 401 && retryCount < 1) {
+        const newToken = await this.refreshSession();
+        if (newToken) {
+          return this.makeRequest(endpoint, options, retryCount + 1);
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      }
+
+      return await response.json();
+      
     } catch (error) {
-      console.error('Error in local verification:', error);
-      return { success: false, error: 'Verification failed' };
+      throw error;
     }
   }
 
   /**
-   * Get unified streak data - main method to be used by all components
+   * Get current streak data
    */
-  async getStreakData() {
-    // Return cached data if valid
+  async getCurrentStreak() {
     if (this.isCacheValid()) {
       return this.cache;
     }
-
-    const user = this.getUserFromStorage();
-    const username = user?.username || 'default';
-
-    // Try to fetch from API first
-    const apiData = await this.fetchStreakFromAPI();
     
-    if (apiData) {
-      // Normalize API data
-      const normalizedData = {
-        currentStreak: apiData.current || apiData.currentStreak || 0,
-        longestStreak: apiData.longest || apiData.longestStreak || 0,
-        totalDays: apiData.totalDays || 0,
-        totalOutdoorTime: apiData.totalOutdoorTime || 0,
-        todayVerified: apiData.todayVerified || false,
-        lastVerification: apiData.lastVerification || null,
-        history: apiData.history || [],
-        status: apiData.status || 'active',
-        consistency: apiData.consistency || apiData.verificationRate || 0,
-        averageDuration: apiData.averageDuration || 0,
-        shareCount: apiData.shareCount || 0,
-        viralScore: apiData.viralScore || 0,
-        challengeWins: apiData.challengeWins || 0,
-        source: 'api'
-      };
-      
-      // Save to local storage for offline use
-      this.saveLocalStreakData(username, normalizedData);
-      
-      // Update cache
-      this.cache = normalizedData;
-      this.cacheTimestamp = Date.now();
-      
-      return normalizedData;
-    }
-
-    // Fallback to local storage
-    const localData = this.getLocalStreakData(username);
-    
-    if (localData) {
-      // Check and update today's verification status
-      const today = new Date().toDateString();
-      const lastVerification = localData.lastVerification ? new Date(localData.lastVerification) : null;
-      
-      // Reset todayVerified if it's a new day
-      if (lastVerification && lastVerification.toDateString() !== today) {
-        localData.todayVerified = false;
+    try {
+      if (!this.isAuthenticated()) {
+        return this.getDefaultStreakData();
       }
       
-      // Check if streak is broken (missed yesterday)
-      if (lastVerification) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+      const data = await this.makeRequest('/streaks/current');
+      
+      if (data.success && data.streak) {
+        const normalizedData = {
+          current: data.streak.current || 0,
+          longest: data.streak.longest || 0,
+          totalDays: data.streak.totalDays || 0,
+          totalOutdoorTime: data.streak.totalOutdoorTime || 0,
+          todayVerified: data.streak.todayVerified || false,
+          lastVerification: data.streak.lastVerification,
+          lastVerificationDate: data.streak.lastVerificationDate,
+          status: data.streak.status || 'active',
+          verificationRate: data.streak.verificationRate || 0,
+          averageDuration: data.streak.averageDuration || 0,
+          freezeTokens: data.streak.freezeTokens || 0,
+          isAtRisk: data.streak.isAtRisk || false,
+          streakStartDate: data.streak.streakStartDate,
+          milestones: data.streak.milestones || [],
+          activeChallenges: data.streak.activeChallenges || 0,
+          id: data.streak.id,
+          canVerify: data.streak.canVerify !== false,
+          hoursRemaining: data.streak.hoursRemaining || 0,
+          nextVerificationTime: data.streak.nextVerificationTime
+        };
         
-        if (lastVerification.toDateString() !== yesterday.toDateString() && 
-            lastVerification.toDateString() !== today &&
-            !localData.todayVerified) {
-          // Streak is broken
-          localData.currentStreak = 0;
-          localData.status = 'broken';
-        }
+        this.cache = normalizedData;
+        this.cacheTimestamp = Date.now();
+        
+        return normalizedData;
       }
       
-      const normalizedData = {
-        currentStreak: localData.currentStreak || 0,
-        longestStreak: localData.longestStreak || 0,
-        totalDays: localData.totalDays || 0,
-        totalOutdoorTime: localData.totalOutdoorTime || 0,
-        todayVerified: localData.todayVerified || false,
-        lastVerification: localData.lastVerification || null,
-        history: localData.history || [],
-        status: localData.status || 'active',
-        consistency: localData.consistency || 0,
-        averageDuration: localData.averageDuration || 0,
-        shareCount: localData.shareCount || 0,
-        viralScore: localData.viralScore || 0,
-        challengeWins: localData.challengeWins || 0,
-        source: 'local'
-      };
+      return this.getDefaultStreakData();
       
-      // Update cache
-      this.cache = normalizedData;
-      this.cacheTimestamp = Date.now();
-      
-      return normalizedData;
+    } catch (error) {
+      console.error('❌ Error fetching streak:', error.message);
+      return this.getDefaultStreakData();
     }
+  }
 
-    // Return default data
-    const defaultData = {
-      currentStreak: 0,
-      longestStreak: 0,
+  /**
+   * Check if user can verify
+   */
+  async checkCanVerify() {
+    try {
+      if (!this.isAuthenticated()) {
+        return { canVerify: true, hoursRemaining: 0 };
+      }
+      
+      const data = await this.makeRequest('/streaks/can-verify');
+      return {
+        canVerify: data.canVerify,
+        hoursRemaining: data.hoursRemaining,
+        lastVerification: data.lastVerification,
+        nextVerificationTime: data.nextVerificationTime
+      };
+    } catch (error) {
+      console.error('Error checking verify status:', error);
+      return { canVerify: true, hoursRemaining: 0 };
+    }
+  }
+
+  /**
+   * Verify today's activity
+   */
+  async verifyToday(verificationData) {
+    try {
+      if (!this.isAuthenticated()) {
+        return {
+          success: false,
+          error: 'Please log in to verify your streak'
+        };
+      }
+
+      const data = await this.makeRequest('/streaks/verify', {
+        method: 'POST',
+        body: JSON.stringify(verificationData)
+      });
+      
+      if (data.success) {
+        this.clearCache();
+        this.notifyListeners();
+        
+        return {
+          success: true,
+          message: data.message,
+          streak: data.streak
+        };
+      }
+      
+      return {
+        success: false,
+        error: data.message || 'Verification failed'
+      };
+    } catch (error) {
+      console.error('❌ Error verifying streak:', error);
+      return {
+        success: false,
+        error: error.message || 'Verification failed'
+      };
+    }
+  }
+
+  /**
+   * Use freeze token
+   */
+  async useFreezeToken(reason) {
+    try {
+      if (!this.isAuthenticated()) {
+        return {
+          success: false,
+          error: 'Please log in to use freeze tokens'
+        };
+      }
+
+      const data = await this.makeRequest('/streaks/freeze', {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      
+      if (data.success) {
+        this.clearCache();
+        this.notifyListeners();
+        return data;
+      }
+      
+      return {
+        success: false,
+        error: data.message || 'Failed to use freeze token'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Failed to use freeze token'
+      };
+    }
+  }
+
+  /**
+   * Get streak history
+   */
+  async getHistory(limit = 30, offset = 0) {
+    try {
+      if (!this.isAuthenticated()) {
+        return { history: [], total: 0, hasMore: false };
+      }
+
+      const data = await this.makeRequest(
+        `/streaks/history?limit=${limit}&offset=${offset}`
+      );
+      
+      return {
+        history: data.history || [],
+        total: data.total || 0,
+        hasMore: data.hasMore || false
+      };
+    } catch (error) {
+      return {
+        history: [],
+        total: 0,
+        hasMore: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Get calendar data
+   */
+  async getCalendarData(year, month) {
+    try {
+      if (!this.isAuthenticated()) {
+        return this.getEmptyCalendar(year, month);
+      }
+
+      const data = await this.makeRequest(
+        `/streaks/calendar/${year}/${month}`
+      );
+      
+      return {
+        calendar: data.calendar || [],
+        stats: data.stats || {
+          verifiedDays: 0,
+          totalDays: 0,
+          totalDuration: 0,
+          shameDays: 0
+        }
+      };
+    } catch (error) {
+      return this.getEmptyCalendar(year, month);
+    }
+  }
+
+  /**
+   * Get empty calendar
+   */
+  getEmptyCalendar(year, month) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDay = new Date(year, month - 1, 1).getDay();
+    
+    const calendar = [];
+    
+    for (let i = 0; i < firstDay; i++) {
+      calendar.push({ day: null, data: null });
+    }
+    
+    for (let d = 1; d <= daysInMonth; d++) {
+      calendar.push({
+        day: d,
+        date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+        data: null
+      });
+    }
+    
+    return {
+      calendar,
+      stats: {
+        verifiedDays: 0,
+        totalDays: 0,
+        totalDuration: 0,
+        shameDays: 0
+      }
+    };
+  }
+
+  /**
+   * Get stats
+   */
+  async getStats() {
+    try {
+      if (!this.isAuthenticated()) {
+        return this.getDefaultStats();
+      }
+
+      const data = await this.makeRequest('/streaks/stats');
+      
+      if (data.success && data.stats) {
+        return data.stats;
+      }
+      
+      return this.getDefaultStats();
+    } catch (error) {
+      return this.getDefaultStats();
+    }
+  }
+
+  /**
+   * Get default streak data
+   */
+  getDefaultStreakData() {
+    return {
+      current: 0,
+      longest: 0,
       totalDays: 0,
       totalOutdoorTime: 0,
       todayVerified: false,
       lastVerification: null,
-      history: [],
-      status: 'active',
-      consistency: 0,
+      lastVerificationDate: null,
+      status: 'inactive',
+      verificationRate: 0,
       averageDuration: 0,
-      shareCount: 0,
-      viralScore: 0,
-      challengeWins: 0,
-      source: 'default'
+      freezeTokens: 0,
+      isAtRisk: false,
+      streakStartDate: null,
+      milestones: [],
+      activeChallenges: 0,
+      id: null,
+      canVerify: true,
+      hoursRemaining: 0,
+      nextVerificationTime: null
     };
-    
-    // Save default to local storage
-    this.saveLocalStreakData(username, defaultData);
-    
-    // Update cache
-    this.cache = defaultData;
-    this.cacheTimestamp = Date.now();
-    
-    return defaultData;
   }
 
   /**
-   * Sync local data with API
+   * Get default stats
    */
-  async syncWithAPI() {
-    const apiData = await this.fetchStreakFromAPI();
-    const user = this.getUserFromStorage();
-    
-    if (apiData && user) {
-      this.saveLocalStreakData(user.username, apiData);
-      this.cache = null;
-      this.cacheTimestamp = null;
-      this.notifyListeners();
-      return true;
-    }
-    return false;
+  getDefaultStats() {
+    return {
+      currentStreak: 0,
+      longestStreak: 0,
+      totalDays: 0,
+      totalOutdoorTime: 0,
+      averageDuration: 0,
+      verificationRate: 0,
+      todayVerified: false,
+      freezeTokens: 0,
+      milestones: [],
+      monthlyStats: []
+    };
   }
 
   /**
-   * Subscribe to streak data changes
+   * Clear cache
+   */
+  clearCache() {
+    this.cache = null;
+    this.cacheTimestamp = null;
+  }
+
+  /**
+   * Subscribe to changes
    */
   subscribe(callback) {
-    this.listeners.add(callback);
+    if (typeof callback === 'function') {
+      this.listeners.add(callback);
+    }
     return () => this.listeners.delete(callback);
   }
 
   /**
-   * Notify all listeners of data changes
+   * Notify listeners
    */
   notifyListeners() {
     this.listeners.forEach(callback => {
@@ -467,44 +483,6 @@ class StreakService {
         console.error('Error in streak listener:', error);
       }
     });
-  }
-
-  /**
-   * Clear cache and force refresh
-   */
-  clearCache() {
-    this.cache = null;
-    this.cacheTimestamp = null;
-  }
-
-  /**
-   * Get stats formatted for display
-   */
-  async getStatsForDisplay() {
-    const streakData = await this.getStreakData();
-    const user = this.getUserFromStorage();
-    
-    // Calculate consistency
-    const joinDate = user?.createdAt ? new Date(user.createdAt) : new Date();
-    const daysSinceJoin = Math.max(1, Math.floor((new Date() - joinDate) / (1000 * 60 * 60 * 24)));
-    const consistency = streakData.totalDays > 0 
-      ? Math.min(100, Math.round((streakData.totalDays / daysSinceJoin) * 100))
-      : 0;
-
-    return {
-      currentStreak: streakData.currentStreak,
-      longestStreak: streakData.longestStreak,
-      totalDays: streakData.totalDays,
-      totalOutdoorTime: streakData.totalOutdoorTime,
-      todayVerified: streakData.todayVerified,
-      consistency: consistency,
-      averageDuration: streakData.averageDuration,
-      shareCount: streakData.shareCount,
-      viralScore: streakData.viralScore,
-      challengeWins: streakData.challengeWins,
-      status: streakData.status,
-      lastVerification: streakData.lastVerification
-    };
   }
 }
 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { authenticateToken: auth } = require('../middleware/auth');
 const { check, validationResult } = require('express-validator');
 const dodoPayments = require('../services/dodopayment');
 const User = require('../models/user');
