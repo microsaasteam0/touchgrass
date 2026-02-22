@@ -1,10 +1,14 @@
-// /Users/apple/Documents/touchgrass/frontend/src/services/streakService.js
+import React from 'react';
+  
+  // /Users/apple/Documents/touchgrass/frontend/src/services/streakService.js
 
 /**
  * TouchGrass Streak Service - REAL DATA ONLY
  * Fetches 100% real streak data from MongoDB
  */
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001') + '/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : 'http://localhost:5001/api'
 
 class StreakService {
   constructor() {
