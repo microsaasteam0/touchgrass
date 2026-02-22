@@ -528,7 +528,7 @@ import { supabase } from '../lib/supabase';
 
 const API_BASE = import.meta.env.VITE_API_URL 
   ? `${import.meta.env.VITE_API_URL}/api` 
-  : 'https://touchgrass-backend.onrender.com/api';
+  : 'https://touchgrass-7.onrender.com/api';
 
 // Helper to get auth token from Supabase
 const getAuthToken = async () => {
