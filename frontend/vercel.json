@@ -10,7 +10,7 @@
     }
   ],
   "env": {
-    "VITE_API_URL": "http://localhost:5001/api",
+    "VITE_API_URL": "https://touchgrass-7.onrender.com/api",
     "VITE_SITE_URL": "https://touchgrass.entrext.in"
   }
 }
