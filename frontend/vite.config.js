@@ -36,7 +36,11 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           ui: ['styled-components', 'framer-motion'],
           auth: ['@react-oauth/google', 'jwt-decode'],
-        }
+        },
+        // Enable content hashing for cache busting
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]'
       }
     }
   }
