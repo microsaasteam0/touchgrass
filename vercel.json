@@ -3,7 +3,7 @@
   "builds": [
     {
       "src": "frontend/package.json",
-       "framework": "vite"
+      "framework": "vite"
     },
     {
       "src": "api/**/*.js",
@@ -22,6 +22,7 @@
   ],
   "env": {
     "MONGODB_URI": "mongodb+srv://hitanshiee:Hitanshii14@touchgrass.dgyxbbm.mongodb.net/touchgrass?retryWrites=true&w=majority&appName=touchgrass",
-    "JWT_SECRET": "rrpdIlmvnxRgUR28zVdUkPkiSTWJD1zKms7CH5GRZSA="
+    "JWT_SECRET": "rrpdIlmvnxRgUR28zVdUkPkiSTWJD1zKms7CH5GRZSA=",
+    "VITE_API_URL": "https://touchgrass-7.onrender.com"
   }
 }
