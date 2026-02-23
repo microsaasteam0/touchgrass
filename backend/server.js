@@ -4916,13 +4916,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-// Rate limiting
+// Rate limiting - skip OPTIONS requests for CORS preflight
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: NODE_ENV === 'development' ? 1000 : 100,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === '/api/health' || req.path === '/api',
+  skip: (req) => req.method === 'OPTIONS' || req.path === '/api/health' || req.path === '/api',
   message: {
     success: false,
     message: 'Too many requests, please try again later.'
