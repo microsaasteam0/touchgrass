@@ -1,7 +1,7 @@
 // /Users/apple/Documents/touchgrass/frontend/src/contexts/StreakContext.jsx
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import streakService from '../services/streakservice';
+import streakService from '../services/streakService';
 
 const StreakContext = createContext();
 
