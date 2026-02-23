@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useStreak } from '../contexts/StreakContext';
-import streakService from '../services/streakservice';
+import streakService from '../services/streakService';
 import { verificationWallApi } from '../services/api';
 import { 
   Camera, 

@@ -2079,7 +2079,7 @@ import { useNavigate } from 'react-router-dom';
 import AuthContext from '../contexts/AuthContext';
 import { useStreak } from '../contexts/StreakContext';
 import unifiedChallengeService from '../services/unifiedChallengeService';
-import streakService from '../services/streakservice';
+import streakService from '../services/streakService';
 import {
   Trophy, Users, TrendingUp, Calendar, Target, Sparkles,
   Clock, Award, Activity, Camera, CheckCircle2, Plus,
