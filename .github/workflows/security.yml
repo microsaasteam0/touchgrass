@@ -1,0 +1,14 @@
+name: Security
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  security-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dummy security check
+        run: echo "Security check skipped temporarily"
