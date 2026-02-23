@@ -513,7 +513,16 @@ class ErrorHandler {
   cors = (req, res, next) => {
     const allowedOrigins = process.env.ALLOWED_ORIGINS 
       ? process.env.ALLOWED_ORIGINS.split(',')
-      : ['http://localhost:3000', 'https://touchgrass.now'];
+      : [
+          'http://localhost:3000',
+          'http://localhost:5173',
+          'http://localhost:5001',
+          'http://127.0.0.1:3000',
+          process.env.FRONTEND_URL,
+          'https://touchgrass.vercel.app',
+          'https://touchgrass-frontend.onrender.com',
+          'https://touchgrass.entrext.com'
+        ].filter(Boolean);
     
     const origin = req.headers.origin;
     
@@ -522,7 +531,7 @@ class ErrorHandler {
     }
     
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-ID, X-API-Key, X-CSRF-Token, X-2FA-Token');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-ID, X-API-Key, X-CSRF-Token, X-2FA-Token, Accept, Origin, X-Requested-With, X-User-Email, X-Access-Token, X-User-Id');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
     

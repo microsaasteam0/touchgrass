@@ -4860,18 +4860,36 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
+    // In production, be more permissive with known frontend domains
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Always allow these origins
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
       'http://localhost:3002',
       'http://localhost:3003',
       'http://localhost:5001',
+      'http://localhost:5173',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
       'http://127.0.0.1:3002',
       'http://127.0.0.1:3003',
-      FRONTEND_URL
+      FRONTEND_URL,
+      'https://touchgrass.vercel.app',
+      'https://touchgrass-frontend.onrender.com',
+      'https://touchgrass.entrext.com'
     ].filter(Boolean);
+
+    // In production, also allow any origin that matches our domain patterns
+    if (isProduction && origin && (
+      origin.includes('touchgrass') || 
+      origin.includes('entrext') ||
+      origin.includes('vercel') ||
+      origin.includes('render')
+    )) {
+      return callback(null, true);
+    }
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);

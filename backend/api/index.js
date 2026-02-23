@@ -73,7 +73,8 @@ const corsOptions = {
     'http://127.0.0.1:3000', 
     FRONTEND_URL,
     'https://touchgrass.vercel.app',
-    'https://touchgrass-frontend.onrender.com'
+    'https://touchgrass-frontend.onrender.com',
+    'https://touchgrass.entrext.com'
   ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
