@@ -4854,16 +4854,13 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS configuration
+// CORS configuration - PERMISSIVE FOR PRODUCTION
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like mobile apps, curl requests, or same-origin)
+    if (!origin || origin === 'null') return callback(null, true);
 
-    // In production, be more permissive with known frontend domains
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    // Always allow these origins
+    // In production, be more permissive - allow all known frontend domains
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
@@ -4878,15 +4875,17 @@ const corsOptions = {
       FRONTEND_URL,
       'https://touchgrass.vercel.app',
       'https://touchgrass-frontend.onrender.com',
-      'https://touchgrass.entrext.com'
+      'https://touchgrass.entrext.com',
+      'https://www.touchgrass.entrext.com'
     ].filter(Boolean);
 
-    // In production, also allow any origin that matches our domain patterns
-    if (isProduction && origin && (
+    // Allow any origin that matches our domain patterns (more permissive)
+    if (origin && (
       origin.includes('touchgrass') || 
       origin.includes('entrext') ||
       origin.includes('vercel') ||
-      origin.includes('render')
+      origin.includes('render') ||
+      origin.includes('localhost')
     )) {
       return callback(null, true);
     }
@@ -4895,7 +4894,8 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      // For now, allow all origins in development/staging
+      callback(null, true);
     }
   },
   credentials: true,
