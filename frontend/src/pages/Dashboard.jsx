@@ -4837,7 +4837,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useStreak } from '../contexts/StreakContext';
-import streakService from '../services/streakservice';
+import streakService from '../services/streakService';
 import api from '../services/api';
 import {
   Bell,
