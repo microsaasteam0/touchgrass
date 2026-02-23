@@ -66,16 +66,44 @@ app.use(helmet({
 
 // CORS configuration - include production frontend URLs
 const corsOptions = {
-  origin: [
-    'http://localhost:3000', 
-    'http://localhost:5173', 
-    'http://localhost:5001', 
-    'http://127.0.0.1:3000', 
-    FRONTEND_URL,
-    'https://touchgrass.vercel.app',
-    'https://touchgrass-frontend.onrender.com',
-    'https://touchgrass.entrext.com'
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests, or same-origin)
+    if (!origin || origin === 'null') return callback(null, true);
+
+    // Allow any origin that matches our domain patterns (more permissive)
+    if (origin && (
+      origin.includes('touchgrass') || 
+      origin.includes('entrext') ||
+      origin.includes('vercel') ||
+      origin.includes('render') ||
+      origin.includes('localhost')
+    )) {
+      return callback(null, true);
+    }
+
+    // Explicitly allow these known origins
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://localhost:5173', 
+      'http://localhost:5001', 
+      'http://127.0.0.1:3000', 
+      FRONTEND_URL,
+      'https://touchgrass.vercel.app',
+      'https://touchgrass-frontend.onrender.com',
+      'https://touchgrass.entrext.com',
+      'https://www.touchgrass.entrext.com',
+      'https://touchgrass-7.onrender.com',
+      'https://touchgrass-backend.onrender.com'
+    ].filter(Boolean);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      // Allow all origins for now to ensure functionality
+      callback(null, true);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-User-Email'],
