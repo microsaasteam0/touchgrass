@@ -4840,6 +4840,18 @@ const { configureMongoDB } = require('./src/config/database');
 
 const app = express();
 
+
+
+/* 🔥 ABSOLUTE FIRST MIDDLEWARE 🔥 */
+app.use(cors({
+  origin: true,              // reflect request origin
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
+  allowedHeaders: ['*']
+}));
+
+app.options('*', cors());     // MUST be before anything else
+
 // Environment variables
 const PORT = process.env.PORT || 5001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -4854,13 +4866,26 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS configuration - PERMISSIVE FOR PRODUCTION
+// ========== CORS CONFIGURATION - ULTRA-PERMISSIVE FOR PRODUCTION ==========
+// This configuration allows all origins for debugging CORS issues
+// TODO: After debugging, restrict this to your actual frontend domains
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl requests, or same-origin)
-    if (!origin || origin === 'null') return callback(null, true);
+    // This is important for preflight requests and server-to-server communication
+    if (!origin || origin === 'null') {
+      console.log('CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
 
-    // In production, be more permissive - allow all known frontend domains
+    // ULTRA-PERMISSIVE: Allow ALL origins for debugging
+    // This will help identify if CORS is the actual issue
+    console.log('CORS: Allowing origin:', origin);
+    return callback(null, true);
+
+    /* 
+    // TODO: Re-enable this restrictive config after debugging:
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
@@ -4879,7 +4904,7 @@ const corsOptions = {
       'https://www.touchgrass.entrext.com'
     ].filter(Boolean);
 
-    // Allow any origin that matches our domain patterns (more permissive)
+    // Allow any origin that matches our domain patterns
     if (origin && (
       origin.includes('touchgrass') || 
       origin.includes('entrext') ||
@@ -4894,9 +4919,9 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
-      // For now, allow all origins in development/staging
-      callback(null, true);
+      callback(null, true); // Allow all for now
     }
+    */
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -4957,6 +4982,51 @@ app.get('/', (req, res) => {
 app.get('/healthz', (req, res) => {
   res.status(200).json({
     status: 'ok',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ========== DEBUG MIDDLEWARE - LOG CORS HEADERS ==========
+// This middleware logs CORS headers for debugging
+app.use((req, res, next) => {
+  // Only log for API routes
+  if (req.path.startsWith('/api')) {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    console.log('  Origin:', req.headers.origin);
+    console.log('  CORS headers sent:', {
+      'Access-Control-Allow-Origin': res.getHeader('Access-Control-Allow-Origin'),
+      'Access-Control-Allow-Credentials': res.getHeader('Access-Control-Allow-Credentials'),
+      'Access-Control-Allow-Methods': res.getHeader('Access-Control-Allow-Methods'),
+      'Access-Control-Allow-Headers': res.getHeader('Access-Control-Allow-Headers')
+    });
+  }
+  next();
+});
+
+// ========== TEST CORS ENDPOINT ==========
+// Use this endpoint to test if CORS is working correctly
+// Test with: fetch('https://your-backend-url/api/test-cors', { credentials: 'include' })
+app.options('/api/test-cors', cors(corsOptions));
+app.get('/api/test-cors', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CORS is working!',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString(),
+    corsHeaders: {
+      'Access-Control-Allow-Origin': res.getHeader('Access-Control-Allow-Origin'),
+      'Access-Control-Allow-Credentials': res.getHeader('Access-Control-Allow-Credentials')
+    }
+  });
+});
+
+// Debug endpoint to test challenges route specifically
+app.options('/api/challenges/test', cors(corsOptions));
+app.get('/api/challenges/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Challenges CORS endpoint is working!',
+    origin: req.headers.origin,
     timestamp: new Date().toISOString()
   });
 });
