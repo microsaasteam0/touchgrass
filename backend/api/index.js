@@ -107,7 +107,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: '*',
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-Access-Token', 'X-User-Id'],
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 };
 

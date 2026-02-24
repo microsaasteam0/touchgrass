@@ -4847,7 +4847,7 @@ app.use(cors({
   origin: true,              // reflect request origin
   credentials: true,
   methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
-  allowedHeaders: ['*']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-Access-Token', 'X-User-Id'],
 }));
 
 app.options('*', cors());     // MUST be before anything else
