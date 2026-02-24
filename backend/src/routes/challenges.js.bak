@@ -33,11 +33,6 @@
 // ... rest of your Challenges.js code remains the same ...
 const express = require('express');
 const router = express.Router();
-const cors = require("cors");
-
-// Apply CORS to all routes in this router - CRITICAL for cross-origin requests
-router.use(cors());
-router.options("*", cors());
 const Challenge = require('../models/Challenge');
 const UserChallenge = require('../models/UserChallenge');
 const mongoose = require('mongoose');
