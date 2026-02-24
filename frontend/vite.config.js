@@ -8,10 +8,12 @@ export default defineConfig({
       'touchgrass2.onrender.com',
       'touchgrass-backend.onrender.com',
       'touchgrass-7.onrender.com'
+      
     ],
     proxy: {
       '/api': {
-        target: 'http://localhost:5001',
+        target: 'https://touchgrass-7.onrender.com',
+                
         changeOrigin: true,
         secure: false,
       }

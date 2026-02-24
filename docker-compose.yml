@@ -42,7 +42,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: development
-      VITE_BACKEND_URL: http://localhost:5001/api
+      VITE_BACKEND_URL: 'https://touchgrass-7.onrender.com/api'
     ports:
       - "3000:3000"
     depends_on:
