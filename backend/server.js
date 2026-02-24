@@ -4842,16 +4842,6 @@ const app = express();
 
 
 
-/* 🔥 ABSOLUTE FIRST MIDDLEWARE 🔥 */
-app.use(cors({
-  origin: true,              // reflect request origin
-  credentials: true,
-  methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-Access-Token', 'X-User-Id'],
-}));
-
-app.options('*', cors());     // MUST be before anything else
-
 // Environment variables
 const PORT = process.env.PORT || 5001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
