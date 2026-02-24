@@ -220,7 +220,7 @@ export const chatModalState = atom({
 // ==============================
 class ChatService {
   constructor() {
-    this.API_URL = process.env.REACT_APP_API_URL || 'https://touchgrass-backend.onrender.com/api';
+    this.API_URL = process.env.REACT_APP_API_URL || 'https://touchgrass-7.onrender.com/api';
     this.socket = null;
   }
 

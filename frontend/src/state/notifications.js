@@ -214,7 +214,7 @@ export const notificationSoundState = atom({
 // ==============================
 class NotificationService {
   constructor() {
-    this.API_URL = process.env.REACT_APP_API_URL || 'https://touchgrass-backend.onrender.com/api';
+    this.API_URL = process.env.REACT_APP_API_URL || 'https://touchgrass-7.onrender.com/api';
     this.sounds = {
       streak: '/sounds/streak-notification.mp3',
       achievement: '/sounds/achievement-unlock.mp3',

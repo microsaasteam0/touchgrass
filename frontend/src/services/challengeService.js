@@ -1,6 +1,6 @@
 import React from 'react';
   
-  const API_URL = import.meta.env.VITE_BACKEND_URL || 'https://touchgrass-backend.onrender.com/api';
+  const API_URL = import.meta.env.VITE_BACKEND_URL || 'https://touchgrass-7.onrender.com/api';
 
 // Helper to get auth token from various storage locations
 const getAuthToken = () => {

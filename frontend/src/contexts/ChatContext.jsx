@@ -246,7 +246,7 @@ export const ChatProvider = ({ children }) => {
 
     try {
       const token = getAuthToken();
-      const response = await fetch('https://touchgrass-backend.onrender.com/api/chat/messages', {
+      const response = await fetch('https://touchgrass-7.onrender.com/api/chat/messages', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

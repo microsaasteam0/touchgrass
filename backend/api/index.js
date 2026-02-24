@@ -93,7 +93,7 @@ const corsOptions = {
       'https://touchgrass.entrext.com',
       'https://www.touchgrass.entrext.com',
       'https://touchgrass-7.onrender.com',
-      'https://touchgrass-backend.onrender.com'
+      'https://touchgrass-7.onrender.com'
     ].filter(Boolean);
 
     if (allowedOrigins.includes(origin)) {

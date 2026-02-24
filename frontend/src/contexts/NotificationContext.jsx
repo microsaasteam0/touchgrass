@@ -209,7 +209,7 @@ export const NotificationProvider = ({ children }) => {
 
     try {
       const token = getAuthToken();
-      const response = await fetch('https://touchgrass-backend.onrender.com/api/notifications', {
+      const response = await fetch('https://touchgrass-7.onrender.com/api/notifications', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
